@@ -1,0 +1,28 @@
+{
+  "name": "@devsync/ai-reasoner",
+  "version": "0.1.0",
+  "description": "AI-powered migration explanation and risk assessment",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "watch": "tsx watch src/index.ts"
+  },
+  "keywords": [
+    "ai",
+    "migration",
+    "database",
+    "schema",
+    "explanation"
+  ],
+  "author": "DevSync.AI",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.16.5",
+    "typescript": "^5.8.3",
+    "tsx": "^4.19.2"
+  }
+}

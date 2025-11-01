@@ -1,0 +1,83 @@
+name: DevSync Schema Scan (Simple)
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - '**/schema.prisma'
+      - '**/*.prisma'
+
+jobs:
+  scan:
+    name: Scan Schema
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and Build CLI
+        run: |
+          cd packages/cli
+          npm ci
+          npm run build
+
+      - name: Run DevSync Scan
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        continue-on-error: true
+        run: |
+          cd packages/cli
+          node dist/index.js scan \
+            --path ../.. \
+            --db "$DATABASE_URL" \
+            --json \
+            --output .devsync/scan-results.json || true
+
+      - name: Comment PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            let comment = '## 🔍 DevSync Schema Scan\n\n';
+            
+            const resultsPath = 'packages/cli/.devsync/scan-results.json';
+            if (fs.existsSync(resultsPath)) {
+              const results = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+              
+              if (results.mismatches && results.mismatches.length > 0) {
+                comment += `⚠️ **Found ${results.mismatches.length} mismatch(es)**\n\n`;
+                
+                results.mismatches.slice(0, 10).forEach((mismatch, index) => {
+                  comment += `${index + 1}. **${mismatch.type}**: \`${mismatch.model}${mismatch.field ? '.' + mismatch.field : ''}\`\n`;
+                  if (mismatch.suggestedFix) {
+                    comment += `   \`\`\`sql\n   ${mismatch.suggestedFix}\n   \`\`\`\n`;
+                  }
+                });
+                
+                if (results.mismatches.length > 10) {
+                  comment += `\n*... and ${results.mismatches.length - 10} more*\n`;
+                }
+              } else {
+                comment += '✅ **No mismatches found!** Your schema is in sync.\n';
+              }
+            } else {
+              comment += '⚠️ Scan completed but results file not found.\n';
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+

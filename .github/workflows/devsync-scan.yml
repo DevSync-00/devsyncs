@@ -1,0 +1,157 @@
+name: DevSync Schema Scan
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - '**/schema.prisma'
+      - '**/*.prisma'
+      - '.devsync/**'
+      - '.github/workflows/devsync-scan.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - '**/schema.prisma'
+      - '**/*.prisma'
+      - '.devsync/**'
+
+jobs:
+  scan:
+    name: Scan Schema for Mismatches
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install DevSync CLI
+        run: |
+          cd packages/cli
+          npm ci
+          npm run build
+          npm link
+
+      - name: Run DevSync Scan
+        id: scan
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DEVSYNC_API_URL: ${{ secrets.DEVSYNC_API_URL }}
+          DEVSYNC_API_KEY: ${{ secrets.DEVSYNC_API_KEY }}
+          DEVSYNC_PROJECT_ID: ${{ secrets.DEVSYNC_PROJECT_ID }}
+        run: |
+          echo "::group::Scanning schema..."
+          devsync scan \
+            --path . \
+            --db "$DATABASE_URL" \
+            --project-id "$DEVSYNC_PROJECT_ID" \
+            --api-url "$DEVSYNC_API_URL" \
+            --api-key "$DEVSYNC_API_KEY" \
+            --sync || SCAN_EXIT_CODE=$?
+          
+          if [ -n "$SCAN_EXIT_CODE" ]; then
+            echo "has_mismatches=true" >> $GITHUB_OUTPUT
+            echo "scan_status=failed" >> $GITHUB_OUTPUT
+          else
+            echo "has_mismatches=false" >> $GITHUB_OUTPUT
+            echo "scan_status=success" >> $GITHUB_OUTPUT
+          fi
+          echo "::endgroup::"
+
+      - name: Generate Migration (if mismatches found)
+        if: steps.scan.outputs.has_mismatches == 'true'
+        run: |
+          echo "::group::Generating migration..."
+          devsync migrate \
+            --path . \
+            --db "$DATABASE_URL" \
+            --output .devsync/migrations/migration_${GITHUB_SHA}.sql \
+            --dry-run
+          echo "::endgroup::"
+
+      - name: Comment PR with Results
+        if: github.event_name == 'pull_request' && steps.scan.outputs.has_mismatches == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            let comment = '## 🔍 DevSync Schema Scan Results\n\n';
+            comment += '⚠️ **Schema mismatches detected!**\n\n';
+            
+            // Try to read scan results
+            const scanOutputPath = '.devsync/scan-results.json';
+            if (fs.existsSync(scanOutputPath)) {
+              const results = JSON.parse(fs.readFileSync(scanOutputPath, 'utf8'));
+              comment += `**Found ${results.mismatches?.length || 0} mismatch(es):**\n\n`;
+              
+              if (results.mismatches) {
+                results.mismatches.forEach((mismatch, index) => {
+                  comment += `${index + 1}. **${mismatch.type.toUpperCase()}**: ${mismatch.model}`;
+                  if (mismatch.field) comment += `.${mismatch.field}`;
+                  comment += '\n';
+                  if (mismatch.suggestedFix) {
+                    comment += `   \`\`\`sql\n   ${mismatch.suggestedFix}\n   \`\`\`\n`;
+                  }
+                });
+              }
+            } else {
+              comment += 'Please check the scan logs above for details.\n';
+            }
+            
+            comment += '\n---\n';
+            comment += '💡 **Next Steps:**\n';
+            comment += '1. Review the mismatches above\n';
+            comment += '2. Generate and review migration: `devsync migrate`\n';
+            comment += '3. Apply migration if safe\n';
+            comment += '4. View full report in [Dashboard](${{ secrets.DEVSYNC_API_URL }}/dashboard)\n';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Comment PR (Success)
+        if: github.event_name == 'pull_request' && steps.scan.outputs.has_mismatches == 'false'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const comment = '## 🔍 DevSync Schema Scan Results\n\n✅ **No mismatches found!** Your schema is in sync.\n\n---\nView full report in [Dashboard](${{ secrets.DEVSYNC_API_URL }}/dashboard)';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Set Check Status
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const status = '${{ steps.scan.outputs.scan_status }}';
+            const conclusion = status === 'success' ? 'success' : 'failure';
+            const description = status === 'success' 
+              ? 'Schema scan passed - no mismatches' 
+              : 'Schema scan failed - mismatches detected';
+            
+            github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.payload.pull_request?.head.sha || context.sha,
+              state: conclusion,
+              description: description,
+              context: 'devsync/schema-scan'
+            });
+
