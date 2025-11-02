@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Users, Settings, Crown, Shield, User, Plus, Mail } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import MemberActions from '@/components/teams/MemberActions';
 
 export default async function TeamDetailPage({
   params,
@@ -208,9 +209,13 @@ export default async function TeamDetailPage({
                       {isAdmin && (
                         <td className="px-6 py-4 text-right">
                           {!isCurrentUser && (
-                            <Button variant="ghost" size="sm">
-                              Remove
-                            </Button>
+                            <MemberActions
+                              memberId={member.id}
+                              teamId={params.id}
+                              currentRole={member.role}
+                              isCurrentUser={isCurrentUser}
+                              onUpdate={() => window.location.reload()}
+                            />
                           )}
                         </td>
                       )}

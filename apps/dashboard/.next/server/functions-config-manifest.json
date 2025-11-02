@@ -1,0 +1,1 @@
+{"version":1,"functions":{"/api/ai/query":{},"/api/ai/explain":{},"/api/migrations":{},"/api/migrations/[id]/rollback":{},"/api/migrations/[id]/execute":{},"/api/projects":{},"/api/scans":{},"/api/teams/invite":{},"/api/teams/[id]/members/[memberId]":{}}}

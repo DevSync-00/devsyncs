@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
 import ScanReportsList from '@/components/ScanReportsList';
 import { Button } from '@/components/ui/button';
 import { Scan } from 'lucide-react';
+import { ScanReportSkeleton } from '@/components/LoadingSkeleton';
 
 function formatSchemaType(schemaType: string): string {
   const schemaTypeMap: Record<string, string> = {
@@ -43,9 +45,22 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  // Check if user has access
-  if (project.user_id !== user.id) {
-    // TODO: Check team access
+  // Check if user has access (owner or team member)
+  const isOwner = project.user_id === user.id;
+  let hasTeamAccess = false;
+
+  if (project.team_id && !isOwner) {
+    const { data: membership } = await supabase
+      .from('team_members')
+      .select('role')
+      .eq('team_id', project.team_id)
+      .eq('user_id', user.id)
+      .single();
+    
+    hasTeamAccess = !!membership;
+  }
+
+  if (!isOwner && !hasTeamAccess) {
     redirect('/dashboard');
   }
 
@@ -74,7 +89,15 @@ export default async function ProjectDetailPage({
 
       <div className="border-t border-border pt-8">
         <h2 className="text-xl font-semibold mb-4">Scan Reports</h2>
-        <ScanReportsList reports={scanReports || []} projectId={params.id} />
+        <Suspense fallback={
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <ScanReportSkeleton key={i} />
+            ))}
+          </div>
+        }>
+          <ScanReportsList reports={scanReports || []} projectId={params.id} />
+        </Suspense>
       </div>
     </div>
   );

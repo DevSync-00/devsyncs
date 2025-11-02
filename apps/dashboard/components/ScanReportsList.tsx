@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { ScanReportSkeleton } from './LoadingSkeleton';
 
 interface ScanReport {
   id: string;

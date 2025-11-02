@@ -63,8 +63,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has access (owner or team member)
-    if (project.user_id !== user.id) {
-      // TODO: Check team membership
+    const isOwner = project.user_id === user.id;
+    let hasTeamAccess = false;
+
+    if (project.team_id && !isOwner) {
+      const { data: membership } = await supabase
+        .from('team_members')
+        .select('role')
+        .eq('team_id', project.team_id)
+        .eq('user_id', user.id)
+        .single();
+      
+      hasTeamAccess = !!membership;
+    }
+
+    if (!isOwner && !hasTeamAccess) {
       return NextResponse.json(
         { error: 'Access denied' },
         { status: 403 }

@@ -30,15 +30,23 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install DevSync CLI
+      - name: Install dependencies
         run: |
           cd packages/cli
           npm ci
+
+      - name: Build DevSync CLI
+        run: |
+          cd packages/cli
           npm run build
-          npm link
+
+      - name: Create .devsync directory
+        run: |
+          mkdir -p .devsync/migrations
 
       - name: Run DevSync Scan
         id: scan
+        continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DEVSYNC_API_URL: ${{ secrets.DEVSYNC_API_URL }}
@@ -46,28 +54,45 @@ jobs:
           DEVSYNC_PROJECT_ID: ${{ secrets.DEVSYNC_PROJECT_ID }}
         run: |
           echo "::group::Scanning schema..."
-          devsync scan \
-            --path . \
-            --db "$DATABASE_URL" \
-            --project-id "$DEVSYNC_PROJECT_ID" \
-            --api-url "$DEVSYNC_API_URL" \
-            --api-key "$DEVSYNC_API_KEY" \
-            --sync || SCAN_EXIT_CODE=$?
+          SCAN_EXIT_CODE=0
           
-          if [ -n "$SCAN_EXIT_CODE" ]; then
+          # Build command arguments
+          SCAN_CMD="node packages/cli/dist/index.js scan --path ."
+          
+          if [ -n "$DATABASE_URL" ]; then
+            SCAN_CMD="$SCAN_CMD --db \"$DATABASE_URL\""
+          fi
+          
+          if [ -n "$DEVSYNC_PROJECT_ID" ] && [ -n "$DEVSYNC_API_URL" ] && [ -n "$DEVSYNC_API_KEY" ]; then
+            SCAN_CMD="$SCAN_CMD --project-id \"$DEVSYNC_PROJECT_ID\" --api-url \"$DEVSYNC_API_URL\" --api-key \"$DEVSYNC_API_KEY\" --sync"
+          else
+            SCAN_CMD="$SCAN_CMD --no-sync"
+            echo "⚠️ Dashboard sync disabled - missing API credentials"
+          fi
+          
+          SCAN_CMD="$SCAN_CMD --output .devsync/scan-results.json"
+          
+          # Run scan
+          eval $SCAN_CMD || SCAN_EXIT_CODE=$?
+          
+          if [ "$SCAN_EXIT_CODE" -ne 0 ]; then
             echo "has_mismatches=true" >> $GITHUB_OUTPUT
             echo "scan_status=failed" >> $GITHUB_OUTPUT
+            echo "⚠️ Scan completed with errors (exit code: $SCAN_EXIT_CODE)"
           else
             echo "has_mismatches=false" >> $GITHUB_OUTPUT
             echo "scan_status=success" >> $GITHUB_OUTPUT
+            echo "✅ Scan completed successfully"
           fi
           echo "::endgroup::"
 
       - name: Generate Migration (if mismatches found)
         if: steps.scan.outputs.has_mismatches == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           echo "::group::Generating migration..."
-          devsync migrate \
+          node packages/cli/dist/index.js migrate \
             --path . \
             --db "$DATABASE_URL" \
             --output .devsync/migrations/migration_${GITHUB_SHA}.sql \

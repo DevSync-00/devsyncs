@@ -64,8 +64,22 @@ export async function POST(
 
     const project = (migration.scan_reports as any)?.projects;
     
-    // Check access
-    if (!project || project.user_id !== user.id) {
+    // Check access (owner or team member)
+    const isOwner = project?.user_id === user.id;
+    let hasTeamAccess = false;
+
+    if (project?.team_id && !isOwner) {
+      const { data: membership } = await supabase
+        .from('team_members')
+        .select('role')
+        .eq('team_id', project.team_id)
+        .eq('user_id', user.id)
+        .single();
+      
+      hasTeamAccess = !!membership;
+    }
+
+    if (!isOwner && !hasTeamAccess) {
       return NextResponse.json(
         { error: 'Access denied' },
         { status: 403 }

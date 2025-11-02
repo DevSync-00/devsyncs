@@ -1,18 +1,1 @@
-{
-  "node": {
-    "ebc5a0f5356a1b3802272e5941c39a3cf35b61f5": {
-      "workers": {
-        "app/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22C%3A%5C%5CUsers%5C%5CBereket%5C%5COneDrive%5C%5CDesktop%5C%5Cdevsync.ai%5C%5Cstacksync-copilot%5C%5Capps%5C%5Cdashboard%5C%5Capp%5C%5Cdashboard%5C%5Clayout.tsx%22%2C%5B%22%24%24ACTION_0%22%5D%5D%5D&__client_imported__=!",
-        "app/dashboard/teams/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22C%3A%5C%5CUsers%5C%5CBereket%5C%5COneDrive%5C%5CDesktop%5C%5Cdevsync.ai%5C%5Cstacksync-copilot%5C%5Capps%5C%5Cdashboard%5C%5Capp%5C%5Cdashboard%5C%5Clayout.tsx%22%2C%5B%22%24%24ACTION_0%22%5D%5D%5D&__client_imported__=!",
-        "app/dashboard/projects/new/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22C%3A%5C%5CUsers%5C%5CBereket%5C%5COneDrive%5C%5CDesktop%5C%5Cdevsync.ai%5C%5Cstacksync-copilot%5C%5Capps%5C%5Cdashboard%5C%5Capp%5C%5Cdashboard%5C%5Clayout.tsx%22%2C%5B%22%24%24ACTION_0%22%5D%5D%5D&__client_imported__=!"
-      },
-      "layer": {
-        "app/dashboard/page": "rsc",
-        "app/dashboard/teams/page": "rsc",
-        "app/dashboard/projects/new/page": "rsc"
-      }
-    }
-  },
-  "edge": {},
-  "encryptionKey": "LOOqU6J2hevSi9HoSixqf6TZp48d6lVtIrqSWNtHpo8="
-}
+{"node":{"ebc5a0f5356a1b3802272e5941c39a3cf35b61f5":{"workers":{"app/dashboard/projects/[id]/page":"7755","app/dashboard/projects/[id]/scan-reports/[reportId]/page":"7755","app/dashboard/page":"7755","app/dashboard/teams/[id]/invite/page":"7755","app/dashboard/projects/new/page":"7755","app/dashboard/teams/[id]/settings/page":"7755","app/dashboard/teams/[id]/page":"7755","app/dashboard/teams/page":"7755","app/dashboard/teams/new/page":"7755"},"layer":{"app/dashboard/projects/[id]/page":"rsc","app/dashboard/projects/[id]/scan-reports/[reportId]/page":"rsc","app/dashboard/page":"rsc","app/dashboard/teams/[id]/invite/page":"rsc","app/dashboard/projects/new/page":"rsc","app/dashboard/teams/[id]/settings/page":"rsc","app/dashboard/teams/[id]/page":"rsc","app/dashboard/teams/page":"rsc","app/dashboard/teams/new/page":"rsc"}}},"edge":{},"encryptionKey":"zQrbdl47E2qAXa3UiRS6G6l2+WdVxCsIZJ8Q+5h/SRY="}

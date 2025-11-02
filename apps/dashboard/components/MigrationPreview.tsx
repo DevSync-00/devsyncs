@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, Copy, CheckCircle, AlertTriangle, FileCode, History } from 'lucide-react';
 import ApplyMigrationButton from './ApplyMigrationButton';
+import RollbackMigrationButton from './RollbackMigrationButton';
 import MigrationHistory from './MigrationHistory';
 
 interface MigrationPreviewProps {
@@ -59,6 +60,12 @@ export default function MigrationPreview({ migration, onApply }: MigrationPrevie
         </div>
         <div className="flex items-center gap-2">
           <ApplyMigrationButton
+            migrationId={migration.id}
+            applied={migration.applied}
+            executionStatus={migration.execution_status}
+            onSuccess={onApply}
+          />
+          <RollbackMigrationButton
             migrationId={migration.id}
             applied={migration.applied}
             executionStatus={migration.execution_status}
