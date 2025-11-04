@@ -1,0 +1,543 @@
+{
+  "timestamp": "2025-11-02T13:39:04.170Z",
+  "mismatches": [
+    {
+      "type": "missing_table",
+      "model": "cwd",
+      "severity": "error",
+      "suggestedFix": "CREATE TABLE \"cwd\" (...);"
+    },
+    {
+      "type": "missing_table",
+      "model": "dashboard",
+      "severity": "error",
+      "suggestedFix": "CREATE TABLE \"dashboard\" (...);"
+    },
+    {
+      "type": "missing_table",
+      "model": "detected",
+      "severity": "error",
+      "suggestedFix": "CREATE TABLE \"detected\" (...);"
+    },
+    {
+      "type": "missing_table",
+      "model": "information_schema",
+      "severity": "error",
+      "suggestedFix": "CREATE TABLE \"information_schema\" (...);"
+    },
+    {
+      "type": "missing_table",
+      "model": "lucide",
+      "severity": "error",
+      "suggestedFix": "CREATE TABLE \"lucide\" (...);"
+    },
+    {
+      "type": "type_mismatch",
+      "model": "migration_history",
+      "field": "migration_id",
+      "codeValue": "text",
+      "dbValue": "uuid",
+      "severity": "warning",
+      "suggestedFix": "ALTER TABLE \"migration_history\" ALTER COLUMN \"migration_id\" TYPE text;"
+    },
+    {
+      "type": "extra_field",
+      "model": "migration_history",
+      "field": "id",
+      "dbValue": "uuid",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migration_history\" DROP COLUMN \"id\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migration_history",
+      "field": "executed_by",
+      "dbValue": "uuid",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migration_history\" DROP COLUMN \"executed_by\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migration_history",
+      "field": "execution_type",
+      "dbValue": "text",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migration_history\" DROP COLUMN \"execution_type\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migration_history",
+      "field": "status",
+      "dbValue": "text",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migration_history\" DROP COLUMN \"status\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migration_history",
+      "field": "sql_executed",
+      "dbValue": "text",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migration_history\" DROP COLUMN \"sql_executed\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migration_history",
+      "field": "error_message",
+      "dbValue": "text",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migration_history\" DROP COLUMN \"error_message\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migration_history",
+      "field": "execution_time_ms",
+      "dbValue": "integer",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migration_history\" DROP COLUMN \"execution_time_ms\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migration_history",
+      "field": "affected_rows",
+      "dbValue": "integer",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migration_history\" DROP COLUMN \"affected_rows\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migration_history",
+      "field": "started_at",
+      "dbValue": "timestamptz",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migration_history\" DROP COLUMN \"started_at\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migration_history",
+      "field": "completed_at",
+      "dbValue": "timestamptz",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migration_history\" DROP COLUMN \"completed_at\";"
+    },
+    {
+      "type": "missing_field",
+      "model": "migrations",
+      "field": "project_id",
+      "codeValue": "text",
+      "severity": "error",
+      "suggestedFix": "ALTER TABLE \"migrations\" ADD COLUMN \"project_id\" text;"
+    },
+    {
+      "type": "type_mismatch",
+      "model": "migrations",
+      "field": "scan_report_id",
+      "codeValue": "text",
+      "dbValue": "uuid",
+      "severity": "warning",
+      "suggestedFix": "ALTER TABLE \"migrations\" ALTER COLUMN \"scan_report_id\" TYPE text;"
+    },
+    {
+      "type": "extra_field",
+      "model": "migrations",
+      "field": "id",
+      "dbValue": "uuid",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migrations\" DROP COLUMN \"id\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migrations",
+      "field": "filename",
+      "dbValue": "text",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migrations\" DROP COLUMN \"filename\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migrations",
+      "field": "content",
+      "dbValue": "text",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migrations\" DROP COLUMN \"content\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migrations",
+      "field": "format",
+      "dbValue": "text",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migrations\" DROP COLUMN \"format\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migrations",
+      "field": "safety_score",
+      "dbValue": "numeric",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migrations\" DROP COLUMN \"safety_score\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migrations",
+      "field": "applied",
+      "dbValue": "boolean",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migrations\" DROP COLUMN \"applied\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migrations",
+      "field": "applied_at",
+      "dbValue": "timestamptz",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migrations\" DROP COLUMN \"applied_at\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migrations",
+      "field": "created_at",
+      "dbValue": "timestamptz",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migrations\" DROP COLUMN \"created_at\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migrations",
+      "field": "applied_by",
+      "dbValue": "uuid",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migrations\" DROP COLUMN \"applied_by\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migrations",
+      "field": "execution_status",
+      "dbValue": "text",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migrations\" DROP COLUMN \"execution_status\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migrations",
+      "field": "execution_error",
+      "dbValue": "text",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migrations\" DROP COLUMN \"execution_error\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migrations",
+      "field": "execution_started_at",
+      "dbValue": "timestamptz",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migrations\" DROP COLUMN \"execution_started_at\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migrations",
+      "field": "execution_completed_at",
+      "dbValue": "timestamptz",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migrations\" DROP COLUMN \"execution_completed_at\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "migrations",
+      "field": "dry_run",
+      "dbValue": "boolean",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"migrations\" DROP COLUMN \"dry_run\";"
+    },
+    {
+      "type": "missing_table",
+      "model": "mismatches",
+      "severity": "error",
+      "suggestedFix": "CREATE TABLE \"mismatches\" (...);"
+    },
+    {
+      "type": "type_mismatch",
+      "model": "projects",
+      "field": "user_id",
+      "codeValue": "text",
+      "dbValue": "uuid",
+      "severity": "warning",
+      "suggestedFix": "ALTER TABLE \"projects\" ALTER COLUMN \"user_id\" TYPE text;"
+    },
+    {
+      "type": "missing_field",
+      "model": "projects",
+      "field": "role",
+      "codeValue": "text",
+      "severity": "error",
+      "suggestedFix": "ALTER TABLE \"projects\" ADD COLUMN \"role\" text;"
+    },
+    {
+      "type": "type_mismatch",
+      "model": "projects",
+      "field": "team_id",
+      "codeValue": "text",
+      "dbValue": "uuid",
+      "severity": "warning",
+      "suggestedFix": "ALTER TABLE \"projects\" ALTER COLUMN \"team_id\" TYPE text;"
+    },
+    {
+      "type": "extra_field",
+      "model": "projects",
+      "field": "id",
+      "dbValue": "uuid",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"projects\" DROP COLUMN \"id\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "projects",
+      "field": "name",
+      "dbValue": "text",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"projects\" DROP COLUMN \"name\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "projects",
+      "field": "slug",
+      "dbValue": "text",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"projects\" DROP COLUMN \"slug\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "projects",
+      "field": "db_connection_string",
+      "dbValue": "text",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"projects\" DROP COLUMN \"db_connection_string\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "projects",
+      "field": "schema_type",
+      "dbValue": "text",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"projects\" DROP COLUMN \"schema_type\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "projects",
+      "field": "config",
+      "dbValue": "jsonb",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"projects\" DROP COLUMN \"config\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "projects",
+      "field": "created_at",
+      "dbValue": "timestamptz",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"projects\" DROP COLUMN \"created_at\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "projects",
+      "field": "updated_at",
+      "dbValue": "timestamptz",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"projects\" DROP COLUMN \"updated_at\";"
+    },
+    {
+      "type": "type_mismatch",
+      "model": "scan_reports",
+      "field": "project_id",
+      "codeValue": "text",
+      "dbValue": "uuid",
+      "severity": "warning",
+      "suggestedFix": "ALTER TABLE \"scan_reports\" ALTER COLUMN \"project_id\" TYPE text;"
+    },
+    {
+      "type": "missing_field",
+      "model": "scan_reports",
+      "field": "scan_report_id",
+      "codeValue": "text",
+      "severity": "error",
+      "suggestedFix": "ALTER TABLE \"scan_reports\" ADD COLUMN \"scan_report_id\" text;"
+    },
+    {
+      "type": "missing_field",
+      "model": "scan_reports",
+      "field": "completed",
+      "codeValue": "text",
+      "severity": "error",
+      "suggestedFix": "ALTER TABLE \"scan_reports\" ADD COLUMN \"completed\" text;"
+    },
+    {
+      "type": "missing_field",
+      "model": "scan_reports",
+      "field": "user_id",
+      "codeValue": "text",
+      "severity": "error",
+      "suggestedFix": "ALTER TABLE \"scan_reports\" ADD COLUMN \"user_id\" text;"
+    },
+    {
+      "type": "extra_field",
+      "model": "scan_reports",
+      "field": "id",
+      "dbValue": "uuid",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"scan_reports\" DROP COLUMN \"id\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "scan_reports",
+      "field": "status",
+      "dbValue": "text",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"scan_reports\" DROP COLUMN \"status\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "scan_reports",
+      "field": "mismatches",
+      "dbValue": "jsonb",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"scan_reports\" DROP COLUMN \"mismatches\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "scan_reports",
+      "field": "code_schema",
+      "dbValue": "jsonb",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"scan_reports\" DROP COLUMN \"code_schema\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "scan_reports",
+      "field": "db_schema",
+      "dbValue": "jsonb",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"scan_reports\" DROP COLUMN \"db_schema\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "scan_reports",
+      "field": "created_at",
+      "dbValue": "timestamptz",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"scan_reports\" DROP COLUMN \"created_at\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "scan_reports",
+      "field": "completed_at",
+      "dbValue": "timestamptz",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"scan_reports\" DROP COLUMN \"completed_at\";"
+    },
+    {
+      "type": "missing_table",
+      "model": "schema",
+      "severity": "error",
+      "suggestedFix": "CREATE TABLE \"schema\" (...);"
+    },
+    {
+      "type": "type_mismatch",
+      "model": "team_members",
+      "field": "team_id",
+      "codeValue": "text",
+      "dbValue": "uuid",
+      "severity": "warning",
+      "suggestedFix": "ALTER TABLE \"team_members\" ALTER COLUMN \"team_id\" TYPE text;"
+    },
+    {
+      "type": "type_mismatch",
+      "model": "team_members",
+      "field": "user_id",
+      "codeValue": "text",
+      "dbValue": "uuid",
+      "severity": "warning",
+      "suggestedFix": "ALTER TABLE \"team_members\" ALTER COLUMN \"user_id\" TYPE text;"
+    },
+    {
+      "type": "missing_field",
+      "model": "team_members",
+      "field": "completed",
+      "codeValue": "text",
+      "severity": "error",
+      "suggestedFix": "ALTER TABLE \"team_members\" ADD COLUMN \"completed\" text;"
+    },
+    {
+      "type": "extra_field",
+      "model": "team_members",
+      "field": "id",
+      "dbValue": "uuid",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"team_members\" DROP COLUMN \"id\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "team_members",
+      "field": "created_at",
+      "dbValue": "timestamptz",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"team_members\" DROP COLUMN \"created_at\";"
+    },
+    {
+      "type": "type_mismatch",
+      "model": "teams",
+      "field": "created_at",
+      "codeValue": "timestamp",
+      "dbValue": "timestamptz",
+      "severity": "warning",
+      "suggestedFix": "ALTER TABLE \"teams\" ALTER COLUMN \"created_at\" TYPE timestamp;"
+    },
+    {
+      "type": "extra_field",
+      "model": "teams",
+      "field": "name",
+      "dbValue": "text",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"teams\" DROP COLUMN \"name\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "teams",
+      "field": "slug",
+      "dbValue": "text",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"teams\" DROP COLUMN \"slug\";"
+    },
+    {
+      "type": "extra_field",
+      "model": "teams",
+      "field": "updated_at",
+      "dbValue": "timestamptz",
+      "severity": "info",
+      "suggestedFix": "ALTER TABLE \"teams\" DROP COLUMN \"updated_at\";"
+    },
+    {
+      "type": "missing_table",
+      "model": "the",
+      "severity": "error",
+      "suggestedFix": "CREATE TABLE \"the\" (...);"
+    },
+    {
+      "type": "extra_field",
+      "model": "schema_snapshots",
+      "severity": "info",
+      "suggestedFix": "DROP TABLE \"schema_snapshots\";"
+    }
+  ],
+  "warnings": [],
+  "metadata": {
+    "codeVersion": "raw-sql",
+    "dbVersion": "postgresql",
+    "timestamp": "2025-11-02T13:39:04.147Z"
+  },
+  "summary": {
+    "totalMismatches": 67,
+    "errors": 14,
+    "warnings": 8,
+    "info": 45
+  }
+}

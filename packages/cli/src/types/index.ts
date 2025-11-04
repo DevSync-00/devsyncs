@@ -52,6 +52,11 @@ export interface ScanOptions {
   output?: string; // Output JSON results file path
   failOnWarnings?: boolean; // Exit with error code on warnings
   json?: boolean; // Output JSON instead of human-readable format
+  aiAnalysis?: boolean; // Use AI to analyze codebase and infer schema
+  openaiApiKey?: string; // OpenAI API key for AI analysis
+  useOllama?: boolean; // Use Ollama (local, free) instead of OpenAI
+  ollamaModel?: string; // Ollama model name (default: llama3.2:3b)
+  ollamaUrl?: string; // Ollama API URL (default: http://localhost:11434)
 }
 
 export interface InitOptions {

@@ -8,12 +8,21 @@ on:
       - '**/*.prisma'
       - '.devsync/**'
       - '.github/workflows/devsync-scan.yml'
+      # Exclude test/demo projects from scanning
+      - '!test-prisma-project/**'
+      - '!**/node_modules/**'
+      - '!**/dist/**'
   pull_request:
     branches: [main, develop]
     paths:
       - '**/schema.prisma'
       - '**/*.prisma'
       - '.devsync/**'
+      - '.github/workflows/devsync-scan.yml'
+      # Exclude test/demo projects from scanning
+      - '!test-prisma-project/**'
+      - '!**/node_modules/**'
+      - '!**/dist/**'
 
 jobs:
   scan:
@@ -88,10 +97,22 @@ jobs:
 
       - name: Generate Migration (if mismatches found)
         if: steps.scan.outputs.has_mismatches == 'true'
+        continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           echo "::group::Generating migration..."
+          
+          if [ -z "$DATABASE_URL" ]; then
+            echo "⚠️ DATABASE_URL not set - skipping migration generation"
+            echo "💡 To generate migrations in CI, add DATABASE_URL to repository secrets"
+            echo "💡   Go to: Settings → Secrets and variables → Actions → New repository secret"
+            echo "💡   Name: DATABASE_URL"
+            echo "💡   Value: postgresql://user:pass@host:port/database"
+            echo "💡 Or generate migration manually: devsync migrate --path . --db <connection-string>"
+            exit 0
+          fi
+          
           node packages/cli/dist/index.js migrate \
             --path . \
             --db "$DATABASE_URL" \

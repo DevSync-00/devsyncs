@@ -28,9 +28,36 @@ export async function scanCommand(options: ScanOptions) {
     const apiKey = options.apiKey || config?.api?.key;
     const shouldSync = options.sync !== false && projectId && apiUrl && apiKey;
 
-    // 1. Scan codebase (extract schema - Prisma, TypeORM, Sequelize, Drizzle, or Raw SQL)
+    // 1. Scan codebase (extract schema - Prisma, TypeORM, Sequelize, Drizzle, or Raw SQL, or AI)
     console.log(chalk.gray('📁 Scanning codebase...'));
-    const codeSchema = await scanCodebase(absolutePath);
+    // Check if AI analysis is requested
+    const useAI = options.aiAnalysis || !!process.env.OPENAI_API_KEY || !!process.env.OLLAMA_URL;
+    const useOllama = options.useOllama || !!process.env.OLLAMA_URL;
+    const openaiApiKey = options.openaiApiKey || process.env.OPENAI_API_KEY;
+    const ollamaUrl = options.ollamaUrl || process.env.OLLAMA_URL || 'http://localhost:11434';
+    const ollamaModel = options.ollamaModel || process.env.OLLAMA_MODEL || 'llama3.2:3b';
+    
+    // Prefer Ollama (free, local) if enabled
+    if (useAI && useOllama) {
+      console.log(chalk.blue('🤖 Using Ollama (local, free) for AI analysis...'));
+      console.log(chalk.gray(`   Model: ${ollamaModel}`));
+      console.log(chalk.gray(`   URL: ${ollamaUrl}\n`));
+    } else if (useAI && openaiApiKey) {
+      console.log(chalk.blue('🤖 Using AI-powered code analysis (OpenAI)...'));
+    } else if (useAI && !openaiApiKey && !useOllama) {
+      console.error(chalk.red('❌ Error: --ai-analysis requires either:'));
+      console.error(chalk.gray('   --use-ollama (local, free)'));
+      console.error(chalk.gray('   OR --openai-api-key flag / OPENAI_API_KEY environment variable'));
+      process.exit(1);
+    }
+    
+    const codeSchema = await scanCodebase(absolutePath, {
+      useAI: !!useAI,
+      openaiApiKey: useOllama ? undefined : (openaiApiKey || undefined),
+      useOllama: !!useOllama,
+      ollamaModel: ollamaModel,
+      ollamaUrl: ollamaUrl
+    });
     console.log(chalk.green(`✅ Code schema extracted (${codeSchema.models.length} models)\n`));
 
     // 2. Scan database (if connection provided)

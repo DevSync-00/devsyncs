@@ -50,6 +50,14 @@
 
 ## Environment Setup
 
+### 0. GitHub Actions Setup
+
+If using GitHub Actions for CI/CD, see **[GitHub Actions Guide](./GITHUB_ACTIONS_GUIDE.md)** for:
+- Setting up `DATABASE_URL` in GitHub Secrets
+- Understanding workflow triggers
+- Configuring for your projects
+- Troubleshooting workflow issues
+
 ### 1. Environment Variables
 
 #### Dashboard (`.env.local`)

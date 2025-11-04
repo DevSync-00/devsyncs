@@ -31,6 +31,11 @@ program
   .option('-o, --output <path>', 'Output JSON results file path')
   .option('--json', 'Output JSON format instead of human-readable')
   .option('--fail-on-warnings', 'Exit with error code on warnings')
+  .option('--ai-analysis', 'Use AI to analyze codebase and infer schema from code patterns')
+  .option('--openai-api-key <key>', 'OpenAI API key for AI analysis (or set OPENAI_API_KEY env var)')
+  .option('--use-ollama', 'Use Ollama (local, free) instead of OpenAI')
+  .option('--ollama-model <model>', 'Ollama model name (default: llama3.2:3b, or set OLLAMA_MODEL env var)')
+  .option('--ollama-url <url>', 'Ollama API URL (default: http://localhost:11434, or set OLLAMA_URL env var)')
   .action(scanCommand);
 
 program

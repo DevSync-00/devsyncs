@@ -5,6 +5,7 @@ Welcome to the DevSync.AI documentation! This folder contains all essential proj
 ## 📖 Documentation Structure
 
 ### Core Documentation
+- **[HOW_DEVSYNC_WORKS.md](./HOW_DEVSYNC_WORKS.md)** - **Complete guide: How DevSync works, architecture, workflow, and features** ⭐
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System architecture and design
 - **[ARCHITECTURE_DIAGRAMS.md](./ARCHITECTURE_DIAGRAMS.md)** - Architecture diagrams and visualizations
 - **[INFRASTRUCTURE.md](./INFRASTRUCTURE.md)** - Infrastructure setup and configuration
@@ -17,6 +18,13 @@ Welcome to the DevSync.AI documentation! This folder contains all essential proj
 
 ### Deployment & Operations
 - **[DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md)** - Complete deployment checklist and guide
+- **[GITHUB_ACTIONS_SETUP.md](./GITHUB_ACTIONS_SETUP.md)** - Quick GitHub Actions setup guide
+- **[WHAT_DOES_DEVSYNC_SCAN.md](./WHAT_DOES_DEVSYNC_SCAN.md)** - What does DevSync actually scan?
+- **[TESTING_DEVSYNC_PROJECT.md](./TESTING_DEVSYNC_PROJECT.md)** - How to test DevSync project itself (test-prisma-project)
+- **[TESTING_DEVSYNC_ON_ITSELF.md](./TESTING_DEVSYNC_ON_ITSELF.md)** - Testing DevSync on itself (eating your own dog food!)
+- **[GITHUB_ACTIONS_DATABASE_URL.md](./GITHUB_ACTIONS_DATABASE_URL.md)** - Which database URL to use?
+- **[GITHUB_ACTIONS_GUIDE.md](./GITHUB_ACTIONS_GUIDE.md)** - Complete GitHub Actions guide
+- **[GITHUB_ACTIONS_FAQ.md](./GITHUB_ACTIONS_FAQ.md)** - GitHub Actions FAQ
 
 ---
 
@@ -43,6 +51,7 @@ Welcome to the DevSync.AI documentation! This folder contains all essential proj
 ## 🚀 Quick Links
 
 ### Getting Started
+- **[HOW_DEVSYNC_WORKS.md](./HOW_DEVSYNC_WORKS.md)** - **Complete guide: How DevSync works** ⭐
 - [Quick Start Guide](./QUICK_START.md)
 - [Deployment Checklist](./DEPLOYMENT_CHECKLIST.md)
 

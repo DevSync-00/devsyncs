@@ -1,8 +1,52 @@
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, extname, basename } from 'path';
 import type { CodeSchema, Model, Field } from '../types/index.js';
+import { analyzeCodebaseWithAI } from './ai-code-analyzer.js';
 
-export async function scanCodebase(basePath: string): Promise<CodeSchema> {
+export async function scanCodebase(basePath: string, options?: { 
+  useAI?: boolean; 
+  openaiApiKey?: string;
+  useOllama?: boolean;
+  ollamaModel?: string;
+  ollamaUrl?: string;
+}): Promise<CodeSchema> {
+  // Try AI-powered code analysis first if enabled
+  if (options?.useAI) {
+    try {
+      const aiResult = await analyzeCodebaseWithAI(basePath, {
+        openaiApiKey: options.openaiApiKey,
+        useOllama: options.useOllama,
+        ollamaModel: options.ollamaModel,
+        ollamaUrl: options.ollamaUrl
+      });
+      
+      if (aiResult && aiResult.models.length > 0) {
+        return aiResult;
+      }
+      
+      // If AI analysis returns empty but was explicitly requested, throw error instead of falling back
+      if (options.useAI) {
+        throw new Error(
+          'AI analysis completed but no schema could be inferred from codebase.\n' +
+          'This might mean:\n' +
+          '  - No database queries found in code\n' +
+          '  - Code files not accessible\n' +
+          '  - AI couldn\'t understand code patterns\n\n' +
+          'Consider:\n' +
+          '  - Adding migration files (supabase/migrations/*.sql)\n' +
+          '  - Or using a Prisma schema (prisma/schema.prisma)\n' +
+          '  - Or checking that code contains database queries'
+        );
+      }
+    } catch (error) {
+      // If AI was explicitly requested, don't fall back - rethrow the error
+      if (options?.useAI) {
+        throw error;
+      }
+      // Otherwise fall back to traditional scanners
+      console.warn('⚠️  AI analysis failed, falling back to traditional scanners');
+    }
+  }
   // Look for Prisma schema first (most common)
   const prismaPath = join(basePath, 'prisma', 'schema.prisma');
   if (existsSync(prismaPath)) {
