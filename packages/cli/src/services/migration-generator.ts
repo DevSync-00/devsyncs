@@ -38,47 +38,83 @@ export function generateMigration(
   const sqlStatements: string[] = [];
   const rollbackStatements: string[] = [];
 
+  // Calculate overall safety score
+  const allMismatches = [...errors, ...warnings, ...infos];
+  const safetyScores = allMismatches.map(m => {
+    const result = generateSQLForMismatch(m, codeSchema);
+    return result.safetyScore || 0.5;
+  });
+  const avgSafetyScore = safetyScores.length > 0
+    ? safetyScores.reduce((a, b) => a + b, 0) / safetyScores.length
+    : 1.0;
+
   // Generate migration SQL
   sqlStatements.push(`-- Migration: ${name}`);
   sqlStatements.push(`-- Generated: ${timestamp.toISOString()}`);
   sqlStatements.push(`-- Mismatches: ${mismatches.length} (${errors.length} errors, ${warnings.length} warnings, ${infos.length} info)`);
+  sqlStatements.push(`-- Safety Score: ${(avgSafetyScore * 100).toFixed(0)}% (${avgSafetyScore >= 0.7 ? 'SAFE' : avgSafetyScore >= 0.4 ? 'CAUTION' : 'RISKY'})`);
   sqlStatements.push('');
+  
+  // Add safety warnings
+  if (avgSafetyScore < 0.4) {
+    sqlStatements.push('-- ⚠️  WARNING: This migration has a LOW safety score.');
+    sqlStatements.push('-- ⚠️  Review carefully before applying. Data loss may occur.');
+    sqlStatements.push('-- ⚠️  Consider backing up your database first.');
+    sqlStatements.push('');
+  } else if (avgSafetyScore < 0.7) {
+    sqlStatements.push('-- ⚠️  CAUTION: This migration has a MODERATE safety score.');
+    sqlStatements.push('-- ⚠️  Review before applying.');
+    sqlStatements.push('');
+  }
+  
   sqlStatements.push('BEGIN;');
   sqlStatements.push('');
 
   // Process errors first (critical changes)
   if (errors.length > 0) {
+    sqlStatements.push('-- ============================================');
     sqlStatements.push('-- Critical changes (errors)');
+    sqlStatements.push('-- ============================================');
     for (const mismatch of errors) {
-      const { sql, rollback } = generateSQLForMismatch(mismatch, codeSchema);
+      const { sql, rollback, safetyScore } = generateSQLForMismatch(mismatch, codeSchema);
       if (sql) {
+        if (safetyScore !== undefined && safetyScore < 0.5) {
+          sqlStatements.push(`-- ⚠️  RISKY: Safety score ${(safetyScore * 100).toFixed(0)}%`);
+        }
         sqlStatements.push(sql);
         if (rollback && options.includeRollback) {
           rollbackStatements.unshift(rollback);
         }
+        sqlStatements.push('');
       }
     }
-    sqlStatements.push('');
   }
 
   // Process warnings (less critical but important)
   if (warnings.length > 0) {
+    sqlStatements.push('-- ============================================');
     sqlStatements.push('-- Warning changes');
+    sqlStatements.push('-- ============================================');
     for (const mismatch of warnings) {
-      const { sql, rollback } = generateSQLForMismatch(mismatch, codeSchema);
+      const { sql, rollback, safetyScore } = generateSQLForMismatch(mismatch, codeSchema);
       if (sql) {
+        if (safetyScore !== undefined && safetyScore < 0.5) {
+          sqlStatements.push(`-- ⚠️  RISKY: Safety score ${(safetyScore * 100).toFixed(0)}%`);
+        }
         sqlStatements.push(sql);
         if (rollback && options.includeRollback) {
           rollbackStatements.unshift(rollback);
         }
+        sqlStatements.push('');
       }
     }
-    sqlStatements.push('');
   }
 
   // Process info (optional changes - commented out)
   if (infos.length > 0 && options.format !== 'prisma') {
+    sqlStatements.push('-- ============================================');
     sqlStatements.push('-- Info changes (optional - uncomment to apply)');
+    sqlStatements.push('-- ============================================');
     for (const mismatch of infos) {
       const { sql, rollback } = generateSQLForMismatch(mismatch, codeSchema);
       if (sql) {
@@ -86,9 +122,9 @@ export function generateMigration(
         if (rollback && options.includeRollback) {
           rollbackStatements.unshift(`-- ${rollback}`);
         }
+        sqlStatements.push('');
       }
     }
-    sqlStatements.push('');
   }
 
   sqlStatements.push('COMMIT;');
@@ -110,31 +146,49 @@ export function generateMigration(
 }
 
 /**
- * Generate SQL for a specific mismatch type
+ * Generate SQL for a specific mismatch type with safety checks
  */
 function generateSQLForMismatch(
   mismatch: Mismatch,
   codeSchema?: CodeSchema
-): { sql: string; rollback?: string } {
+): { sql: string; rollback?: string; safetyScore?: number } {
+  let result: { sql: string; rollback?: string; safetyScore?: number };
+
   switch (mismatch.type) {
     case 'missing_table':
-      return generateCreateTableSQL(mismatch, codeSchema);
+      result = generateCreateTableSQL(mismatch, codeSchema);
+      result.safetyScore = 0.9; // Safe - adding tables
+      break;
     
     case 'missing_field':
-      return generateAddColumnSQL(mismatch, codeSchema);
+      result = generateAddColumnSQL(mismatch, codeSchema);
+      // Safety depends on nullable and default
+      const field = codeSchema?.models
+        .find(m => m.name.toLowerCase() === mismatch.model.toLowerCase())
+        ?.fields.find(f => f.name.toLowerCase() === (mismatch.field || '').toLowerCase());
+      result.safetyScore = (field?.nullable || field?.defaultValue) ? 0.8 : 0.5;
+      break;
     
     case 'type_mismatch':
-      return generateAlterColumnTypeSQL(mismatch);
+      result = generateAlterColumnTypeSQL(mismatch);
+      result.safetyScore = 0.3; // Risky - type changes can cause data loss
+      break;
     
     case 'constraint_mismatch':
-      return generateAlterColumnConstraintSQL(mismatch);
+      result = generateAlterColumnConstraintSQL(mismatch);
+      result.safetyScore = 0.6; // Moderate risk
+      break;
     
     case 'extra_field':
-      return generateDropColumnSQL(mismatch);
+      result = generateDropColumnSQL(mismatch);
+      result.safetyScore = 0.2; // Very risky - data loss
+      break;
     
     default:
-      return { sql: mismatch.suggestedFix || '', rollback: undefined };
+      result = { sql: mismatch.suggestedFix || '', rollback: undefined, safetyScore: 0.5 };
   }
+
+  return result;
 }
 
 /**

@@ -1,31 +1,90 @@
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, extname, basename } from 'path';
+import { createHash } from 'crypto';
 import type { CodeSchema, Model, Field } from '../types/index.js';
 import { analyzeCodebaseWithAI } from './ai-code-analyzer.js';
+import { Cache } from '../utils/cache.js';
+import { ProgressIndicator } from '../utils/progress.js';
 
-export async function scanCodebase(basePath: string, options?: { 
-  useAI?: boolean; 
+export interface ScanCodebaseOptions {
+  useAI?: boolean;
   openaiApiKey?: string;
   useOllama?: boolean;
   ollamaModel?: string;
   ollamaUrl?: string;
-}): Promise<CodeSchema> {
+  useCache?: boolean;
+  showProgress?: boolean;
+  excludePatterns?: string[];
+}
+
+// Global cache instance
+const cache = new Cache({ ttl: 3600000 }); // 1 hour TTL
+
+export async function scanCodebase(
+  basePath: string, 
+  options: ScanCodebaseOptions = {}
+): Promise<CodeSchema> {
+  const {
+    useAI = false,
+    openaiApiKey,
+    useOllama = false,
+    ollamaModel,
+    ollamaUrl,
+    useCache = true,
+    showProgress = true,
+    excludePatterns = []
+  } = options;
+
+  // Generate cache key from path and options
+  // Include all options that affect the analysis result
+  const cacheKey = useCache 
+    ? (() => {
+        // Hash sensitive values (API keys) to avoid storing them in plain text
+        const openaiKeyHash = openaiApiKey 
+          ? createHash('sha256').update(openaiApiKey).digest('hex').substring(0, 8)
+          : 'none';
+        const ollamaUrlHash = ollamaUrl && ollamaUrl !== 'http://localhost:11434'
+          ? createHash('sha256').update(ollamaUrl).digest('hex').substring(0, 8)
+          : 'default';
+        
+        return `code-schema:${basePath}:${useAI}:${useOllama}:${ollamaModel || ''}:${openaiKeyHash}:${ollamaUrlHash}`;
+      })()
+    : null;
+
+  // Try to get from cache
+  if (useCache && cacheKey) {
+    const cached = cache.get<CodeSchema>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  }
+
+  const progress = showProgress ? new ProgressIndicator({ message: 'Scanning codebase...' }) : null;
   // Try AI-powered code analysis first if enabled
-  if (options?.useAI) {
+  if (useAI) {
     try {
+      progress?.update(0, 'Running AI analysis...');
       const aiResult = await analyzeCodebaseWithAI(basePath, {
-        openaiApiKey: options.openaiApiKey,
-        useOllama: options.useOllama,
-        ollamaModel: options.ollamaModel,
-        ollamaUrl: options.ollamaUrl
+        openaiApiKey,
+        useOllama,
+        ollamaModel,
+        ollamaUrl
       });
       
       if (aiResult && aiResult.models.length > 0) {
+        progress?.complete(`Found ${aiResult.models.length} models via AI analysis`);
+        
+        // Cache the result
+        if (useCache && cacheKey) {
+          cache.set(cacheKey, aiResult);
+        }
+        
         return aiResult;
       }
       
       // If AI analysis returns empty but was explicitly requested, throw error instead of falling back
-      if (options.useAI) {
+      if (useAI) {
+        progress?.complete();
         throw new Error(
           'AI analysis completed but no schema could be inferred from codebase.\n' +
           'This might mean:\n' +
@@ -40,68 +99,146 @@ export async function scanCodebase(basePath: string, options?: {
       }
     } catch (error) {
       // If AI was explicitly requested, don't fall back - rethrow the error
-      if (options?.useAI) {
+      if (useAI) {
+        progress?.complete();
         throw error;
       }
       // Otherwise fall back to traditional scanners
-      console.warn('⚠️  AI analysis failed, falling back to traditional scanners');
+      if (showProgress) {
+        console.warn('⚠️  AI analysis failed, falling back to traditional scanners');
+      }
     }
   }
+
+  progress?.update(0, 'Scanning for schema files...');
   // Look for Prisma schema first (most common)
   const prismaPath = join(basePath, 'prisma', 'schema.prisma');
   if (existsSync(prismaPath)) {
-    return scanPrismaSchema(prismaPath);
+    progress?.update(1, 'Found Prisma schema, parsing...');
+    const result = scanPrismaSchema(prismaPath);
+    progress?.complete(`Found ${result.models.length} models in Prisma schema`);
+    
+    // Cache the result
+    if (useCache && cacheKey) {
+      cache.set(cacheKey, result);
+    }
+    
+    return result;
   }
 
   // Look for Supabase migrations (most important after Prisma)
+  progress?.update(1, 'Checking for Supabase migrations...');
   const supabaseResult = await scanSupabaseMigrations(basePath);
   if (supabaseResult) {
+    progress?.complete(`Found ${supabaseResult.models.length} models in Supabase migrations`);
+    
+    if (useCache && cacheKey) {
+      cache.set(cacheKey, supabaseResult);
+    }
+    
     return supabaseResult;
   }
 
   // Look for TypeORM entities
+  progress?.update(2, 'Checking for TypeORM entities...');
   const typeormResult = await scanTypeORMEntities(basePath);
   if (typeormResult) {
+    progress?.complete(`Found ${typeormResult.models.length} models in TypeORM entities`);
+    
+    // Cache the result
+    if (useCache && cacheKey) {
+      cache.set(cacheKey, typeormResult);
+    }
+    
     return typeormResult;
   }
 
   // Look for Kysely schemas
+  progress?.update(3, 'Checking for Kysely schemas...');
   const kyselyResult = await scanKyselySchema(basePath);
   if (kyselyResult) {
+    progress?.complete(`Found ${kyselyResult.models.length} models in Kysely schema`);
+    
+    // Cache the result
+    if (useCache && cacheKey) {
+      cache.set(cacheKey, kyselyResult);
+    }
+    
     return kyselyResult;
   }
 
   // Look for Sequelize models
+  progress?.update(4, 'Checking for Sequelize models...');
   const sequelizeResult = await scanSequelizeModels(basePath);
   if (sequelizeResult) {
+    progress?.complete(`Found ${sequelizeResult.models.length} models in Sequelize models`);
+    
+    // Cache the result
+    if (useCache && cacheKey) {
+      cache.set(cacheKey, sequelizeResult);
+    }
+    
     return sequelizeResult;
   }
 
   // Look for Drizzle schemas
+  progress?.update(5, 'Checking for Drizzle schemas...');
   const drizzleResult = await scanDrizzleSchema(basePath);
   if (drizzleResult) {
+    progress?.complete(`Found ${drizzleResult.models.length} models in Drizzle schema`);
+    
+    // Cache the result
+    if (useCache && cacheKey) {
+      cache.set(cacheKey, drizzleResult);
+    }
+    
     return drizzleResult;
   }
 
   // Look for Django models
+  progress?.update(6, 'Checking for Django models...');
   const djangoResult = await scanDjangoModels(basePath);
   if (djangoResult) {
+    progress?.complete(`Found ${djangoResult.models.length} models in Django models`);
+    
+    // Cache the result
+    if (useCache && cacheKey) {
+      cache.set(cacheKey, djangoResult);
+    }
+    
     return djangoResult;
   }
 
   // Look for SQLAlchemy models
+  progress?.update(7, 'Checking for SQLAlchemy models...');
   const sqlalchemyResult = await scanSQLAlchemyModels(basePath);
   if (sqlalchemyResult) {
+    progress?.complete(`Found ${sqlalchemyResult.models.length} models in SQLAlchemy models`);
+    
+    // Cache the result
+    if (useCache && cacheKey) {
+      cache.set(cacheKey, sqlalchemyResult);
+    }
+    
     return sqlalchemyResult;
   }
 
   // Look for raw SQL migrations
+  progress?.update(8, 'Checking for raw SQL migrations...');
   const sqlResult = await scanSQLMigrations(basePath);
   if (sqlResult) {
+    progress?.complete(`Found ${sqlResult.models.length} models in SQL migrations`);
+    
+    // Cache the result
+    if (useCache && cacheKey) {
+      cache.set(cacheKey, sqlResult);
+    }
+    
     return sqlResult;
   }
 
   // No schema found
+  progress?.complete();
   throw new Error(
     `No schema file found. Looking for:\n` +
     `  - ${prismaPath}\n` +
@@ -113,7 +250,8 @@ export async function scanCodebase(basePath: string, options?: {
     `  - Django models (models.py)\n` +
     `  - SQLAlchemy models (*.py)\n` +
     `  - SQL migrations (*.sql)\n` +
-    `\nCurrently supported: Prisma, Supabase, TypeORM, Kysely, Sequelize, Drizzle, Django, SQLAlchemy, Raw SQL`
+    `\nCurrently supported: Prisma, Supabase, TypeORM, Kysely, Sequelize, Drizzle, Django, SQLAlchemy, Raw SQL\n` +
+    `\nTip: Use --ai-analysis to infer schema from code patterns`
   );
 }
 

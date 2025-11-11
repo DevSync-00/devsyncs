@@ -1,12 +1,12 @@
 import { scanCodebase } from '../services/code-scanner.js';
-import { scanDatabase } from '../services/db-scanner.js';
+import { scanDatabase, closeDatabaseConnections } from '../services/db-scanner.js';
 import { compareSchemas } from '../services/diff-engine.js';
 import { loadConfig } from '../utils/config.js';
 import { ApiClient } from '../services/api-client.js';
 import { saveScanResults, getScanExitCode } from '../utils/output.js';
 import chalk from 'chalk';
 import { resolve } from 'path';
-import type { ScanOptions } from '../types/index.js';
+import type { ScanOptions, CodeSchema, DbSchema, Mismatch } from '../types/index.js';
 
 export async function scanCommand(options: ScanOptions) {
   try {
@@ -56,7 +56,9 @@ export async function scanCommand(options: ScanOptions) {
       openaiApiKey: useOllama ? undefined : (openaiApiKey || undefined),
       useOllama: !!useOllama,
       ollamaModel: ollamaModel,
-      ollamaUrl: ollamaUrl
+      ollamaUrl: ollamaUrl,
+      useCache: true,
+      showProgress: !options.json
     });
     console.log(chalk.green(`✅ Code schema extracted (${codeSchema.models.length} models)\n`));
 
@@ -83,7 +85,12 @@ export async function scanCommand(options: ScanOptions) {
     }
 
     console.log(chalk.gray('🗄️  Scanning database...'));
-    const dbSchema = await scanDatabase(dbConnection);
+    const dbSchema = await scanDatabase({
+      connectionString: dbConnection,
+      showProgress: !options.json,
+      timeout: 30000,
+      maxRetries: 3
+    });
     console.log(chalk.green(`✅ Database schema extracted (${dbSchema.models.length} tables)\n`));
 
     // 3. Compare schemas
@@ -125,6 +132,10 @@ export async function scanCommand(options: ScanOptions) {
 
     // 7. Exit with appropriate code for CI/CD
     const exitCode = getScanExitCode(diff, options.failOnWarnings || false);
+    
+    // Clean up database connections
+    await closeDatabaseConnections();
+    
     if (exitCode !== 0) {
       if (options.json) {
         // In JSON mode, we still exit with error code
@@ -135,6 +146,9 @@ export async function scanCommand(options: ScanOptions) {
     }
 
   } catch (error) {
+    // Clean up on error
+    await closeDatabaseConnections().catch(() => {});
+    
     if (error instanceof Error) {
       console.error(chalk.red(`❌ Error: ${error.message}`));
       if (error.stack && process.env.DEBUG) {
@@ -195,14 +209,19 @@ async function syncToCloud(
   apiUrl: string,
   apiKey: string,
   projectId: string,
-  codeSchema: any,
-  dbSchema: any | null,
-  mismatches: any[]
+  codeSchema: CodeSchema,
+  dbSchema: DbSchema | null,
+  mismatches: Mismatch[]
 ) {
   try {
     console.log(chalk.gray('\n☁️  Syncing results to dashboard...'));
     
-    const apiClient = new ApiClient({ apiUrl, apiKey });
+    const apiClient = new ApiClient({ 
+      apiUrl, 
+      apiKey,
+      timeout: 30000,
+      maxRetries: 3
+    });
     
     const result = await apiClient.sendScanReport({
       projectId,
