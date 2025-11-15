@@ -1,0 +1,43 @@
+{
+  "key": "code-schema:C:\\Users\\Bereket\\devsyncs\\packages\\cli:true:true:llama3.2:3b:none:default",
+  "value": {
+    "models": [
+      {
+        "name": "code",
+        "fields": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "nullable": false,
+            "primaryKey": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp",
+            "nullable": true,
+            "primaryKey": false
+          }
+        ]
+      },
+      {
+        "name": "pg_class",
+        "fields": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "nullable": false,
+            "primaryKey": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp",
+            "nullable": true,
+            "primaryKey": false
+          }
+        ]
+      }
+    ],
+    "type": "raw-sql"
+  },
+  "timestamp": 1763017264945
+}

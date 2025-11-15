@@ -1,6 +1,8 @@
 {
   "/page": "app/page.js",
-  "/docs/page": "app/docs/page.js",
-  "/docs/migration-execution/page": "app/docs/migration-execution/page.js",
-  "/docs/migration-history/page": "app/docs/migration-history/page.js"
+  "/auth/login/page": "app/auth/login/page.js",
+  "/api/projects/[id]/codebase-status/route": "app/api/projects/[id]/codebase-status/route.js",
+  "/dashboard/projects/[id]/page": "app/dashboard/projects/[id]/page.js",
+  "/dashboard/projects/new/page": "app/dashboard/projects/new/page.js",
+  "/dashboard/page": "app/dashboard/page.js"
 }

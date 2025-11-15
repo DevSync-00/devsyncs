@@ -1,0 +1,169 @@
+{
+  "key": "code-schema:C:\\Users\\Bereket\\devsyncs:true:true:llama3.2:3b:none:default",
+  "value": {
+    "models": [
+      {
+        "name": "code",
+        "fields": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "nullable": false,
+            "primaryKey": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp",
+            "nullable": true,
+            "primaryKey": false
+          }
+        ]
+      },
+      {
+        "name": "migration_history",
+        "fields": [
+          {
+            "name": "migration_id",
+            "type": "text",
+            "nullable": true,
+            "primaryKey": false
+          }
+        ]
+      },
+      {
+        "name": "migrations",
+        "fields": [
+          {
+            "name": "project_id",
+            "type": "text",
+            "nullable": true,
+            "primaryKey": false
+          },
+          {
+            "name": "scan_report_id",
+            "type": "text",
+            "nullable": true,
+            "primaryKey": false
+          }
+        ]
+      },
+      {
+        "name": "pg_class",
+        "fields": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "nullable": false,
+            "primaryKey": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp",
+            "nullable": true,
+            "primaryKey": false
+          }
+        ]
+      },
+      {
+        "name": "projects",
+        "fields": [
+          {
+            "name": "user_id",
+            "type": "text",
+            "nullable": true,
+            "primaryKey": false
+          },
+          {
+            "name": "role",
+            "type": "text",
+            "nullable": true,
+            "primaryKey": false
+          },
+          {
+            "name": "team_id",
+            "type": "text",
+            "nullable": true,
+            "primaryKey": false
+          }
+        ]
+      },
+      {
+        "name": "scan_reports",
+        "fields": [
+          {
+            "name": "project_id",
+            "type": "text",
+            "nullable": true,
+            "primaryKey": false
+          },
+          {
+            "name": "scan_report_id",
+            "type": "text",
+            "nullable": true,
+            "primaryKey": false
+          },
+          {
+            "name": "completed",
+            "type": "text",
+            "nullable": true,
+            "primaryKey": false
+          },
+          {
+            "name": "user_id",
+            "type": "text",
+            "nullable": true,
+            "primaryKey": false
+          }
+        ]
+      },
+      {
+        "name": "team_members",
+        "fields": [
+          {
+            "name": "role",
+            "type": "text",
+            "nullable": true,
+            "primaryKey": false
+          },
+          {
+            "name": "team_id",
+            "type": "text",
+            "nullable": true,
+            "primaryKey": false
+          },
+          {
+            "name": "user_id",
+            "type": "text",
+            "nullable": true,
+            "primaryKey": false
+          },
+          {
+            "name": "completed",
+            "type": "text",
+            "nullable": true,
+            "primaryKey": false
+          }
+        ]
+      },
+      {
+        "name": "teams",
+        "fields": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "nullable": false,
+            "primaryKey": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp",
+            "nullable": true,
+            "primaryKey": false
+          }
+        ]
+      }
+    ],
+    "type": "raw-sql"
+  },
+  "timestamp": 1762958169207
+}

@@ -11,25 +11,30 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/docs/page": [
+    "/dashboard/projects/[id]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/docs/page.js"
+      "static/chunks/app/dashboard/projects/[id]/page.js"
     ],
-    "/docs/layout": [
+    "/dashboard/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/docs/layout.js"
+      "static/chunks/app/dashboard/layout.js"
     ],
-    "/docs/migration-execution/page": [
+    "/dashboard/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/docs/migration-execution/page.js"
+      "static/chunks/app/dashboard/page.js"
     ],
-    "/docs/migration-history/page": [
+    "/dashboard/projects/new/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/docs/migration-history/page.js"
+      "static/chunks/app/dashboard/projects/new/page.js"
+    ],
+    "/auth/login/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/auth/login/page.js"
     ]
   }
 }
