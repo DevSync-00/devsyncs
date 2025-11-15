@@ -3,6 +3,9 @@ import { DevSyncDiagnostics } from './diagnostics';
 import { DevSyncApiClient } from './api';
 import { DevSyncCommands } from './commands';
 import { DevSyncCodeActions, applyFix } from './codeActions';
+import { DevSyncSidebarProvider } from './sidebarProvider';
+import { CliRunner } from './cliRunner';
+import { SidebarCommands } from './sidebarCommands';
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('DevSync extension is now active!');
@@ -14,6 +17,22 @@ export function activate(context: vscode.ExtensionContext) {
     config.get<string>('apiKey', ''),
     config.get<string>('projectId', '')
   );
+
+  // Create output channel for CLI commands
+  const outputChannel = vscode.window.createOutputChannel('DevSync CLI');
+  context.subscriptions.push(outputChannel);
+
+  // Initialize CLI runner and sidebar
+  const cliRunner = new CliRunner(outputChannel);
+  const sidebarProvider = new DevSyncSidebarProvider(cliRunner);
+  const sidebarCommands = new SidebarCommands(sidebarProvider, cliRunner);
+
+  // Register tree data provider for sidebar
+  const treeView = vscode.window.createTreeView('devsyncSidebar', {
+    treeDataProvider: sidebarProvider,
+    showCollapseAll: true
+  });
+  context.subscriptions.push(treeView);
 
   const diagnostics = new DevSyncDiagnostics(apiClient, context);
   const commands = new DevSyncCommands(apiClient, diagnostics);
@@ -54,13 +73,50 @@ export function activate(context: vscode.ExtensionContext) {
     (document, diagnostic, suggestedFix) => applyFix(document, diagnostic, suggestedFix)
   );
 
+  // Register sidebar commands
+  const sidebarScanCommand = vscode.commands.registerCommand(
+    'devsync.sidebar.scan',
+    () => sidebarCommands.scan()
+  );
+  const sidebarMigrateCommand = vscode.commands.registerCommand(
+    'devsync.sidebar.migrate',
+    () => sidebarCommands.migrate()
+  );
+  const sidebarInitCommand = vscode.commands.registerCommand(
+    'devsync.sidebar.init',
+    () => sidebarCommands.init()
+  );
+  const sidebarShowOutputCommand = vscode.commands.registerCommand(
+    'devsync.sidebar.showOutput',
+    () => sidebarCommands.showOutput()
+  );
+  const sidebarViewFixCommand = vscode.commands.registerCommand(
+    'devsync.sidebar.viewFix',
+    (mismatch) => sidebarCommands.viewFix(mismatch)
+  );
+  const sidebarOpenConfigCommand = vscode.commands.registerCommand(
+    'devsync.sidebar.openConfig',
+    () => sidebarCommands.openConfig()
+  );
+  const sidebarRefreshCommand = vscode.commands.registerCommand(
+    'devsync.sidebar.refresh',
+    () => sidebarProvider.refresh()
+  );
+
   context.subscriptions.push(
     codeActionProvider,
     scanCommand,
     generateMigrationCommand,
     viewReportCommand,
     openDashboardCommand,
-    applyFixCommand
+    applyFixCommand,
+    sidebarScanCommand,
+    sidebarMigrateCommand,
+    sidebarInitCommand,
+    sidebarShowOutputCommand,
+    sidebarViewFixCommand,
+    sidebarOpenConfigCommand,
+    sidebarRefreshCommand
   );
 
   // Auto-scan on file save (if enabled)
