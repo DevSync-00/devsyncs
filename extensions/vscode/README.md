@@ -113,12 +113,40 @@ Hover over to see mismatch details and suggested fixes.
 
 ## Development
 
+### Quick Start
+
+For a complete step-by-step guide on setting up and running the extension, see:
+- **[GETTING_STARTED.md](./GETTING_STARTED.md)** - Complete setup and launch guide
+
+### Quick Commands
+
 ```bash
 cd extensions/vscode
 npm install
 npm run compile
 npm run watch
 ```
+
+### Running the Extension
+
+1. **Build the CLI first:**
+   ```bash
+   cd packages/cli
+   npm run build
+   ```
+
+2. **Build the extension:**
+   ```bash
+   cd extensions/vscode
+   npm run compile
+   ```
+
+3. **Launch:**
+   - Press `F5` in VS Code
+   - Select "Run Extension" from dropdown
+   - Extension Development Host window opens
+
+See [GETTING_STARTED.md](./GETTING_STARTED.md) for detailed instructions.
 
 ## License
 
