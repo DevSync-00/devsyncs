@@ -30,6 +30,24 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "views": {
+      "devsync": [
+        {
+          "id": "devsyncSidebar",
+          "name": "DevSync",
+          "when": "workspaceFolderCount > 0"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "devsync",
+          "title": "DevSync",
+          "icon": "$(database)"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "devsync.scan",
@@ -55,6 +73,39 @@
         "command": "devsync.applyFix",
         "title": "Apply Fix",
         "category": "DevSync"
+      },
+      {
+        "command": "devsync.sidebar.scan",
+        "title": "Scan Schema",
+        "icon": "$(search)"
+      },
+      {
+        "command": "devsync.sidebar.migrate",
+        "title": "Generate Migration",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "devsync.sidebar.init",
+        "title": "Initialize Project",
+        "icon": "$(add)"
+      },
+      {
+        "command": "devsync.sidebar.showOutput",
+        "title": "View Output",
+        "icon": "$(output)"
+      },
+      {
+        "command": "devsync.sidebar.viewFix",
+        "title": "View Suggested Fix"
+      },
+      {
+        "command": "devsync.sidebar.openConfig",
+        "title": "Open Config File"
+      },
+      {
+        "command": "devsync.sidebar.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
       }
     ],
     "configuration": {
@@ -89,6 +140,31 @@
           "type": "boolean",
           "default": false,
           "description": "Automatically scan on file save"
+        },
+        "devsync.aiAnalysis": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use AI to analyze codebase and infer schema from code patterns"
+        },
+        "devsync.useOllama": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use Ollama (local, free) instead of OpenAI for AI analysis"
+        },
+        "devsync.ollamaModel": {
+          "type": "string",
+          "default": "llama3.2:3b",
+          "description": "Ollama model name"
+        },
+        "devsync.ollamaUrl": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "Ollama API URL"
+        },
+        "devsync.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API key for AI analysis (or set OPENAI_API_KEY env var)"
         }
       }
     },
@@ -110,6 +186,20 @@
           "command": "devsync.scan",
           "when": "editorLangId == prisma",
           "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "devsync.sidebar.refresh",
+          "when": "view == devsyncSidebar",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "devsync.sidebar.viewFix",
+          "when": "view == devsyncSidebar && viewItem == mismatch-fix",
+          "group": "inline"
         }
       ]
     },

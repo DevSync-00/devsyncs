@@ -49,14 +49,19 @@ export function compareSchemas(
       const dbType = normalizeType(dbField.type);
       
       if (codeType !== dbType) {
+        // Check if types are compatible (less severe)
+        const isCompatible = areTypesCompatible(codeField.type, dbField.type);
+        
         mismatches.push({
           type: 'type_mismatch',
           model: codeModel.name,
           field: codeField.name,
           codeValue: codeField.type,
           dbValue: dbField.type,
-          severity: 'warning', // Warning because might be compatible types
-          suggestedFix: `ALTER TABLE "${codeModel.name}" ALTER COLUMN "${codeField.name}" TYPE ${codeField.type};`
+          severity: isCompatible ? 'info' : 'warning', // Info if compatible, warning if not
+          suggestedFix: isCompatible 
+            ? `-- Types are compatible but differ: ${codeField.type} vs ${dbField.type}\n-- ALTER TABLE "${codeModel.name}" ALTER COLUMN "${codeField.name}" TYPE ${codeField.type};`
+            : `ALTER TABLE "${codeModel.name}" ALTER COLUMN "${codeField.name}" TYPE ${codeField.type} USING "${codeField.name}"::${codeField.type};`
         });
       }
 
@@ -120,31 +125,108 @@ export function compareSchemas(
 }
 
 function normalizeType(type: string): string {
+  if (!type) return 'unknown';
+  
   // Normalize types for comparison
   let normalized = type.toLowerCase().trim();
   
   // Remove array brackets for comparison
   normalized = normalized.replace(/\[\]$/, '');
   
+  // Extract base type (remove length/precision/scale)
+  const baseType = normalized.split('(')[0].trim();
+  
   // Map common PostgreSQL types to standard names
   const typeMap: Record<string, string> = {
+    // Text types
     'varchar': 'text',
     'char': 'text',
+    'character': 'text',
+    'character varying': 'text',
+    'text': 'text',
+    'string': 'text',
+    
+    // Integer types
     'int': 'integer',
+    'int2': 'smallint',
     'int4': 'integer',
     'int8': 'bigint',
-    'float8': 'double precision',
+    'smallint': 'smallint',
+    'integer': 'integer',
+    'bigint': 'bigint',
+    'serial': 'integer',
+    'bigserial': 'bigint',
+    
+    // Float types
+    'float': 'double precision',
     'float4': 'real',
+    'float8': 'double precision',
+    'real': 'real',
+    'double': 'double precision',
+    'double precision': 'double precision',
+    
+    // Decimal types
+    'numeric': 'numeric',
+    'decimal': 'numeric',
+    
+    // Boolean
     'bool': 'boolean',
+    'boolean': 'boolean',
+    
+    // Date/Time types
+    'timestamp': 'timestamp',
     'timestamp without time zone': 'timestamp',
+    'timestamptz': 'timestamptz',
     'timestamp with time zone': 'timestamptz',
-    'jsonb': 'json',
-    'bytea': 'bytes'
+    'date': 'date',
+    'time': 'time',
+    'time without time zone': 'time',
+    'timetz': 'timetz',
+    'time with time zone': 'timetz',
+    
+    // JSON types
+    'json': 'json',
+    'jsonb': 'jsonb',
+    
+    // Other types
+    'bytea': 'bytea',
+    'bytes': 'bytea',
+    'uuid': 'uuid',
+    'inet': 'inet',
+    'cidr': 'cidr',
+    'macaddr': 'macaddr',
   };
 
-  // Extract base type (remove length/precision)
-  const baseType = normalized.split('(')[0];
-  
   return typeMap[baseType] || baseType;
+}
+
+/**
+ * Check if two types are compatible (can be safely converted)
+ */
+function areTypesCompatible(type1: string, type2: string): boolean {
+  const norm1 = normalizeType(type1);
+  const norm2 = normalizeType(type2);
+  
+  if (norm1 === norm2) return true;
+  
+  // Compatible type groups
+  const compatibleGroups = [
+    ['text', 'varchar', 'char', 'character varying'],
+    ['integer', 'int', 'int4', 'serial'],
+    ['bigint', 'int8', 'bigserial'],
+    ['double precision', 'float', 'float8'],
+    ['real', 'float4'],
+    ['numeric', 'decimal'],
+    ['timestamp', 'timestamptz'],
+    ['json', 'jsonb'],
+  ];
+  
+  for (const group of compatibleGroups) {
+    if (group.includes(norm1) && group.includes(norm2)) {
+      return true;
+    }
+  }
+  
+  return false;
 }
 

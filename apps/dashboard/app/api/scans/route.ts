@@ -67,14 +67,11 @@ export async function POST(request: NextRequest) {
     let hasTeamAccess = false;
 
     if (project.team_id && !isOwner) {
-      const { data: membership } = await supabase
-        .from('team_members')
-        .select('role')
-        .eq('team_id', project.team_id)
-        .eq('user_id', user.id)
-        .single();
+      // Use RPC function to avoid RLS recursion issues
+      const { data: isMember } = await supabase
+        .rpc('check_team_membership', { team_uuid: project.team_id });
       
-      hasTeamAccess = !!membership;
+      hasTeamAccess = !!isMember;
     }
 
     if (!isOwner && !hasTeamAccess) {

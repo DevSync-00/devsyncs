@@ -15,16 +15,13 @@ export default async function NewProjectPage({
   }
 
   // Validate team access if team_id is provided
+  // Use RPC function to avoid RLS recursion issues
   let teamId = searchParams.team_id;
   if (teamId) {
-    const { data: membership } = await supabase
-      .from('team_members')
-      .select('role')
-      .eq('team_id', teamId)
-      .eq('user_id', user.id)
-      .single();
+    const { data: isMember, error: rpcError } = await supabase
+      .rpc('check_team_membership', { team_uuid: teamId });
 
-    if (!membership) {
+    if (rpcError || !isMember) {
       // User doesn't have access to this team, clear team_id
       teamId = undefined;
     }

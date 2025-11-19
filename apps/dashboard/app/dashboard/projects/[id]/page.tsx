@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import ScanReportsList from '@/components/ScanReportsList';
+import CodebaseStatus from '@/components/CodebaseStatus';
 import { Button } from '@/components/ui/button';
 import { Scan } from 'lucide-react';
 import { ScanReportSkeleton } from '@/components/LoadingSkeleton';
@@ -46,18 +47,15 @@ export default async function ProjectDetailPage({
   }
 
   // Check if user has access (owner or team member)
+  // Use RPC function to avoid RLS recursion issues
   const isOwner = project.user_id === user.id;
   let hasTeamAccess = false;
 
   if (project.team_id && !isOwner) {
-    const { data: membership } = await supabase
-      .from('team_members')
-      .select('role')
-      .eq('team_id', project.team_id)
-      .eq('user_id', user.id)
-      .single();
+    const { data: isMember } = await supabase
+      .rpc('check_team_membership', { team_uuid: project.team_id });
     
-    hasTeamAccess = !!membership;
+    hasTeamAccess = !!isMember;
   }
 
   if (!isOwner && !hasTeamAccess) {
@@ -86,6 +84,9 @@ export default async function ProjectDetailPage({
           Run Scan
         </Button>
       </div>
+
+      {/* Codebase Status */}
+      <CodebaseStatus projectId={params.id} />
 
       <div className="border-t border-border pt-8">
         <h2 className="text-xl font-semibold mb-4">Scan Reports</h2>
