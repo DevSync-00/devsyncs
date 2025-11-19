@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { LogOut, Settings, FolderKanban } from 'lucide-react';
+import { LogOut, Settings, FolderKanban, Key } from 'lucide-react';
 
 export default async function DashboardLayout({
   children,
@@ -50,6 +50,13 @@ export default async function DashboardLayout({
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Documentation
+                </Link>
+                <Link
+                  href="/dashboard/api-keys"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                >
+                  <Key className="w-4 h-4" />
+                  API Keys
                 </Link>
               </div>
             </div>
