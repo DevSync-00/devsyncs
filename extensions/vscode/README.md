@@ -4,11 +4,14 @@ AI-powered schema sync for modern development - Real-time schema mismatch detect
 
 ## Features
 
+✅ **Sidebar Integration** - Full-featured sidebar with all CLI tools accessible  
 ✅ **Real-time Diagnostics** - Inline warnings for schema mismatches  
 ✅ **Quick Scan** - Scan your Prisma schema with one click  
 ✅ **Migration Generation** - Generate SQL migrations directly from VSCode  
 ✅ **Dashboard Integration** - Open dashboard with one click  
 ✅ **Auto-scan** - Automatically scan on file save (optional)  
+✅ **CLI Integration** - Run all CLI commands (scan, migrate, init) from the sidebar  
+✅ **Results Viewer** - View scan results and migration history in the sidebar  
 
 ## Installation
 
@@ -29,28 +32,52 @@ Open VSCode settings and configure:
   "devsync.projectId": "your-project-id",
   "devsync.databaseConnection": "postgresql://user:pass@localhost/db",
   "devsync.enableDiagnostics": true,
-  "devsync.autoScan": false
+  "devsync.autoScan": false,
+  "devsync.aiAnalysis": false,
+  "devsync.useOllama": false,
+  "devsync.ollamaModel": "llama3.2:3b",
+  "devsync.ollamaUrl": "http://localhost:11434",
+  "devsync.openaiApiKey": ""
 }
 ```
 
 ## Usage
 
-### Scan Schema
+### Sidebar (Recommended)
 
-1. Right-click on `schema.prisma` file
-2. Select "DevSync: Scan Schema"
-3. Or use Command Palette: `DevSync: Scan Schema`
+The DevSync sidebar provides easy access to all CLI tools:
 
-### Generate Migration
+1. **Open Sidebar**: Click the DevSync icon in the Activity Bar (left sidebar)
+2. **Commands Section**:
+   - **🔍 Scan Schema** - Scan your codebase and database for mismatches
+   - **🔧 Generate Migration** - Generate SQL migration from mismatches
+   - **⚙️ Initialize Project** - Initialize DevSync in your project
+   - **📊 View Output** - View CLI command execution logs
+3. **Scan Results Section**:
+   - View summary of mismatches (errors, warnings)
+   - Expand to see detailed mismatch information
+   - Click "View Suggested Fix" to see SQL fixes
+4. **Migrations Section**:
+   - View all generated migration files
+   - Click to open migration files in editor
+5. **Configuration Section**:
+   - Open config file
+   - Open VS Code settings
 
-1. After scanning, run "DevSync: Generate Migration"
-2. Review the generated SQL migration
-3. Apply manually or use dashboard
+### Command Palette
 
-### View Report
+You can also use the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 
-1. Run "DevSync: View Report"
-2. Opens dashboard in browser
+- `DevSync: Scan Schema`
+- `DevSync: Generate Migration`
+- `DevSync: View Report`
+- `DevSync: Open Dashboard`
+
+### Context Menu
+
+Right-click on `schema.prisma` files:
+- "DevSync: Scan Schema"
+- "DevSync: Generate Migration"
 
 ### Inline Diagnostics
 
@@ -63,10 +90,20 @@ Hover over to see mismatch details and suggested fixes.
 
 ## Commands
 
+### Main Commands
 - `devsync.scan` - Scan schema
 - `devsync.generateMigration` - Generate migration
 - `devsync.viewReport` - View scan report
 - `devsync.openDashboard` - Open dashboard
+
+### Sidebar Commands
+- `devsync.sidebar.scan` - Scan schema (from sidebar)
+- `devsync.sidebar.migrate` - Generate migration (from sidebar)
+- `devsync.sidebar.init` - Initialize project (from sidebar)
+- `devsync.sidebar.showOutput` - Show CLI output
+- `devsync.sidebar.viewFix` - View suggested fix for mismatch
+- `devsync.sidebar.openConfig` - Open config file
+- `devsync.sidebar.refresh` - Refresh sidebar view
 
 ## Requirements
 

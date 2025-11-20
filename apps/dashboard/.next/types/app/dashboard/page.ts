@@ -1,12 +1,8 @@
-<<<<<<< HEAD
-// File: C:\Users\Bereket\devsyncs\apps\dashboard\app\dashboard\layout.tsx
-=======
-// File: C:\DevSync\devsyncs\apps\dashboard\app\dashboard\layout.tsx
->>>>>>> 1448b137030173bdde5b018fd296d12e167794da
-import * as entry from '../../../../app/dashboard/layout.js'
+// File: C:\DevSync\devsyncs\apps\dashboard\app\dashboard\page.tsx
+import * as entry from '../../../../app/dashboard/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
-type TEntry = typeof import('../../../../app/dashboard/layout.js')
+type TEntry = typeof import('../../../../app/dashboard/page.js')
 
 // Check that the entry is a valid entry
 checkFields<Diff<{
@@ -29,17 +25,17 @@ checkFields<Diff<{
 }, TEntry, ''>>()
 
 // Check the prop type of the entry function
-checkFields<Diff<LayoutProps, FirstArg<TEntry['default']>, 'default'>>()
+checkFields<Diff<PageProps, FirstArg<TEntry['default']>, 'default'>>()
 
 // Check the arguments and return type of the generateMetadata function
 if ('generateMetadata' in entry) {
-  checkFields<Diff<LayoutProps, FirstArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
+  checkFields<Diff<PageProps, FirstArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
   checkFields<Diff<ResolvingMetadata, SecondArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
 }
 
 // Check the arguments and return type of the generateViewport function
 if ('generateViewport' in entry) {
-  checkFields<Diff<LayoutProps, FirstArg<MaybeField<TEntry, 'generateViewport'>>, 'generateViewport'>>()
+  checkFields<Diff<PageProps, FirstArg<MaybeField<TEntry, 'generateViewport'>>, 'generateViewport'>>()
   checkFields<Diff<ResolvingViewport, SecondArg<MaybeField<TEntry, 'generateViewport'>>, 'generateViewport'>>()
 }
 
