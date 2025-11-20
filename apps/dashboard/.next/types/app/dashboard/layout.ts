@@ -1,4 +1,8 @@
+<<<<<<< HEAD
+// File: C:\Users\Bereket\devsyncs\apps\dashboard\app\dashboard\layout.tsx
+=======
 // File: C:\DevSync\devsyncs\apps\dashboard\app\dashboard\layout.tsx
+>>>>>>> 1448b137030173bdde5b018fd296d12e167794da
 import * as entry from '../../../../app/dashboard/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
