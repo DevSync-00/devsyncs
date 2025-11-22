@@ -5,211 +5,14 @@ import { loadConfig } from '../utils/config.js';
 import { ApiClient } from '../services/api-client.js';
 import { saveScanResults, getScanExitCode } from '../utils/output.js';
 import chalk from 'chalk';
-import { resolve, join } from 'path';
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { resolve } from 'path';
 import type { ScanOptions, CodeSchema, DbSchema, Mismatch } from '../types/index.js';
-import { requireAuthenticatedCli, getAuthenticatedCli } from '../lib/auth-check.js';
-import { selectPrompt, inputPrompt } from '../utils/prompts.js';
-import { loginCommand } from './login.js';
-import { AnalyzerApiClient } from '../lib/api-client.js';
+import { requireAuthenticatedCli } from '../lib/auth-check.js';
 
 export async function scanCommand(options: ScanOptions) {
   try {
     console.log(chalk.blue('🔍 Scanning codebase and database...\n'));
-    
-    // Show authentication prompt
-    const authChoice = await selectPrompt(
-      'How would you like to proceed?',
-      [
-        { name: 'Log in or create account', value: 'login' },
-        { name: 'Continue without login', value: 'no-login' }
-      ]
-    );
-
-    let dbConnection: string | undefined = options.db;
-    let projectId: string | undefined = options.projectId;
-    let apiUrl: string | undefined = options.apiUrl;
-    let apiKey: string | undefined = options.apiKey;
-    let shouldSync = false;
-
-    if (authChoice === 'login') {
-      // User chose to log in or create account
-      console.log(chalk.blue('\n🔐 Logging in or creating account...\n'));
-      await loginCommand();
-      
-      // Get authenticated API client (should be available after loginCommand)
-      const auth = await getAuthenticatedCli();
-      if (!auth) {
-        console.error(chalk.red('❌ Authentication failed. Please try again.'));
-        process.exit(1);
-      }
-      const apiClient = new AnalyzerApiClient();
-      
-      // Get API URL from environment or config
-      apiUrl = options.apiUrl || process.env.DEVSYNC_API_URL || 'http://localhost:4000';
-      apiKey = auth.accessToken;
-      
-      // Prompt for Project ID (can be empty to create new project)
-      projectId = await inputPrompt('Enter your Project ID (leave empty to create a new project)');
-      
-      if (!projectId) {
-        // User wants to create a new project
-        console.log(chalk.blue('\n📝 Creating new project...\n'));
-        
-        const projectName = await inputPrompt('Enter project name');
-        if (!projectName) {
-          console.error(chalk.red('❌ Project name is required.'));
-          process.exit(1);
-        }
-        
-        // Prompt for schema type
-        const schemaTypeChoice = await selectPrompt(
-          'Select schema type',
-          [
-            { name: 'Prisma', value: 'prisma' },
-            { name: 'Supabase', value: 'supabase' },
-            { name: 'TypeORM', value: 'typeorm' },
-            { name: 'Kysely', value: 'kysely' },
-            { name: 'Sequelize', value: 'sequelize' },
-            { name: 'Drizzle', value: 'drizzle' },
-            { name: 'Django', value: 'django' },
-            { name: 'SQLAlchemy', value: 'sqlalchemy' },
-            { name: 'Raw SQL', value: 'raw-sql' },
-            { name: 'Auto-detect (AI)', value: 'auto' }
-          ]
-        );
-        
-        // Prompt for database connection string
-        dbConnection = await inputPrompt('Enter database connection string');
-        if (!dbConnection) {
-          console.error(chalk.red('❌ Database connection string is required.'));
-          process.exit(1);
-        }
-        
-        // Prompt for codebase source
-        const codebaseSource = await inputPrompt('Enter codebase source (file path or git URL)', process.cwd());
-        
-        // Create project via API
-        console.log(chalk.gray('\n📡 Creating project...'));
-        try {
-          const projectApiClient = new ApiClient({
-            apiUrl,
-            apiKey: auth.accessToken,
-            timeout: 30000,
-            maxRetries: 3
-          });
-          
-          const newProject = await projectApiClient.createProject({
-            name: projectName,
-            schemaType: schemaTypeChoice === 'auto' ? undefined : schemaTypeChoice,
-            databaseConnectionString: dbConnection,
-            codebaseSource: codebaseSource || process.cwd()
-          });
-          
-          projectId = newProject.id;
-          shouldSync = true;
-          
-          console.log(chalk.green(`✅ Project "${newProject.name}" created successfully!`));
-          console.log(chalk.gray(`   Project ID: ${projectId}\n`));
-          
-          // Save project ID to config if possible
-          try {
-            const configPath = resolve(process.cwd(), '.devsync', 'config.json');
-            let config: any = await loadConfig('.devsync/config.json').catch(() => null);
-            
-            if (!config) {
-              // Create default config structure
-              config = {
-                version: '1.0',
-                project: {
-                  name: projectName,
-                  schemaType: schemaTypeChoice === 'auto' ? 'prisma' : schemaTypeChoice,
-                  id: projectId
-                },
-                database: {
-                  connectionString: dbConnection,
-                  provider: 'postgresql' as const
-                },
-                api: {
-                  url: apiUrl,
-                  key: apiKey,
-                  enabled: true
-                }
-              };
-            } else {
-              config.project = config.project || { name: projectName, schemaType: 'prisma' };
-              config.project.id = projectId;
-              config.project.name = projectName;
-              if (schemaTypeChoice !== 'auto') {
-                config.project.schemaType = schemaTypeChoice;
-              }
-              config.database = config.database || { provider: 'postgresql' as const };
-              config.database.connectionString = dbConnection;
-              config.database.provider = config.database.provider || 'postgresql';
-              config.api = config.api || {};
-              config.api.url = apiUrl;
-              config.api.key = apiKey;
-            }
-            
-            const configDir = join(process.cwd(), '.devsync');
-            if (!existsSync(configDir)) {
-              mkdirSync(configDir, { recursive: true });
-            }
-            writeFileSync(configPath, JSON.stringify(config, null, 2));
-            console.log(chalk.gray(`   Config saved to: ${configPath}\n`));
-          } catch (configError) {
-            // Ignore config save errors
-            console.log(chalk.yellow(`   ⚠️  Could not save config: ${configError instanceof Error ? configError.message : String(configError)}\n`));
-          }
-        } catch (error) {
-          console.error(chalk.red(`❌ Failed to create project: ${error instanceof Error ? error.message : String(error)}`));
-          console.log(chalk.yellow('⚠️  Continuing with manual database connection...\n'));
-          // Continue with manual connection
-        }
-      } else {
-        // User entered an existing Project ID - fetch project metadata
-        console.log(chalk.gray('\n📡 Fetching project metadata...'));
-        try {
-          const projectApiClient = new ApiClient({
-            apiUrl,
-            apiKey: auth.accessToken,
-            timeout: 30000,
-            maxRetries: 3
-          });
-          
-          const projectMetadata = await projectApiClient.getProjectMetadata(projectId);
-          
-          // Use database connection from project metadata if available
-          if (projectMetadata.databaseConnectionString) {
-            dbConnection = projectMetadata.databaseConnectionString;
-            console.log(chalk.green('✅ Found database connection in project settings'));
-          } else {
-            console.log(chalk.yellow('⚠️  No database connection found in project settings'));
-            dbConnection = await inputPrompt('Enter database connection string');
-          }
-          
-          shouldSync = true;
-          
-          console.log(chalk.green(`✅ Project "${projectMetadata.name}" loaded\n`));
-        } catch (error) {
-          console.error(chalk.red(`❌ Failed to fetch project metadata: ${error instanceof Error ? error.message : String(error)}`));
-          console.log(chalk.yellow('⚠️  Falling back to manual database connection...\n'));
-          dbConnection = await inputPrompt('Enter database connection string');
-        }
-      }
-    } else {
-      // User chose to continue without login
-      console.log(chalk.gray('\n📝 Continuing without login...\n'));
-      
-      // Load config if exists
-      const config = options.config ? await loadConfig(options.config) : null;
-      dbConnection = options.db || config?.database?.connectionString;
-      
-      // If still no database connection, prompt for it
-      if (!dbConnection) {
-        dbConnection = await inputPrompt('Enter database connection string');
-      }
-    }
+    await requireAuthenticatedCli();
 
     // Resolve path to absolute path
     // If path is already absolute, use it; otherwise resolve from cwd
@@ -217,51 +20,43 @@ export async function scanCommand(options: ScanOptions) {
       ? options.path
       : resolve(process.cwd(), options.path);
 
-    // Load config if exists (for additional settings)
+    // Load config if exists
     const config = options.config ? await loadConfig(options.config) : null;
-    
-    // Override with config if not set from prompts
-    if (!dbConnection) {
-      dbConnection = config?.database?.connectionString;
-    }
-    if (!projectId) {
-      projectId = config?.project?.id;
-    }
-    if (!apiUrl) {
-      apiUrl = config?.api?.url;
-    }
-    if (!apiKey) {
-      apiKey = config?.api?.key;
-    }
-    
-    // Update shouldSync based on final values
-    shouldSync = !!(options.sync !== false && shouldSync && projectId && apiUrl && apiKey);
+    const dbConnection = options.db || config?.database?.connectionString;
 
-    // 1. Scan codebase using AI analysis (always use AI to infer schema from code)
-    console.log(chalk.gray('📁 Scanning codebase with AI analysis...'));
-    
+    // API settings
+    const projectId = options.projectId || config?.project?.id;
+    const apiUrl = options.apiUrl || config?.api?.url;
+    const apiKey = options.apiKey || config?.api?.key;
+    const shouldSync = options.sync !== false && projectId && apiUrl && apiKey;
+
+    // 1. Scan codebase (extract schema - Prisma, TypeORM, Sequelize, Drizzle, or Raw SQL, or AI)
+    console.log(chalk.gray('📁 Scanning codebase...'));
+    // Check if AI analysis is requested
+    const useAI = options.aiAnalysis || !!process.env.OPENAI_API_KEY || !!process.env.OLLAMA_URL;
     const useOllama = options.useOllama || !!process.env.OLLAMA_URL;
     const openaiApiKey = options.openaiApiKey || process.env.OPENAI_API_KEY;
     const ollamaUrl = options.ollamaUrl || process.env.OLLAMA_URL || 'http://localhost:11434';
     const ollamaModel = options.ollamaModel || process.env.OLLAMA_MODEL || 'llama3.2:3b';
     
-    // Prefer Ollama (free, local) if available
-    if (useOllama) {
+    // Prefer Ollama (free, local) if enabled
+    if (useAI && useOllama) {
       console.log(chalk.blue('🤖 Using Ollama (local, free) for AI analysis...'));
       console.log(chalk.gray(`   Model: ${ollamaModel}`));
       console.log(chalk.gray(`   URL: ${ollamaUrl}\n`));
-    } else if (openaiApiKey) {
-      console.log(chalk.blue('🤖 Using AI-powered code analysis (OpenAI)...\n'));
-    } else {
-      console.log(chalk.yellow('⚠️  No AI provider configured. Trying to use Ollama at default location...\n'));
+    } else if (useAI && openaiApiKey) {
+      console.log(chalk.blue('🤖 Using AI-powered code analysis (OpenAI)...'));
+    } else if (useAI && !openaiApiKey && !useOllama) {
+      console.error(chalk.red('❌ Error: --ai-analysis requires either:'));
+      console.error(chalk.gray('   --use-ollama (local, free)'));
+      console.error(chalk.gray('   OR --openai-api-key flag / OPENAI_API_KEY environment variable'));
+      process.exit(1);
     }
     
-    // Always use AI analysis to infer schema from code
-    // The code-scanner will fallback to schema files if AI fails, but we prefer AI
     const codeSchema = await scanCodebase(absolutePath, {
-      useAI: true, // Always use AI for codebase analysis
+      useAI: !!useAI,
       openaiApiKey: useOllama ? undefined : (openaiApiKey || undefined),
-      useOllama: useOllama,
+      useOllama: !!useOllama,
       ollamaModel: ollamaModel,
       ollamaUrl: ollamaUrl,
       useCache: true,
@@ -285,7 +80,7 @@ export async function scanCommand(options: ScanOptions) {
       });
 
       // Try to sync to cloud even without DB
-      if (shouldSync && apiUrl && apiKey && projectId) {
+      if (shouldSync) {
         await syncToCloud(apiUrl, apiKey, projectId, codeSchema, null, []);
       }
       return;
@@ -333,7 +128,7 @@ export async function scanCommand(options: ScanOptions) {
     }
 
     // 6. Sync to cloud if configured
-    if (shouldSync && apiUrl && apiKey && projectId) {
+    if (shouldSync) {
       await syncToCloud(apiUrl, apiKey, projectId, codeSchema, dbSchema, diff.mismatches);
     }
 

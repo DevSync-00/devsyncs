@@ -60,8 +60,7 @@ export async function scanCodebase(
   }
 
   const progress = showProgress ? new ProgressIndicator({ message: 'Scanning codebase...' }) : null;
-  
-  // Try AI-powered code analysis first if explicitly enabled
+  // Try AI-powered code analysis first if enabled
   if (useAI) {
     try {
       progress?.update(0, 'Running AI analysis...');
@@ -238,52 +237,8 @@ export async function scanCodebase(
     return sqlResult;
   }
 
-  // No schema files found - try AI analysis as fallback
-  progress?.update(8, 'No schema files found, trying AI analysis...');
-  
-  // Check if AI is available (Ollama or OpenAI)
-  // Use options first, then environment variables, then defaults
-  const fallbackOllamaUrl = ollamaUrl || process.env.OLLAMA_URL || 'http://localhost:11434';
-  const fallbackOllamaModel = ollamaModel || process.env.OLLAMA_MODEL || 'llama3.2:3b';
-  const fallbackOpenAIKey = openaiApiKey || process.env.OPENAI_API_KEY;
-  const hasOllama = useOllama || !!process.env.OLLAMA_URL || fallbackOllamaUrl !== 'http://localhost:11434';
-  const hasOpenAI = !!fallbackOpenAIKey;
-  const canUseAI = hasOllama || hasOpenAI;
-  
-  if (canUseAI) {
-    try {
-      progress?.update(0, 'Running AI analysis to infer schema from code...');
-      const aiResult = await analyzeCodebaseWithAI(basePath, {
-        openaiApiKey: fallbackOpenAIKey,
-        useOllama: hasOllama,
-        ollamaModel: fallbackOllamaModel,
-        ollamaUrl: fallbackOllamaUrl
-      });
-      
-      if (aiResult && aiResult.models.length > 0) {
-        progress?.complete(`Found ${aiResult.models.length} models via AI analysis`);
-        
-        // Cache the result
-        if (useCache && cacheKey) {
-          cache.set(cacheKey, aiResult);
-        }
-        
-        return aiResult;
-      }
-    } catch (error) {
-      // AI failed, but continue to show helpful error message
-      if (showProgress) {
-        console.warn('⚠️  AI analysis failed:', error instanceof Error ? error.message : String(error));
-      }
-    }
-  }
-  
-  // No schema found and AI either unavailable or failed
+  // No schema found
   progress?.complete();
-  const aiTip = canUseAI 
-    ? `\n💡 AI analysis was attempted but couldn't infer schema. Check that your code contains database queries.`
-    : `\n💡 Tip: Use --ai-analysis (with --use-ollama or --openai-api-key) to infer schema from code patterns`;
-  
   throw new Error(
     `No schema file found. Looking for:\n` +
     `  - ${prismaPath}\n` +
@@ -295,8 +250,8 @@ export async function scanCodebase(
     `  - Django models (models.py)\n` +
     `  - SQLAlchemy models (*.py)\n` +
     `  - SQL migrations (*.sql)\n` +
-    `\nCurrently supported: Prisma, Supabase, TypeORM, Kysely, Sequelize, Drizzle, Django, SQLAlchemy, Raw SQL` +
-    aiTip
+    `\nCurrently supported: Prisma, Supabase, TypeORM, Kysely, Sequelize, Drizzle, Django, SQLAlchemy, Raw SQL\n` +
+    `\nTip: Use --ai-analysis to infer schema from code patterns`
   );
 }
 

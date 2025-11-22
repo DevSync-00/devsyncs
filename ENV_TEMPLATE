@@ -1,0 +1,10 @@
+# Copy this file to .env and fill in your values
+# Marketing Site Environment Variables
+
+# Supabase Configuration (for device page authentication)
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+
+# Analyzer API Configuration
+VITE_ANALYZER_API_URL=http://localhost:4000
+
