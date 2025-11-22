@@ -11,8 +11,7 @@
     "build": "tsc",
     "dev": "tsx src/index.ts",
     "watch": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
-    "test": "jest"
+    "start": "node dist/index.js"
   },
   "keywords": [
     "devops",
@@ -31,13 +30,10 @@
     "chalk": "^5.3.0"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.12",
     "@types/node": "^22.16.5",
     "@types/pg": "^8.11.10",
-    "jest": "^30.2.0",
-    "ts-jest": "^29.2.5",
-    "tsx": "^4.19.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "tsx": "^4.19.2"
   }
 }
 

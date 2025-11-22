@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { DevSyncApiClient } from './api-client';
+import { DevSyncApiClient } from './api';
 import { DevSyncDiagnostics } from './diagnostics';
 
 export class DevSyncCommands {

@@ -3,8 +3,6 @@ import { program } from 'commander';
 import { scanCommand } from './commands/scan.js';
 import { initCommand } from './commands/init.js';
 import { migrateCommand } from './commands/migrate.js';
-import { loginCommand } from './commands/login.js';
-import { statusCommand } from './commands/status.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -58,16 +56,6 @@ program
   .option('--apply', 'Apply migration automatically (use with caution)')
   .option('--no-rollback', 'Skip generating rollback script')
   .action(migrateCommand);
-
-program
-  .command('login')
-  .description('Authenticate DevSync CLI via the OAuth device flow')
-  .action(loginCommand);
-
-program
-  .command('status')
-  .description('Show authentication state for this CLI')
-  .action(statusCommand);
 
 program.parse();
 

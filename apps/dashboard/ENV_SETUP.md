@@ -208,7 +208,6 @@ For production, set environment variables in your hosting platform:
 |----------|----------|---------|--------------|
 | `NEXT_PUBLIC_SUPABASE_URL` | ✅ Yes | Supabase project URL | Supabase Dashboard → Settings → API |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ Yes | Supabase anon key | Supabase Dashboard → Settings → API |
-| `NEXT_PUBLIC_ANALYZER_API_URL` | ✅ Yes | Base URL for the analyzer service/device flow APIs | Deployment URL of `apps/analyzer` (e.g. `http://localhost:4000`) |
 | `OPENAI_API_KEY` | ❌ Optional | AI features | OpenAI Platform → API Keys |
 
 ---

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { DevSyncApiClient, Mismatch } from './api-client';
+import { DevSyncApiClient, Mismatch } from './api';
 import { DevSyncDiagnostics } from './diagnostics';
 
 export class DevSyncCodeActions implements vscode.CodeActionProvider {

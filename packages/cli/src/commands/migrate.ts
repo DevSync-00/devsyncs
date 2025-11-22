@@ -9,7 +9,6 @@ import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 import type { ScanOptions } from '../types/index.js';
 import type { MigrationOptions } from '../services/migration-generator.js';
-import { requireAuthenticatedCli } from '../lib/auth-check.js';
 
 export interface MigrateOptions extends ScanOptions {
   output?: string;
@@ -22,7 +21,6 @@ export interface MigrateOptions extends ScanOptions {
 export async function migrateCommand(options: MigrateOptions) {
   try {
     console.log(chalk.blue('🔧 Generating migration...\n'));
-    await requireAuthenticatedCli();
 
     // Resolve path to absolute path
     const absolutePath = options.path.startsWith('/') || /^[A-Z]:/.test(options.path)

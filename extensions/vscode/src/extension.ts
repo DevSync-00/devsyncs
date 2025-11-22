@@ -1,23 +1,22 @@
 import * as vscode from 'vscode';
 import { DevSyncDiagnostics } from './diagnostics';
-import { DevSyncApiClient } from './api-client';
+import { DevSyncApiClient } from './api';
 import { DevSyncCommands } from './commands';
 import { DevSyncCodeActions, applyFix } from './codeActions';
 import { DevSyncSidebarProvider } from './sidebarProvider';
 import { CliRunner } from './cliRunner';
 import { SidebarCommands } from './sidebarCommands';
-import { DeviceAuthManager } from './auth';
 
-export async function activate(context: vscode.ExtensionContext) {
+export function activate(context: vscode.ExtensionContext) {
   console.log('DevSync extension is now active!');
 
   // Initialize components
   const config = vscode.workspace.getConfiguration('devsync');
-  const apiUrl = config.get<string>('apiUrl', 'http://localhost:3000');
-  const projectId = config.get<string>('projectId', '');
-  const authManager = new DeviceAuthManager(context, apiUrl);
-  await authManager.ensureAuthenticated();
-  const apiClient = new DevSyncApiClient(apiUrl, projectId, authManager);
+  const apiClient = new DevSyncApiClient(
+    config.get<string>('apiUrl', 'http://localhost:3000'),
+    config.get<string>('apiKey', ''),
+    config.get<string>('projectId', '')
+  );
 
   // Create output channel for CLI commands
   const outputChannel = vscode.window.createOutputChannel('DevSync CLI');

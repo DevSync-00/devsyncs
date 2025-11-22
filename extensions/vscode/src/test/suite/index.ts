@@ -1,10 +1,10 @@
 import * as path from 'path';
-const Mocha = require('mocha');
-const glob = require('glob');
+import Mocha from 'mocha';
+import { glob } from 'glob';
 
 export function run(): Promise<void> {
   // Create the mocha test
-  const mocha = new Mocha.default({
+  const mocha = new Mocha({
     ui: 'tdd',
     color: true,
   });
@@ -12,10 +12,7 @@ export function run(): Promise<void> {
   const testsRoot = path.resolve(__dirname, '..');
 
   return new Promise((c, e) => {
-    glob('**/**.test.js', { cwd: testsRoot }, (err: Error | null, files: string[]) => {
-      if (err) {
-        return e(err);
-      }
+    glob('**/**.test.js', { cwd: testsRoot }).then((files) => {
       // Add files to the test suite
       files.forEach((f) => mocha.addFile(path.resolve(testsRoot, f)));
 
@@ -28,10 +25,12 @@ export function run(): Promise<void> {
             c();
           }
         });
-      } catch (error) {
-        console.error(error);
-        e(error);
+      } catch (err) {
+        console.error(err);
+        e(err);
       }
+    }).catch((err) => {
+      e(err);
     });
   });
 }

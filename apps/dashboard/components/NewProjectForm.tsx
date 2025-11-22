@@ -230,22 +230,19 @@ export default function NewProjectForm({ userId, teamId }: NewProjectFormProps) 
         } catch (uploadErr: any) {
           console.error('File upload error:', uploadErr);
           // Update project status to indicate upload failed
-          try {
-            await supabase
-              .from('projects')
-              .update({
-                config: {
-                  codebase: {
-                    ...codebaseConfig,
-                    status: 'error',
-                    error: uploadErr.message,
-                  },
+          await supabase
+            .from('projects')
+            .update({
+              config: {
+                codebase: {
+                  ...codebaseConfig,
+                  status: 'error',
+                  error: uploadErr.message,
                 },
-              })
-              .eq('id', project.id);
-          } catch {
-            // noop – best-effort error status update
-          }
+              },
+            })
+            .eq('id', project.id)
+            .catch(() => {}); // Ignore update errors
         }
       }
 
