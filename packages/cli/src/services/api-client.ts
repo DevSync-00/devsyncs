@@ -124,5 +124,117 @@ export class ApiClient {
       }
     );
   }
+
+  async getProjectMetadata(projectId: string): Promise<{
+    id: string;
+    name: string;
+    databaseConnectionString?: string;
+    schemaType?: string;
+    [key: string]: any;
+  }> {
+    return retry(
+      async () => {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+
+        if (this.apiKey) {
+          headers['Authorization'] = `Bearer ${this.apiKey}`;
+        }
+
+        const response = await withTimeout(
+          fetch(`${this.apiUrl}/api/projects/${projectId}`, {
+            method: 'GET',
+            headers,
+          }),
+          this.timeout,
+          'Request to API timed out'
+        );
+
+        if (!response.ok) {
+          let errorMessage = 'Unknown error';
+          try {
+            const errorData = await response.json() as { error?: string; details?: string };
+            errorMessage = errorData.error || errorData.details || response.statusText;
+          } catch {
+            errorMessage = response.statusText;
+          }
+          throw new Error(`Failed to fetch project metadata: ${errorMessage} (${response.status})`);
+        }
+
+        const data = await response.json() as {
+          id: string;
+          name: string;
+          databaseConnectionString?: string;
+          schemaType?: string;
+          [key: string]: any;
+        };
+        return data;
+      },
+      {
+        maxAttempts: this.maxRetries,
+        retryableErrors: ['ECONNREFUSED', 'ETIMEDOUT', 'timeout', 'network', 'fetch failed']
+      }
+    );
+  }
+
+  async createProject(payload: {
+    name: string;
+    schemaType?: string;
+    databaseConnectionString: string;
+    codebaseSource: string;
+  }): Promise<{
+    id: string;
+    name: string;
+    databaseConnectionString?: string;
+    schemaType?: string;
+    [key: string]: any;
+  }> {
+    return retry(
+      async () => {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+
+        if (this.apiKey) {
+          headers['Authorization'] = `Bearer ${this.apiKey}`;
+        }
+
+        const response = await withTimeout(
+          fetch(`${this.apiUrl}/api/projects`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload),
+          }),
+          this.timeout,
+          'Request to API timed out'
+        );
+
+        if (!response.ok) {
+          let errorMessage = 'Unknown error';
+          try {
+            const errorData = await response.json() as { error?: string; details?: string };
+            errorMessage = errorData.error || errorData.details || response.statusText;
+          } catch {
+            errorMessage = response.statusText;
+          }
+          throw new Error(`Failed to create project: ${errorMessage} (${response.status})`);
+        }
+
+        const data = await response.json() as {
+          id: string;
+          name: string;
+          databaseConnectionString?: string;
+          schemaType?: string;
+          [key: string]: any;
+        };
+        return data;
+      },
+      {
+        maxAttempts: this.maxRetries,
+        retryableErrors: ['ECONNREFUSED', 'ETIMEDOUT', 'timeout', 'network', 'fetch failed']
+      }
+    );
+  }
 }
 
