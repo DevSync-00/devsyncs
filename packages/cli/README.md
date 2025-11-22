@@ -38,6 +38,20 @@ devsync scan
 devsync scan --config .devsync/config.json
 ```
 
+### 3. Authenticate the CLI
+
+All commands require a logged-in session backed by Supabase Auth. Run the device flow once per machine:
+
+```bash
+devsync login
+```
+
+You'll get a short code to enter at `https://app.myproduct.com/device`. Tokens are stored in `~/.config/devsync/config.json` and refreshed automatically. Check the current status any time with:
+
+```bash
+devsync status
+```
+
 ## Commands
 
 ### `devsync init`
@@ -70,6 +84,14 @@ devsync scan --config .devsync/config.json
 # Works with any supported schema type (Prisma, TypeORM, Sequelize, Drizzle, Raw SQL)
 # DevSync automatically detects your schema type!
 ```
+
+### `devsync login`
+
+Launch the secure OAuth Device Authorization Flow. The CLI polls the backend until you approve the request in the browser, then saves encrypted tokens locally.
+
+### `devsync status`
+
+Show whether the CLI has an active access token/refresh token pair and when it expires. Use this before CI runs to guarantee connectivity.
 
 ## Configuration
 

@@ -2,9 +2,12 @@ import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import chalk from 'chalk';
 import type { InitOptions } from '../types/index.js';
+import { requireAuthenticatedCli } from '../lib/auth-check.js';
 
 export async function initCommand(options: InitOptions) {
   try {
+    await requireAuthenticatedCli();
+
     const configPath = join(options.path, '.devsync');
     const configFile = join(configPath, 'config.json');
 

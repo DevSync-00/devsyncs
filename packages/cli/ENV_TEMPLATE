@@ -1,0 +1,16 @@
+# Copy this file to .env if needed (optional for CLI)
+# DevSync CLI Configuration
+
+# Analyzer API URL (default: http://localhost:4000)
+DEVSYNC_API_URL=http://localhost:4000
+
+# Custom config path (default: ~/.config/devsync/config.json)
+# DEVSYNC_CONFIG_PATH=/custom/path/config.json
+
+# AI Analysis Configuration (optional)
+# OPENAI_API_KEY=your-openai-api-key
+
+# Or use Ollama (local, free)
+# OLLAMA_URL=http://localhost:11434
+# OLLAMA_MODEL=llama3.2:3b
+

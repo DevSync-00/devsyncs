@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { DevSyncApiClient, Mismatch } from './api';
+import { DevSyncApiClient, Mismatch } from './api-client';
 
 export class DevSyncDiagnostics {
   private diagnosticCollection: vscode.DiagnosticCollection;

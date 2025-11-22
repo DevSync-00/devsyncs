@@ -7,10 +7,12 @@ import { saveScanResults, getScanExitCode } from '../utils/output.js';
 import chalk from 'chalk';
 import { resolve } from 'path';
 import type { ScanOptions, CodeSchema, DbSchema, Mismatch } from '../types/index.js';
+import { requireAuthenticatedCli } from '../lib/auth-check.js';
 
 export async function scanCommand(options: ScanOptions) {
   try {
     console.log(chalk.blue('🔍 Scanning codebase and database...\n'));
+    await requireAuthenticatedCli();
 
     // Resolve path to absolute path
     // If path is already absolute, use it; otherwise resolve from cwd

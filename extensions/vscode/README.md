@@ -28,7 +28,6 @@ Open VSCode settings and configure:
 ```json
 {
   "devsync.apiUrl": "http://localhost:3000",
-  "devsync.apiKey": "your-jwt-token",
   "devsync.projectId": "your-project-id",
   "devsync.databaseConnection": "postgresql://user:pass@localhost/db",
   "devsync.enableDiagnostics": true,
@@ -40,6 +39,8 @@ Open VSCode settings and configure:
   "devsync.openaiApiKey": ""
 }
 ```
+
+When you activate the extension for the first time it will prompt you to authorize via the DevSync OAuth Device Flow. Follow the on-screen instructions, open `https://app.myproduct.com/device`, and enter the short code that appears in VS Code. Tokens are stored securely in VS Code's secret storage and refreshed automatically—no more manual API keys.
 
 ## Usage
 
