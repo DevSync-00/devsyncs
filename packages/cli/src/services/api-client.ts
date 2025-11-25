@@ -31,6 +31,29 @@ export interface ScanReportsResponse {
   scanReports: any[];
 }
 
+export interface ProjectListItem {
+  id: string;
+  name: string;
+  slug?: string;
+  schemaType?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  teamId?: string | null;
+  codebaseType?: string | null;
+  lastScanAt?: string | null;
+  lastScanStatus?: string | null;
+  mismatchCount?: number;
+  metadata?: {
+    lastScanAt?: string | null;
+    lastScanStatus?: string | null;
+    mismatchCount?: number;
+  };
+}
+
+interface ProjectsResponse {
+  projects: ProjectListItem[];
+}
+
 export class ApiClient {
   private apiUrl: string;
   private apiKey?: string;
@@ -117,6 +140,48 @@ export class ApiClient {
 
         const data = await response.json() as ScanReportsResponse;
         return data.scanReports || [];
+      },
+      {
+        maxAttempts: this.maxRetries,
+        retryableErrors: ['ECONNREFUSED', 'ETIMEDOUT', 'timeout', 'network', 'fetch failed']
+      }
+    );
+  }
+
+  async listProjects(search?: string): Promise<ProjectListItem[]> {
+    return retry(
+      async () => {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+
+        if (this.apiKey) {
+          headers['Authorization'] = `Bearer ${this.apiKey}`;
+        }
+
+        const searchParam = search ? `?search=${encodeURIComponent(search)}` : '';
+        const response = await withTimeout(
+          fetch(`${this.apiUrl}/api/projects${searchParam}`, {
+            method: 'GET',
+            headers,
+          }),
+          this.timeout,
+          'Request to API timed out'
+        );
+
+        if (!response.ok) {
+          let errorMessage = 'Unknown error';
+          try {
+            const errorData = await response.json() as { error?: string; details?: string };
+            errorMessage = errorData.error || errorData.details || response.statusText;
+          } catch {
+            errorMessage = response.statusText;
+          }
+          throw new Error(`Failed to fetch projects: ${errorMessage} (${response.status})`);
+        }
+
+        const data = await response.json() as ProjectsResponse;
+        return data.projects || [];
       },
       {
         maxAttempts: this.maxRetries,

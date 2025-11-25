@@ -10,6 +10,12 @@ export interface CliCommandResult {
   exitCode?: number;
 }
 
+export interface CliRunHooks {
+  onStdout?: (chunk: string) => void;
+  onStderr?: (chunk: string) => void;
+  onClose?: (code: number | null) => void;
+}
+
 export class CliRunner {
   private outputChannel: vscode.OutputChannel;
   private runningProcesses: Map<string, ChildProcess> = new Map();
@@ -82,7 +88,8 @@ export class CliRunner {
   async executeCliCommand(
     command: 'scan' | 'migrate' | 'init',
     options: Record<string, any> = {},
-    cancelToken?: vscode.CancellationToken
+    cancelToken?: vscode.CancellationToken,
+    hooks?: CliRunHooks
   ): Promise<CliCommandResult> {
     const cliPath = this.getCliPath();
     if (!cliPath) {
@@ -134,7 +141,8 @@ export class CliRunner {
     return this.executeCommand('node', [cliPath!, ...args], {
       cwd: workspaceRoot,
       label: `DevSync ${command}`,
-      cancelToken
+      cancelToken,
+      hooks
     });
   }
 
@@ -148,6 +156,7 @@ export class CliRunner {
       cwd?: string;
       label?: string;
       cancelToken?: vscode.CancellationToken;
+      hooks?: CliRunHooks;
     } = {}
   ): Promise<CliCommandResult> {
     return new Promise((resolve) => {
@@ -171,12 +180,14 @@ export class CliRunner {
         const text = data.toString();
         output += text;
         this.outputChannel.append(text);
+        options.hooks?.onStdout?.(text);
       });
 
       childProcess.stderr?.on('data', (data: Buffer) => {
         const text = data.toString();
         errorOutput += text;
         this.outputChannel.append(text);
+        options.hooks?.onStderr?.(text);
       });
 
       if (options.cancelToken) {
@@ -197,6 +208,7 @@ export class CliRunner {
         };
 
         this.outputChannel.appendLine(`\n[${label}] Exit code: ${code}\n`);
+        options.hooks?.onClose?.(code);
         resolve(result);
       });
 

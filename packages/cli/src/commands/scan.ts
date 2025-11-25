@@ -6,6 +6,8 @@ import { ApiClient } from '../services/api-client.js';
 import { saveScanResults, getScanExitCode } from '../utils/output.js';
 import chalk from 'chalk';
 import { resolve } from 'path';
+import readline from 'node:readline/promises';
+import { stdin as input, stdout as output } from 'node:process';
 import type { ScanOptions, CodeSchema, DbSchema, Mismatch } from '../types/index.js';
 
 export async function scanCommand(options: ScanOptions) {
@@ -23,9 +25,17 @@ export async function scanCommand(options: ScanOptions) {
     const dbConnection = options.db || config?.database?.connectionString;
 
     // API settings
-    const projectId = options.projectId || config?.project?.id;
+    let projectId = options.projectId || config?.project?.id;
     const apiUrl = options.apiUrl || config?.api?.url;
     const apiKey = options.apiKey || config?.api?.key;
+
+    if (!projectId && apiUrl && apiKey && process.stdout.isTTY) {
+      projectId = await promptForProjectSelection(apiUrl, apiKey);
+    } else if (!projectId && apiUrl && apiKey && !process.stdout.isTTY) {
+      console.log(chalk.yellow('⚠️  No project ID provided and interactive prompts are disabled.'));
+      console.log(chalk.gray('   Use --project-id or set project.id in .devsync/config.json to sync with the dashboard.\n'));
+    }
+
     const shouldSync = options.sync !== false && projectId && apiUrl && apiKey;
 
     // 1. Scan codebase (extract schema - Prisma, TypeORM, Sequelize, Drizzle, or Raw SQL, or AI)
@@ -78,7 +88,7 @@ export async function scanCommand(options: ScanOptions) {
       });
 
       // Try to sync to cloud even without DB
-      if (shouldSync) {
+      if (shouldSync && projectId && apiUrl && apiKey) {
         await syncToCloud(apiUrl, apiKey, projectId, codeSchema, null, []);
       }
       return;
@@ -126,7 +136,7 @@ export async function scanCommand(options: ScanOptions) {
     }
 
     // 6. Sync to cloud if configured
-    if (shouldSync) {
+    if (shouldSync && projectId && apiUrl && apiKey) {
       await syncToCloud(apiUrl, apiKey, projectId, codeSchema, dbSchema, diff.mismatches);
     }
 
@@ -245,6 +255,161 @@ async function syncToCloud(
     } else {
       console.log(chalk.yellow('⚠️  Failed to sync to cloud\n'));
     }
+  }
+}
+
+function formatLastScan(lastScan?: string | null): string {
+  if (!lastScan) {
+    return 'Never';
+  }
+
+  try {
+    const date = new Date(lastScan);
+    if (Number.isNaN(date.getTime())) {
+      return lastScan;
+    }
+    return date.toLocaleString();
+  } catch {
+    return lastScan;
+  }
+}
+
+function buildProjectLine(index: number, project: Awaited<ReturnType<ApiClient['listProjects']>>[number]) {
+  const mismatchCount = project.mismatchCount ?? project.metadata?.mismatchCount ?? 0;
+  const lastScanAt = project.lastScanAt ?? project.metadata?.lastScanAt ?? null;
+  const lastScanStatus = project.lastScanStatus ?? project.metadata?.lastScanStatus ?? null;
+  const schemaLabel = project.schemaType || 'Unknown schema';
+  const lastScanLabel = `${formatLastScan(lastScanAt)}${lastScanStatus ? ` (${lastScanStatus})` : ''}`;
+
+  console.log(chalk.cyan(`  ${index + 1}. ${project.name}`));
+  console.log(
+    chalk.gray(
+      `     ${schemaLabel} • Last scan: ${lastScanLabel} • Mismatches: ${mismatchCount}`
+    )
+  );
+}
+
+async function promptForProjectSelection(apiUrl: string, apiKey: string): Promise<string | null> {
+  const apiClient = new ApiClient({
+    apiUrl,
+    apiKey,
+    timeout: 30000,
+    maxRetries: 3,
+  });
+
+  const rl = readline.createInterface({ input, output });
+  let searchTerm: string | undefined;
+
+  console.log(chalk.blue('☁️  Select a project to sync scan results with:'));
+
+  try {
+    while (true) {
+      let projects;
+      try {
+        projects = await apiClient.listProjects(searchTerm);
+      } catch (error) {
+        console.log(chalk.red(`❌ Failed to load projects: ${(error as Error).message}`));
+        return null;
+      }
+
+      if (!projects.length) {
+        console.log(chalk.yellow('\nNo projects found.'));
+        const emptyAction = (await rl.question(
+          chalk.cyan('Type (c) to create one, (s) to search again, or (q) to cancel: ')
+        ))
+          .trim()
+          .toLowerCase();
+
+        if (emptyAction === 'q') {
+          return null;
+        }
+
+        if (emptyAction === 's') {
+          const term = await rl.question(chalk.cyan('Enter search term (leave empty to show all): '));
+          searchTerm = term.trim() || undefined;
+          continue;
+        }
+
+        if (emptyAction === 'c') {
+          console.log(chalk.blue(`\n➡️  Create a new project at ${apiUrl}/dashboard/projects/new`));
+          console.log(chalk.gray('   After creating it, return here and choose search to refresh the list.\n'));
+          await rl.question(chalk.cyan('Press Enter to continue...'));
+          continue;
+        }
+
+        continue;
+      }
+
+      console.log(chalk.blue('\n📋 Your Projects:\n'));
+      projects.forEach((project, index) => buildProjectLine(index, project));
+
+      const createOption = projects.length + 1;
+      const searchOption = projects.length + 2;
+      const manualOption = projects.length + 3;
+      const cancelOption = projects.length + 4;
+
+      console.log(chalk.cyan(`  ${createOption}. Create new project...`));
+      console.log(chalk.cyan(`  ${searchOption}. Search / filter projects...`));
+      console.log(chalk.cyan(`  ${manualOption}. Enter project ID manually`));
+      console.log(chalk.cyan(`  ${cancelOption}. Cancel`));
+
+      const answer = (await rl.question(chalk.cyan('\nSelect an option: '))).trim();
+      const choice = Number.parseInt(answer, 10);
+
+      if (!Number.isNaN(choice)) {
+        if (choice >= 1 && choice <= projects.length) {
+          const selected = projects[choice - 1];
+          console.log(chalk.green(`\n✅ Selected project: ${selected.name} (${selected.id})\n`));
+          return selected.id;
+        }
+
+        if (choice === createOption) {
+          console.log(chalk.blue(`\n➡️  Create a new project at ${apiUrl}/dashboard/projects/new`));
+          console.log(chalk.gray('   After creating it, return here and choose search to refresh the list.\n'));
+          await rl.question(chalk.cyan('Press Enter to continue...'));
+          continue;
+        }
+
+        if (choice === searchOption) {
+          const term = await rl.question(chalk.cyan('Enter search term (leave empty to show all): '));
+          searchTerm = term.trim() || undefined;
+          continue;
+        }
+
+        if (choice === manualOption) {
+          const manualId = (await rl.question(chalk.cyan('Enter project ID: '))).trim();
+          if (manualId) {
+            console.log(chalk.green(`\n✅ Using project: ${manualId}\n`));
+            return manualId;
+          }
+          continue;
+        }
+
+        if (choice === cancelOption) {
+          return null;
+        }
+      } else {
+        const normalized = answer.toLowerCase();
+        if (normalized === 'c') {
+          console.log(chalk.blue(`\n➡️  Create a new project at ${apiUrl}/dashboard/projects/new`));
+          console.log(chalk.gray('   After creating it, return here and choose search to refresh the list.\n'));
+          await rl.question(chalk.cyan('Press Enter to continue...'));
+          continue;
+        }
+
+        if (normalized === 's') {
+          const term = await rl.question(chalk.cyan('Enter search term (leave empty to show all): '));
+          searchTerm = term.trim() || undefined;
+          continue;
+        }
+
+        if (normalized === 'q') {
+          return null;
+        }
+      }
+    }
+  } finally {
+    rl.close();
   }
 }
 

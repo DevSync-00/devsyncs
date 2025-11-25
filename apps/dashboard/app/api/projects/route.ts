@@ -3,6 +3,29 @@ import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
+const DEFAULT_PROJECT_LIMIT = 50;
+
+async function resolveUser(request: NextRequest, supabase: ReturnType<typeof createClient>) {
+  const authHeader = request.headers.get('authorization');
+
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (token) {
+      const { data: { user: tokenUser }, error } = await supabase.auth.getUser(token);
+      if (!error && tokenUser) {
+        return tokenUser;
+      }
+    }
+  }
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (!authError && user) {
+    return user;
+  }
+
+  return null;
+}
+
 // Background function to clone Git repository
 async function triggerGitClone(projectId: string, gitUrl: string, supabase: any) {
   try {
@@ -93,23 +116,35 @@ async function triggerGitClone(projectId: string, gitUrl: string, supabase: any)
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    const user = await resolveUser(request, supabase);
+
+    if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    // Fetch user's projects
-    const { data: projects, error } = await supabase
+    const searchParams = request.nextUrl.searchParams;
+    const search = searchParams.get('search')?.trim();
+    const limitParam = Number.parseInt(searchParams.get('limit') || '', 10);
+    const limit = Number.isNaN(limitParam)
+      ? DEFAULT_PROJECT_LIMIT
+      : Math.max(1, Math.min(limitParam, 100));
+
+    let query = supabase
       .from('projects')
-      .select('*')
+      .select('id, name, slug, schema_type, created_at, updated_at, team_id, config')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (search) {
+      const pattern = `%${search.replace(/[%_]/g, '\\$&')}%`;
+      query = query.ilike('name', pattern);
+    }
+
+    const { data: projects, error } = await query;
 
     if (error) {
       return NextResponse.json(
@@ -118,7 +153,53 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ projects });
+    const projectIds = projects?.map((project) => project.id) || [];
+    const latestScanMap = new Map<string, any>();
+
+    if (projectIds.length > 0) {
+      const { data: scans, error: scansError } = await supabase
+        .from('scan_reports')
+        .select('id, project_id, status, created_at, mismatches')
+        .in('project_id', projectIds)
+        .order('created_at', { ascending: false });
+
+      if (!scansError && scans) {
+        for (const scan of scans) {
+          if (!latestScanMap.has(scan.project_id)) {
+            latestScanMap.set(scan.project_id, scan);
+          }
+        }
+      }
+    }
+
+    const projectsWithMeta = (projects || []).map((project) => {
+      const latestScan = latestScanMap.get(project.id);
+      const mismatches = Array.isArray(latestScan?.mismatches) ? latestScan?.mismatches : [];
+      const mismatchCount = mismatches?.length || 0;
+      const lastScanAt = latestScan?.created_at || null;
+      const lastScanStatus = latestScan?.status || null;
+
+      return {
+        id: project.id,
+        name: project.name,
+        slug: project.slug,
+        schemaType: project.schema_type,
+        createdAt: project.created_at,
+        updatedAt: project.updated_at,
+        teamId: project.team_id,
+        codebaseType: project.config?.codebase?.type || null,
+        lastScanAt,
+        lastScanStatus,
+        mismatchCount,
+        metadata: {
+          lastScanAt,
+          lastScanStatus,
+          mismatchCount,
+        },
+      };
+    });
+
+    return NextResponse.json({ projects: projectsWithMeta });
   } catch (error) {
     console.error('API error:', error);
     return NextResponse.json(

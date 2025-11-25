@@ -1,0 +1,366 @@
+:root {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  color: var(--vscode-editor-foreground);
+  background: var(--vscode-editor-background);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  background: var(--vscode-editor-background);
+}
+
+.chat-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+}
+
+.chat-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--vscode-editorGutter-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-header .title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-header .subtitle {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85rem;
+}
+
+.status-banner {
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-banner.info {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+}
+
+.status-banner.error {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
+
+.auth-card {
+  background: rgba(62, 148, 255, 0.1);
+  border: 1px solid rgba(62, 148, 255, 0.3);
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.auth-card strong {
+  font-size: 1.2rem;
+  letter-spacing: 0.2rem;
+}
+
+.composer {
+  border-top: 1px solid var(--vscode-editorGutter-border);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--vscode-editor-background);
+}
+
+.composer textarea {
+  resize: none;
+  width: 100%;
+  min-height: 68px;
+  border-radius: 10px;
+  border: 1px solid var(--vscode-contrastBorder, rgba(255, 255, 255, 0.05));
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--vscode-editor-foreground);
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.composer textarea:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+}
+
+.composer-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.chat-btn {
+  border: none;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #c7d2fe;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 120ms ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chat-btn.primary {
+  background: #6366f1;
+  color: #fff;
+}
+
+.chat-btn.secondary {
+  background: rgba(148, 163, 184, 0.2);
+  color: #e2e8f0;
+}
+
+.chat-btn:hover {
+  background: rgba(99, 102, 241, 0.35);
+}
+
+.chat-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.message-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scroll-behavior: smooth;
+}
+
+.message {
+  border-radius: 12px;
+  padding: 12px 16px;
+  max-width: 92%;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.message.user {
+  align-self: flex-end;
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.message.assistant {
+  align-self: flex-start;
+}
+
+.message.system {
+  border-style: dashed;
+  font-size: 0.85rem;
+  color: var(--vscode-descriptionForeground);
+}
+
+.message .meta {
+  font-size: 0.78rem;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 8px;
+}
+
+.message .content {
+  font-size: 0.95rem;
+}
+
+.message .status {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--vscode-descriptionForeground);
+}
+
+.message .status.error {
+  color: #f87171;
+}
+
+.code-block {
+  position: relative;
+  margin: 12px 0;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  padding-top: 32px;
+}
+
+.code-actions {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.code-btn {
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+}
+
+.code-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.code-block code {
+  display: block;
+  overflow-x: auto;
+  padding: 12px 16px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.85rem;
+}
+
+.login-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.84);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  padding: 24px;
+}
+
+.login-overlay p {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+.action-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.auth-flow-card {
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-flow-card code {
+  font-size: 1.1rem;
+  letter-spacing: 0.3rem;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+  margin-top: 48px;
+  font-size: 0.9rem;
+}
+
+.message-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.message-actions button {
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  background: rgba(15, 118, 110, 0.25);
+  color: #5eead4;
+}
+
+.message-actions button:hover {
+  background: rgba(15, 118, 110, 0.4);
+}
+
+.badge {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  background: rgba(99, 102, 241, 0.2);
+  color: inherit;
+}
+
+.message strong {
+  color: #f8fafc;
+}
+
+.message ul,
+.message ol {
+  padding-left: 20px;
+}
+
+.message blockquote {
+  margin: 0;
+  padding-left: 12px;
+  border-left: 3px solid rgba(255, 255, 255, 0.2);
+  color: var(--vscode-descriptionForeground);
+}
+
+.message table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 0.85rem;
+}
+
+.message table th,
+.message table td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 8px;
+}
+
+.message table th {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.quick-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quick-actions button {
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+}
+
+.quick-actions button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+
