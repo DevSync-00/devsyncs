@@ -54,6 +54,27 @@ interface ProjectsResponse {
   projects: ProjectListItem[];
 }
 
+interface ProjectResponse {
+  project: ProjectListItem & {
+    dbConnectionString?: string | null;
+    config?: any;
+  };
+}
+
+export interface CreateProjectPayload {
+  name: string;
+  schemaType: string;
+  slug?: string;
+  dbConnectionString?: string | null;
+  codebase?: {
+    type: 'git' | 'upload' | 'cli';
+    url?: string;
+  };
+  teamId?: string | null;
+}
+
+export type UpdateProjectPayload = Partial<CreateProjectPayload>;
+
 export class ApiClient {
   private apiUrl: string;
   private apiKey?: string;
@@ -182,6 +203,169 @@ export class ApiClient {
 
         const data = await response.json() as ProjectsResponse;
         return data.projects || [];
+      },
+      {
+        maxAttempts: this.maxRetries,
+        retryableErrors: ['ECONNREFUSED', 'ETIMEDOUT', 'timeout', 'network', 'fetch failed']
+      }
+    );
+  }
+
+  async getProject(projectId: string): Promise<ProjectResponse['project']> {
+    return retry(
+      async () => {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+
+        if (this.apiKey) {
+          headers['Authorization'] = `Bearer ${this.apiKey}`;
+        }
+
+        const response = await withTimeout(
+          fetch(`${this.apiUrl}/api/projects/${projectId}`, {
+            method: 'GET',
+            headers,
+          }),
+          this.timeout,
+          'Request to API timed out'
+        );
+
+        if (!response.ok) {
+          let errorMessage = 'Unknown error';
+          try {
+            const errorData = await response.json() as { error?: string; details?: string };
+            errorMessage = errorData.error || errorData.details || response.statusText;
+          } catch {
+            errorMessage = response.statusText;
+          }
+          throw new Error(`Failed to fetch project: ${errorMessage} (${response.status})`);
+        }
+
+        const data = await response.json() as ProjectResponse;
+        return data.project;
+      },
+      {
+        maxAttempts: this.maxRetries,
+        retryableErrors: ['ECONNREFUSED', 'ETIMEDOUT', 'timeout', 'network', 'fetch failed']
+      }
+    );
+  }
+
+  async createProject(payload: CreateProjectPayload) {
+    return retry(
+      async () => {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+
+        if (this.apiKey) {
+          headers['Authorization'] = `Bearer ${this.apiKey}`;
+        }
+
+        const response = await withTimeout(
+          fetch(`${this.apiUrl}/api/projects`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload),
+          }),
+          this.timeout,
+          'Request to API timed out'
+        );
+
+        if (!response.ok) {
+          let errorMessage = 'Unknown error';
+          try {
+            const errorData = await response.json() as { error?: string; details?: string };
+            errorMessage = errorData.error || errorData.details || response.statusText;
+          } catch {
+            errorMessage = response.statusText;
+          }
+          throw new Error(`Failed to create project: ${errorMessage} (${response.status})`);
+        }
+
+        const data = await response.json() as ProjectResponse;
+        return data.project;
+      },
+      {
+        maxAttempts: this.maxRetries,
+        retryableErrors: ['ECONNREFUSED', 'ETIMEDOUT', 'timeout', 'network', 'fetch failed']
+      }
+    );
+  }
+
+  async updateProject(projectId: string, payload: UpdateProjectPayload) {
+    return retry(
+      async () => {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+
+        if (this.apiKey) {
+          headers['Authorization'] = `Bearer ${this.apiKey}`;
+        }
+
+        const response = await withTimeout(
+          fetch(`${this.apiUrl}/api/projects/${projectId}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(payload),
+          }),
+          this.timeout,
+          'Request to API timed out'
+        );
+
+        if (!response.ok) {
+          let errorMessage = 'Unknown error';
+          try {
+            const errorData = await response.json() as { error?: string; details?: string };
+            errorMessage = errorData.error || errorData.details || response.statusText;
+          } catch {
+            errorMessage = response.statusText;
+          }
+          throw new Error(`Failed to update project: ${errorMessage} (${response.status})`);
+        }
+
+        const data = await response.json() as ProjectResponse;
+        return data.project;
+      },
+      {
+        maxAttempts: this.maxRetries,
+        retryableErrors: ['ECONNREFUSED', 'ETIMEDOUT', 'timeout', 'network', 'fetch failed']
+      }
+    );
+  }
+
+  async deleteProject(projectId: string): Promise<void> {
+    return retry(
+      async () => {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+
+        if (this.apiKey) {
+          headers['Authorization'] = `Bearer ${this.apiKey}`;
+        }
+
+        const response = await withTimeout(
+          fetch(`${this.apiUrl}/api/projects/${projectId}`, {
+            method: 'DELETE',
+            headers,
+          }),
+          this.timeout,
+          'Request to API timed out'
+        );
+
+        if (!response.ok) {
+          let errorMessage = 'Unknown error';
+          try {
+            const errorData = await response.json() as { error?: string; details?: string };
+            errorMessage = errorData.error || errorData.details || response.statusText;
+          } catch {
+            errorMessage = response.statusText;
+          }
+          throw new Error(`Failed to delete project: ${errorMessage} (${response.status})`);
+        }
       },
       {
         maxAttempts: this.maxRetries,

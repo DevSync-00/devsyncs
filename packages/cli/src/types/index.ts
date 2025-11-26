@@ -67,7 +67,7 @@ export interface Config {
   version: string;
   project: {
     name: string;
-    schemaType: 'prisma' | 'typeorm' | 'raw-sql';
+    schemaType: 'prisma' | 'supabase' | 'typeorm' | 'kysely' | 'sequelize' | 'drizzle' | 'django' | 'sqlalchemy' | 'raw-sql';
     id?: string; // Project ID from dashboard
   };
   database: {

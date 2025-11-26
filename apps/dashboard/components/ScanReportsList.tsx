@@ -1,7 +1,10 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { ScanReportSkeleton } from './LoadingSkeleton';
+import { useRealtimeTable } from '@/hooks/use-realtime';
 
 interface ScanReport {
   id: string;
@@ -18,7 +21,41 @@ interface ScanReportsListProps {
 }
 
 export default function ScanReportsList({ reports, projectId }: ScanReportsListProps) {
-  if (reports.length === 0) {
+  const [reportList, setReportList] = useState<ScanReport[]>(reports);
+
+  useEffect(() => {
+    setReportList(reports);
+  }, [reports]);
+
+  const sortedReports = useMemo(
+    () => [...reportList].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    [reportList]
+  );
+
+  useRealtimeTable<ScanReport>({
+    table: 'scan_reports',
+    filter: `project_id=eq.${projectId}`,
+    enabled: Boolean(projectId),
+    onInsert: (payload) => {
+      if (!payload.new) return;
+      setReportList((prev) => {
+        const exists = prev.some((report) => report.id === payload.new!.id);
+        return exists ? prev : [payload.new as ScanReport, ...prev];
+      });
+    },
+    onUpdate: (payload) => {
+      if (!payload.new) return;
+      setReportList((prev) =>
+        prev.map((report) => (report.id === payload.new!.id ? (payload.new as ScanReport) : report))
+      );
+    },
+    onDelete: (payload) => {
+      if (!payload.old?.id) return;
+      setReportList((prev) => prev.filter((report) => report.id !== payload.old!.id));
+    },
+  });
+
+  if (sortedReports.length === 0) {
     return (
       <div className="text-center py-12 border border-border rounded-lg bg-card">
         <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -32,7 +69,7 @@ export default function ScanReportsList({ reports, projectId }: ScanReportsListP
 
   return (
     <div className="space-y-4">
-      {reports.map((report) => {
+      {sortedReports.map((report) => {
         const mismatchCount = report.mismatches?.length || 0;
         const isComplete = report.status === 'completed';
         const hasMismatches = mismatchCount > 0;

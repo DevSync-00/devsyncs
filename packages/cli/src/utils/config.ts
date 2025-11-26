@@ -1,5 +1,5 @@
-import { readFileSync, existsSync } from 'fs';
-import { join, resolve } from 'path';
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs';
+import { join, resolve, dirname } from 'path';
 import type { Config } from '../types/index.js';
 import { validateConnectionString, validateApiUrl } from './validation.js';
 
@@ -57,7 +57,7 @@ export function validateConfig(config: Config): ConfigValidationResult {
     if (!config.project.schemaType) {
       errors.push('Schema type is required');
     } else {
-      const validSchemaTypes = ['prisma', 'typeorm', 'raw-sql'];
+      const validSchemaTypes = ['prisma', 'supabase', 'typeorm', 'kysely', 'sequelize', 'drizzle', 'django', 'sqlalchemy', 'raw-sql'];
       if (!validSchemaTypes.includes(config.project.schemaType)) {
         errors.push(`Invalid schema type: ${config.project.schemaType}. Must be one of: ${validSchemaTypes.join(', ')}`);
       }
@@ -106,6 +106,12 @@ export function validateConfig(config: Config): ConfigValidationResult {
     errors,
     warnings
   };
+}
+
+export async function saveConfig(configPath: string, config: Config): Promise<void> {
+  const fullPath = resolve(configPath);
+  mkdirSync(dirname(fullPath), { recursive: true });
+  writeFileSync(fullPath, JSON.stringify(config, null, 2), 'utf-8');
 }
 
 
