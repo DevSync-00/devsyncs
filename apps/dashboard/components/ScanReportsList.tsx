@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Clock, AlertTriangle, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useRealtimeTable } from '@/hooks/use-realtime';
 
@@ -58,10 +58,10 @@ export default function ScanReportsList({ reports, projectId }: ScanReportsListP
   if (sortedReports.length === 0) {
     return (
       <div className="text-center py-12 border border-border rounded-lg bg-card">
-        <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-lg font-semibold mb-2">No scan reports yet</h3>
-        <p className="text-muted-foreground">
-          Run your first scan to see results here
+        <Loader2 className="w-10 h-10 text-muted-foreground mx-auto mb-4 animate-spin" />
+        <h3 className="text-lg font-semibold mb-2">Waiting for scan reports</h3>
+        <p className="text-muted-foreground max-w-sm mx-auto">
+          Trigger a scan from the CLI and keep this page open—we&apos;ll stream results here as soon as they finish.
         </p>
       </div>
     );

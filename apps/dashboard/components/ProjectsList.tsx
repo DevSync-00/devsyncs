@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { FolderKanban, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FolderKanban, Clock, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProjectCardSkeleton } from './LoadingSkeleton';
 import { useRealtimeTable, useTeamActivityNotifications } from '@/hooks/use-realtime';
@@ -205,7 +205,16 @@ export default function ProjectsList({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="relative">
+        {loading && projects.length > 0 && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/80 backdrop-blur-sm border border-border">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="assertive">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Refreshing projects...
+            </div>
+          </div>
+        )}
+        <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-3 ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
         {projects.map((project) => {
           const latestScan = scanMap.get(project.id);
           const mismatchCount = (latestScan?.mismatches as any[])?.length || 0;
@@ -252,6 +261,7 @@ export default function ProjectsList({
             </Link>
           );
         })}
+        </div>
       </div>
 
       {/* Pagination */}

@@ -6,6 +6,7 @@ import { NotificationRecord, NotificationPreferences } from '@/lib/notifications
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useRealtimeTable } from '@/hooks/use-realtime';
+import { robustFetchJSON, getErrorMessage } from '@/lib/fetch';
 
 interface NotificationCenterProps {
   userId: string;
@@ -27,6 +28,7 @@ export default function NotificationCenter({
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
   const [preferences, setPreferences] = useState(initialPreferences);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { toast } = useToast();
 
@@ -57,13 +59,16 @@ export default function NotificationCenter({
 
   const hasUnread = unreadCount > 0;
 
-  const refreshFromServer = useCallback(async () => {
+  const refreshFromServer = useCallback(async (showIndicator: boolean = false) => {
+    if (showIndicator) {
+      setRefreshing(true);
+    }
     try {
-      const response = await fetch('/api/notifications');
-      if (!response.ok) {
-        throw new Error('Failed to refresh notifications');
-      }
-      const data = await response.json();
+      const data = await robustFetchJSON<{
+        notifications?: NotificationRecord[];
+        unreadCount?: number;
+        preferences?: NotificationPreferences;
+      }>('/api/notifications');
       setNotifications(data.notifications ?? []);
       setUnreadCount(data.unreadCount ?? 0);
       if (data.preferences) {
@@ -73,9 +78,13 @@ export default function NotificationCenter({
       console.error(error);
       toast({
         title: 'Unable to refresh notifications',
-        description: error instanceof Error ? error.message : 'Please try again later.',
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
+    } finally {
+      if (showIndicator) {
+        setRefreshing(false);
+      }
     }
   }, [toast]);
 
@@ -83,20 +92,13 @@ export default function NotificationCenter({
     async (notificationId: string) => {
       setIsSubmitting(true);
       try {
-        const response = await fetch('/api/notifications', {
+        const data = await robustFetchJSON<{ unreadCount?: number }>('/api/notifications', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'mark-read',
             notificationIds: [notificationId],
           }),
         });
-
-        if (!response.ok) {
-          throw new Error('Failed to mark notification as read');
-        }
-
-        const data = await response.json();
         setNotifications((prev) =>
           prev.map((notification) =>
             notification.id === notificationId
@@ -108,7 +110,7 @@ export default function NotificationCenter({
       } catch (error) {
         toast({
           title: 'Unable to update notification',
-          description: error instanceof Error ? error.message : 'Please try again later.',
+          description: getErrorMessage(error),
           variant: 'destructive',
         });
       } finally {
@@ -122,14 +124,10 @@ export default function NotificationCenter({
     if (!hasUnread) return;
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/notifications', {
+      await robustFetchJSON('/api/notifications', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'mark-all-read' }),
       });
-      if (!response.ok) {
-        throw new Error('Failed to mark all notifications as read');
-      }
       setNotifications((prev) =>
         prev.map((notification) => ({ ...notification, read_at: notification.read_at ?? new Date().toISOString() }))
       );
@@ -137,7 +135,7 @@ export default function NotificationCenter({
     } catch (error) {
       toast({
         title: 'Unable to mark all read',
-        description: error instanceof Error ? error.message : 'Please try again later.',
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -149,27 +147,20 @@ export default function NotificationCenter({
     async (key: keyof NotificationPreferences, value: boolean) => {
       setPreferences((prev) => ({ ...prev, [key]: value }));
       try {
-        const response = await fetch('/api/notifications', {
+        const data = await robustFetchJSON<{ preferences?: NotificationPreferences }>('/api/notifications', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'update-preferences',
             preferences: { [key]: value },
           }),
         });
-
-        if (!response.ok) {
-          throw new Error('Failed to update preferences');
-        }
-
-        const data = await response.json();
         if (data.preferences) {
           setPreferences(data.preferences);
         }
       } catch (error) {
         toast({
           title: 'Unable to save preferences',
-          description: error instanceof Error ? error.message : 'Please try again later.',
+          description: getErrorMessage(error),
           variant: 'destructive',
         });
       }
@@ -193,8 +184,12 @@ export default function NotificationCenter({
         description: payload.new.message ?? 'You have a new notification.',
       });
     },
-    onUpdate: refreshFromServer,
-    onDelete: refreshFromServer,
+    onUpdate: () => {
+      refreshFromServer();
+    },
+    onDelete: () => {
+      refreshFromServer();
+    },
   });
 
   return (
@@ -325,7 +320,14 @@ export default function NotificationCenter({
               </label>
             </div>
 
-            <Button variant="ghost" size="sm" onClick={refreshFromServer} className="w-full mt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => refreshFromServer(true)}
+              className="w-full mt-2 flex items-center justify-center gap-2"
+              disabled={refreshing}
+            >
+              {refreshing && <Loader2 className="w-4 h-4 animate-spin" />}
               Refresh
             </Button>
           </div>

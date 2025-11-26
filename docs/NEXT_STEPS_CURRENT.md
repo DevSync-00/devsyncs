@@ -16,32 +16,37 @@
 
 **Impact**: Significantly improved developer experience and onboarding flow
 
+### Authentication Regression Coverage ✅
+- Added unit coverage for CLI helpers (`formatLastScan`, config scaffolding, API retries)
+- Added device-flow integration test that fakes analyzer responses and exercises `login → scan`
+- Introduced `DEVSYNC_TEST_MODE` + `setAuthConfigPath()` hooks so tests run hermetically
+- Documented the workflow in `docs/CLI_AUTH_TESTING.md`
+
+### UX Signal Polish ✅
+- Projects list now shows a translucent loading overlay + spinner while paginating
+- Scan report pages display a live spinner when waiting for new results
+- Migration workflows emit toast notifications for success/error (generate, apply, rollback, copy)
+- Notification center refresh button shows progress feedback instead of silently fetching
+
 ---
 
 ## 🎯 Immediate Next Steps (Priority Order)
 
-### 1. **Test & Validate New Authentication Flow** 🔴 **CRITICAL**
+### 1. **Authentication Test Automation** ✅ **COMPLETED**
 **Priority**: Highest  
 **Effort**: 1-2 days  
-**Status**: ⏳ Ready to test
+**Status**: ✅ Complete (see `docs/CLI_AUTH_TESTING.md`)
 
-**Tasks**:
-- [ ] Test login flow with new account creation
-- [ ] Test project creation from CLI
-- [ ] Test project selection with existing Project ID
-- [ ] Test "continue without login" flow
-- [ ] Verify config file creation and persistence
-- [ ] Test error handling (invalid Project ID, network failures, etc.)
-- [ ] Test with different schema types
-- [ ] Verify AI analysis works correctly in all flows
+**What’s covered**:
+- [x] Device login happy path (mocked analyzer + dashboard approval)
+- [x] Auth-config persistence / refresh path (`requireAuthenticatedCli`)
+- [x] CLI project helper utilities & retry logic
+- [x] CLI scan auth gate (interactive + non-interactive)
 
-**Why**: We just implemented a major feature - need to ensure it works correctly before moving forward
-
-**Success Criteria**:
-- All authentication flows work end-to-end
-- Config files are created correctly
-- Error messages are clear and helpful
-- Works with both new and existing users
+**Outcome**:
+- Regression suite runs via `npm run test` in `packages/cli`
+- CLI login/scan failures now surface immediately in CI
+- Dashboard `/device` doc + analyzer env var documented for manual QA
 
 ---
 
@@ -214,15 +219,15 @@ Select an option (1-4):
 ## 🔧 Technical Debt & Improvements
 
 ### High Priority
-- [ ] Add comprehensive error handling for new auth flow
-- [ ] Add loading states for all async operations
-- [ ] Improve error messages (more actionable)
-- [ ] Add retry logic for network failures
-- [ ] Add request timeout handling
+- [x] Add comprehensive error handling for new auth flow
+- [x] Add loading states for all async operations
+- [x] Improve error messages (more actionable)
+- [x] Add retry logic for network failures
+- [x] Add request timeout handling
 
 ### Medium Priority
-- [ ] Add unit tests for new CLI commands
-- [ ] Add integration tests for authentication flow
+- [x] Add unit tests for new CLI commands
+- [x] Add integration tests for authentication flow
 - [ ] Performance monitoring
 - [ ] Error tracking (Sentry integration)
 - [ ] API rate limiting

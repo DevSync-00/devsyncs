@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { FileCode, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
+import { robustFetchJSON, getErrorMessage } from '@/lib/fetch';
 
 interface GenerateMigrationButtonProps {
   scanReportId: string;
@@ -12,29 +14,24 @@ interface GenerateMigrationButtonProps {
 export default function GenerateMigrationButton({ scanReportId }: GenerateMigrationButtonProps) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { toast } = useToast();
 
   const handleGenerate = async () => {
     setLoading(true);
     
     try {
-      const response = await fetch('/api/migrations', {
+      const migration = await robustFetchJSON<{ filename?: string; id: string }>('/api/migrations', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           scanReportId,
           format: 'sql',
         }),
+        timeout: 60000, // 60 seconds for migration generation
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to generate migration');
-      }
-
-      const migration = await response.json();
-      
+      toast({
+        title: 'Migration generated',
+        description: migration.filename ? `${migration.filename} is ready.` : 'Migration available in history.',
+      });
       // Refresh the page to show the new migration
       router.refresh();
       
@@ -47,7 +44,11 @@ export default function GenerateMigrationButton({ scanReportId }: GenerateMigrat
       }, 100);
     } catch (error) {
       console.error('Error generating migration:', error);
-      alert(error instanceof Error ? error.message : 'Failed to generate migration');
+      toast({
+        title: 'Unable to generate migration',
+        description: getErrorMessage(error),
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }

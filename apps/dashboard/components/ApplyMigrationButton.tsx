@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Play, Loader2, CheckCircle, AlertCircle, TestTube } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { robustFetchJSON, getErrorMessage } from '@/lib/fetch';
 
 interface ApplyMigrationButtonProps {
   migrationId: string;
@@ -26,6 +28,7 @@ export default function ApplyMigrationButton({
     message: string;
     dryRun?: boolean;
   } | null>(null);
+  const { toast } = useToast();
 
   const handleExecute = async (dryRun: boolean = false) => {
     const setLoadingState = dryRun ? setDryRunLoading : setLoading;
@@ -33,43 +36,37 @@ export default function ApplyMigrationButton({
     setLastResult(null);
 
     try {
-      const response = await fetch(`/api/migrations/${migrationId}/execute`, {
+      const data = await robustFetchJSON<{
+        success: boolean;
+        message?: string;
+        error?: string;
+      }>(`/api/migrations/${migrationId}/execute`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           dryRun,
           confirm: !dryRun, // Require confirmation for actual execution
         }),
+        timeout: 120000, // 2 minutes for migration execution
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to execute migration');
-      }
-
-      setLastResult({
+      const resultPayload = {
         success: data.success,
         message: data.message || (dryRun ? 'Validation successful' : 'Migration applied successfully'),
         dryRun,
+      };
+      setLastResult(resultPayload);
+
+      toast({
+        title: dryRun ? 'Dry run successful' : 'Migration applied',
+        description: resultPayload.message,
+        variant: dryRun ? 'default' : 'default',
       });
 
       if (data.success && onSuccess) {
         onSuccess();
       }
     } catch (error: any) {
-      // Enhanced error handling
-      let errorMessage = 'An error occurred';
-      
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
+      const errorMessage = getErrorMessage(error);
       
       // Log error for debugging
       console.error('Migration execution error:', {
@@ -87,6 +84,11 @@ export default function ApplyMigrationButton({
       if (onError) {
         onError(errorMessage);
       }
+      toast({
+        title: dryRun ? 'Dry run failed' : 'Migration failed',
+        description: errorMessage,
+        variant: 'destructive',
+      });
     } finally {
       setLoadingState(false);
     }

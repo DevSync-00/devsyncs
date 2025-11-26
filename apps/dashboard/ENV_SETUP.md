@@ -67,6 +67,28 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
+### `NEXT_PUBLIC_ANALYZER_URL`
+
+**What it is:**
+- The base URL of the DevSync analyzer service
+- Used for CLI device authorization and VS Code extension logins
+
+**Where to find it:**
+1. If running locally, this is typically `http://localhost:4000`
+2. In production, use the public URL where `apps/analyzer` is deployed
+
+**Format:**
+```
+http://localhost:4000
+```
+
+**Example:**
+```
+NEXT_PUBLIC_ANALYZER_URL=http://localhost:4000
+```
+
+---
+
 ## Optional Variables
 
 ### `OPENAI_API_KEY`
@@ -104,6 +126,7 @@ OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # Required
 NEXT_PUBLIC_SUPABASE_URL=https://lzvaidnvedhzpaczpxlk.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dmFpZG52ZWRoenBhY3pweGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDk4NzY1MjAsImV4cCI6MjAyNTQ1MjUyMH0.xxxxx
+NEXT_PUBLIC_ANALYZER_URL=http://localhost:4000
 
 # Optional (for AI features)
 OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
