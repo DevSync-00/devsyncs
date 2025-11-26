@@ -33,9 +33,13 @@ Authorization: Bearer <your-jwt-token>
 
 #### GET /api/projects
 
-Get all projects for the authenticated user.
+Get all projects for the authenticated user. Supports session cookies (dashboard) and Bearer tokens (CLI).
 
 **Authentication**: Required
+
+**Query Parameters**:
+- `search` (optional) – filter by project name
+- `limit` (optional) – number of projects to return (default 50)
 
 **Response**:
 ```json
@@ -45,12 +49,135 @@ Get all projects for the authenticated user.
       "id": "project-id",
       "name": "My Project",
       "slug": "my-project",
-      "user_id": "user-id",
-      "schema_type": "prisma",
-      "created_at": "2024-11-01T10:00:00Z"
+      "schemaType": "prisma",
+      "codebaseType": "cli",
+      "createdAt": "2024-11-01T10:00:00Z",
+      "metadata": {
+        "lastScanAt": "2024-11-02T12:00:00Z",
+        "lastScanStatus": "completed",
+        "mismatchCount": 3
+      }
     }
   ]
 }
+```
+
+#### POST /api/projects
+
+Create a new project. If `slug` is omitted it is generated from the name. `codebase` is optional and defaults to a CLI-managed configuration.
+
+**Authentication**: Required
+
+**Request Body**:
+```json
+{
+  "name": "My Project",
+  "slug": "my-project",              // optional
+  "schemaType": "prisma",
+  "dbConnectionString": "postgresql://user:pass@host/db",
+  "codebase": {
+    "type": "git",
+    "url": "https://github.com/org/repo.git"
+  },
+  "teamId": null
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "project": {
+    "id": "project-id",
+    "name": "My Project",
+    "slug": "my-project",
+    "schema_type": "prisma",
+    "db_connection_string": "postgresql://user:pass@host/db",
+    "config": {
+      "codebase": {
+        "type": "git",
+        "status": "pending"
+      }
+    }
+  }
+}
+```
+
+#### GET /api/projects/{id}
+
+Fetch full project details (including DB connection string) plus latest scan metadata.
+
+**Authentication**: Required
+
+**Response**:
+```json
+{
+  "project": {
+    "id": "project-id",
+    "name": "My Project",
+    "schemaType": "supabase",
+    "dbConnectionString": "postgresql://...",
+    "config": {
+      "codebase": {
+        "type": "cli",
+        "status": "manual"
+      }
+    },
+    "metadata": {
+      "lastScanAt": null,
+      "mismatchCount": 0
+    }
+  }
+}
+```
+
+#### PATCH /api/projects/{id}
+
+Update project metadata. Only send the fields that should be changed. Sending an empty string for `dbConnectionString` clears the stored value.
+
+**Authentication**: Required
+
+**Request Body**:
+```json
+{
+  "name": "Renamed Project",
+  "schemaType": "kysely",
+  "dbConnectionString": "",
+  "codebase": {
+    "type": "git",
+    "url": "https://github.com/org/new-repo.git"
+  }
+}
+```
+
+**Response**:
+```json
+{
+  "project": {
+    "id": "project-id",
+    "name": "Renamed Project",
+    "schemaType": "kysely",
+    "dbConnectionString": null,
+    "config": {
+      "codebase": {
+        "type": "git",
+        "url": "https://github.com/org/new-repo.git",
+        "status": "pending"
+      }
+    }
+  }
+}
+```
+
+#### DELETE /api/projects/{id}
+
+Delete a project you own (or have team access to).
+
+**Authentication**: Required
+
+**Response**:
+```json
+{ "success": true }
 ```
 
 ---

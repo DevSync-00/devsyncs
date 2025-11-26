@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { FolderKanban, Clock, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FolderKanban, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProjectCardSkeleton } from './LoadingSkeleton';
+import { useRealtimeTable, useTeamActivityNotifications } from '@/hooks/use-realtime';
+import { useToast } from '@/hooks/use-toast';
 
 function formatSchemaType(schemaType: string): string {
   const schemaTypeMap: Record<string, string> = {
@@ -28,6 +30,9 @@ interface Project {
   slug: string;
   schema_type: string;
   created_at: string;
+  updated_at?: string;
+  team_id?: string | null;
+  user_id?: string;
 }
 
 interface ScanReport {
@@ -43,13 +48,15 @@ interface ProjectsListProps {
   initialScans?: ScanReport[];
   page?: number;
   perPage?: number;
+  currentUserId: string;
 }
 
 export default function ProjectsList({ 
   initialProjects = [], 
   initialScans = [],
   page: initialPage = 1,
-  perPage = 12
+  perPage = 12,
+  currentUserId,
 }: ProjectsListProps) {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [scans, setScans] = useState<ScanReport[]>(initialScans);
@@ -57,6 +64,19 @@ export default function ProjectsList({
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [totalCount, setTotalCount] = useState(initialProjects.length);
   const [scanMap, setScanMap] = useState<Map<string, ScanReport>>(new Map());
+  const { toast } = useToast();
+  const projectIdsRef = useRef(new Set(initialProjects.map(p => p.id)));
+  const teamIds = useMemo(() => {
+    const ids = new Set<string>();
+    projects.forEach((project) => {
+      if (project.team_id) {
+        ids.add(project.team_id);
+      }
+    });
+    return Array.from(ids);
+  }, [projects]);
+
+  useTeamActivityNotifications(teamIds);
 
   useEffect(() => {
     // Initialize scan map
@@ -70,67 +90,89 @@ export default function ProjectsList({
   }, [scans]);
 
   useEffect(() => {
-    const fetchProjects = async () => {
-      setLoading(true);
-      try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) return;
+    projectIdsRef.current = new Set(projects.map(p => p.id));
+  }, [projects]);
 
-        // Fetch total count
-        const { count } = await supabase
-          .from('projects')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id);
-        
-        setTotalCount(count || 0);
+  const fetchProjects = useCallback(async () => {
+    if (!currentUserId) {
+      return;
+    }
 
-        // Fetch paginated projects
-        const from = (currentPage - 1) * perPage;
-        const to = from + perPage - 1;
+    setLoading(true);
+    try {
+      const supabase = createClient();
+      const from = (currentPage - 1) * perPage;
+      const to = from + perPage - 1;
 
-        const { data: projectsData, error: projectsError } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .range(from, to);
+      const { data: projectsData, error: projectsError, count } = await supabase
+        .from('projects')
+        .select('*', { count: 'exact' })
+        .eq('user_id', currentUserId)
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
-        if (projectsError) throw projectsError;
+      if (projectsError) throw projectsError;
 
-        setProjects(projectsData || []);
+      setProjects(projectsData || []);
+      setTotalCount(count ?? projectsData?.length ?? 0);
 
-        // Fetch latest scans for these projects
-        if (projectsData && projectsData.length > 0) {
-          const projectIds = projectsData.map(p => p.id);
-          const { data: scansData } = await supabase
-            .from('scan_reports')
-            .select('id, project_id, status, created_at, mismatches')
-            .in('project_id', projectIds)
-            .order('created_at', { ascending: false });
+      if (projectsData && projectsData.length > 0) {
+        const projectIds = projectsData.map(p => p.id);
+        const { data: scansData, error: scansError } = await supabase
+          .from('scan_reports')
+          .select('id, project_id, status, created_at, mismatches')
+          .in('project_id', projectIds)
+          .order('created_at', { ascending: false });
 
-          // Create scan map (latest per project)
-          const latestScansMap = new Map<string, ScanReport>();
-          scansData?.forEach(scan => {
-            if (!latestScansMap.has(scan.project_id)) {
-              latestScansMap.set(scan.project_id, scan);
-            }
-          });
-          setScanMap(latestScansMap);
-          setScans(scansData || []);
-        }
-      } catch (error) {
-        console.error('Error fetching projects:', error);
-      } finally {
-        setLoading(false);
+        if (scansError) throw scansError;
+
+        const latestScansMap = new Map<string, ScanReport>();
+        scansData?.forEach(scan => {
+          if (!latestScansMap.has(scan.project_id)) {
+            latestScansMap.set(scan.project_id, scan);
+          }
+        });
+        setScanMap(latestScansMap);
+        setScans(scansData || []);
+      } else {
+        setScans([]);
+        setScanMap(new Map());
       }
-    };
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      toast({
+        title: 'Unable to load projects',
+        description: error instanceof Error ? error.message : 'Please try again later.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUserId, currentPage, perPage, toast]);
 
+  useEffect(() => {
+    if (!currentUserId) return;
     if (currentPage !== initialPage || initialProjects.length === 0) {
       fetchProjects();
     }
-  }, [currentPage, initialPage, initialProjects.length, perPage]);
+  }, [currentUserId, currentPage, initialPage, initialProjects.length, fetchProjects]);
+
+  const refreshProjects = useCallback(() => {
+    if (!currentUserId) return;
+    fetchProjects();
+  }, [currentUserId, fetchProjects]);
+
+  useRealtimeTable({
+    table: 'projects',
+    enabled: Boolean(currentUserId),
+    onPayload: refreshProjects,
+  });
+
+  useRealtimeTable({
+    table: 'scan_reports',
+    enabled: Boolean(currentUserId),
+    onPayload: refreshProjects,
+  });
 
   const totalPages = Math.ceil(totalCount / perPage);
   const hasNextPage = currentPage < totalPages;

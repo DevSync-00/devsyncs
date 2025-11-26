@@ -53,12 +53,12 @@
 **Current Issue**: Users must manually enter Project ID, which is not user-friendly
 
 **Tasks**:
-- [ ] Add API endpoint to list user's projects (`GET /api/projects`)
-- [ ] Implement `listProjects()` in `ApiClient`
-- [ ] Add interactive project selection in CLI (show numbered list)
-- [ ] Add project search/filter capability
-- [ ] Show project metadata (name, last scan date, mismatch count)
-- [ ] Add "Create new project" option in the list
+- [x] Add API endpoint to list user's projects (`GET /api/projects`)
+- [x] Implement `listProjects()` in `ApiClient`
+- [x] Add interactive project selection in CLI (show numbered list)
+- [x] Add project search/filter capability
+- [x] Show project metadata (name, last scan date, mismatch count)
+- [x] Add "Create new project" option in the list
 
 **Example Flow**:
 ```
@@ -118,15 +118,15 @@ Select an option (1-4):
 ### 4. **CLI Project Management Commands** 🟡 **MEDIUM**
 **Priority**: Medium  
 **Effort**: 2-3 days  
-**Status**: ⏳ Not started
+**Status**: ✅ Completed
 
 **Tasks**:
-- [ ] `devsync projects list` - List all user's projects
-- [ ] `devsync projects show <id>` - Show project details
-- [ ] `devsync projects create` - Interactive project creation
-- [ ] `devsync projects update <id>` - Update project settings
-- [ ] `devsync projects delete <id>` - Delete project (with confirmation)
-- [ ] `devsync projects select <id>` - Set default project in config
+- [x] `devsync projects list` - List all user's projects
+- [x] `devsync projects show <id>` - Show project details
+- [x] `devsync projects create` - Interactive project creation
+- [x] `devsync projects update <id>` - Update project settings
+- [x] `devsync projects delete <id>` - Delete project (with confirmation)
+- [x] `devsync projects select <id>` - Set default project in config
 
 **Why**: Better project management from CLI, matches dashboard functionality
 
@@ -169,15 +169,15 @@ Select an option (1-4):
 ### 6. **Notification System** 🟡 **MEDIUM**
 **Priority**: Medium  
 **Effort**: 4-5 days  
-**Status**: ⏳ Not started
+**Status**: ✅ Completed
 
 **Tasks**:
-- [ ] Create notifications table
-- [ ] In-app notification center (bell icon)
-- [ ] Email notifications (scan completed, migration applied, team invitations)
-- [ ] Notification preferences (user settings)
-- [ ] Team notification settings
-- [ ] Mark as read/unread functionality
+- [x] Create notifications table
+- [x] In-app notification center (bell icon)
+- [x] Email notifications (scan completed, migration applied, team invitations)
+- [x] Notification preferences (user settings)
+- [x] Team notification settings
+- [x] Mark as read/unread functionality
 
 **Why**: Keep users informed of important events
 

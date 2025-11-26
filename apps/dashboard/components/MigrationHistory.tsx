@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Clock, CheckCircle, XCircle, Loader2, TestTube, Play } from 'lucide-react';
+import { useRealtimeTable } from '@/hooks/use-realtime';
 
 interface MigrationHistoryProps {
   migrationId: string;
@@ -28,43 +29,40 @@ export default function MigrationHistory({ migrationId }: MigrationHistoryProps)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchHistory = useCallback(async () => {
+    try {
+      const supabase = createClient();
+      const { data, error: fetchError } = await supabase
+        .from('migration_history')
+        .select(`
+          *,
+          executed_by:auth.users(email)
+        `)
+        .eq('migration_id', migrationId)
+        .order('started_at', { ascending: false });
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      setHistory((data as any[]) || []);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load migration history');
+    } finally {
+      setLoading(false);
+    }
+  }, [migrationId]);
+
   useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const supabase = createClient();
-        const { data, error: fetchError } = await supabase
-          .from('migration_history')
-          .select(`
-            *,
-            executed_by:auth.users(email)
-          `)
-          .eq('migration_id', migrationId)
-          .order('started_at', { ascending: false });
-
-        if (fetchError) {
-          throw fetchError;
-        }
-
-        setHistory((data as any[]) || []);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load migration history');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchHistory();
+  }, [fetchHistory]);
 
-    // Refresh every 2 seconds if there's a running migration
-    const interval = setInterval(() => {
-      const hasRunning = history.some(h => h.status === 'running');
-      if (hasRunning) {
-        fetchHistory();
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [migrationId, history.length]);
+  useRealtimeTable({
+    table: 'migration_history',
+    filter: `migration_id=eq.${migrationId}`,
+    enabled: Boolean(migrationId),
+    onPayload: fetchHistory,
+  });
 
   if (loading) {
     return (
