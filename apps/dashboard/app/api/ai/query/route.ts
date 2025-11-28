@@ -51,13 +51,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get OpenAI API key
-    const openaiApiKey = process.env.OPENAI_API_KEY;
-    if (!openaiApiKey) {
-      return NextResponse.json(
-        { error: 'OpenAI API key not configured' },
-        { status: 500 }
-      );
+    // Get AI provider configuration from request or environment
+    const { provider } = body;
+    const aiProvider = provider || process.env.AI_PROVIDER || 'openai';
+    
+    // Get API key based on provider
+    let apiKey: string | undefined;
+    let baseUrl: string | undefined;
+    
+    if (aiProvider === 'deepseek') {
+      apiKey = process.env.DEEPSEEK_API_KEY;
+      baseUrl = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1';
+      if (!apiKey) {
+        return NextResponse.json(
+          { error: 'DeepSeek API key not configured' },
+          { status: 500 }
+        );
+      }
+    } else {
+      apiKey = process.env.OPENAI_API_KEY;
+      baseUrl = process.env.OPENAI_API_URL || 'https://api.openai.com/v1';
+      if (!apiKey) {
+        return NextResponse.json(
+          { error: 'OpenAI API key not configured' },
+          { status: 500 }
+        );
+      }
     }
 
     // Fetch scan report
@@ -76,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     // Generate AI answer using standalone reasoner
     const { AIReasoner } = await import('../../../../../../packages/ai-reasoner/src/reasoner-standalone');
-    const reasoner = new AIReasoner(openaiApiKey);
+    const reasoner = new AIReasoner(apiKey, baseUrl, aiProvider as 'openai' | 'deepseek');
 
     const answer = await reasoner.query(
       question,

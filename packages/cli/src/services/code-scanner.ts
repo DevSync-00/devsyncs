@@ -12,6 +12,10 @@ export interface ScanCodebaseOptions {
   useOllama?: boolean;
   ollamaModel?: string;
   ollamaUrl?: string;
+  useDeepSeek?: boolean;
+  deepseekApiKey?: string;
+  deepseekModel?: string;
+  deepseekUrl?: string;
   useCache?: boolean;
   showProgress?: boolean;
   excludePatterns?: string[];
@@ -46,8 +50,14 @@ export async function scanCodebase(
         const ollamaUrlHash = ollamaUrl && ollamaUrl !== 'http://localhost:11434'
           ? createHash('sha256').update(ollamaUrl).digest('hex').substring(0, 8)
           : 'default';
+        const deepseekKeyHash = options.deepseekApiKey
+          ? createHash('sha256').update(options.deepseekApiKey).digest('hex').substring(0, 8)
+          : 'none';
+        const deepseekUrlHash = options.deepseekUrl && options.deepseekUrl !== 'https://api.deepseek.com/v1'
+          ? createHash('sha256').update(options.deepseekUrl).digest('hex').substring(0, 8)
+          : 'default';
         
-        return `code-schema:${basePath}:${useAI}:${useOllama}:${ollamaModel || ''}:${openaiKeyHash}:${ollamaUrlHash}`;
+        return `code-schema:${basePath}:${useAI}:${useOllama}:${options.useDeepSeek || false}:${ollamaModel || ''}:${options.deepseekModel || ''}:${openaiKeyHash}:${ollamaUrlHash}:${deepseekKeyHash}:${deepseekUrlHash}`;
       })()
     : null;
 
@@ -68,7 +78,11 @@ export async function scanCodebase(
         openaiApiKey,
         useOllama,
         ollamaModel,
-        ollamaUrl
+        ollamaUrl,
+        useDeepSeek: options.useDeepSeek,
+        deepseekApiKey: options.deepseekApiKey,
+        deepseekModel: options.deepseekModel,
+        deepseekUrl: options.deepseekUrl
       });
       
       if (aiResult && aiResult.models.length > 0) {

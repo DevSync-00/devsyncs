@@ -48,11 +48,16 @@ program
   .option('--use-ollama', 'Use Ollama (local, free) instead of OpenAI for AI analysis')
   .option('--ollama-model <model>', 'Ollama model name (default: llama3.2:3b)', 'llama3.2:3b')
   .option('--ollama-url <url>', 'Ollama API URL (default: http://localhost:11434)', 'http://localhost:11434')
+  .option('--use-deepseek', 'Use DeepSeek instead of OpenAI for AI analysis')
+  .option('--deepseek-api-key <key>', 'DeepSeek API key (or set DEEPSEEK_API_KEY env var)')
+  .option('--deepseek-model <model>', 'DeepSeek model name (default: deepseek-chat)', 'deepseek-chat')
+  .option('--deepseek-url <url>', 'DeepSeek API URL (default: https://api.deepseek.com/v1)', 'https://api.deepseek.com/v1')
   .addHelpText('after', `
 Examples:
   $ devsync scan                                    Scan current directory
   $ devsync scan --db postgresql://...              Scan with database connection
   $ devsync scan --ai-analysis --use-ollama         Use local AI for analysis
+  $ devsync scan --ai-analysis --use-deepseek      Use DeepSeek for analysis
   $ devsync scan --no-sync                          Local scan only (no cloud sync)
   $ devsync scan --json -o results.json             Save results to JSON file
 

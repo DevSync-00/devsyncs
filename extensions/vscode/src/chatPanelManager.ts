@@ -476,8 +476,11 @@ export class ChatPanelManager {
 
       if (config.get<boolean>('aiAnalysis', false)) {
         options.aiAnalysis = true;
+        const aiProvider = config.get<string>('ai.provider', 'openai');
         const useOllama = config.get<boolean>('useOllama', false);
-        if (useOllama) {
+        const useDeepSeek = config.get<boolean>('useDeepSeek', false) || aiProvider === 'deepseek';
+        
+        if (useOllama || aiProvider === 'ollama') {
           options.useOllama = true;
           const ollamaModel = config.get<string>('ollamaModel', '');
           const ollamaUrl = config.get<string>('ollamaUrl', '');
@@ -486,6 +489,20 @@ export class ChatPanelManager {
           }
           if (ollamaUrl) {
             options.ollamaUrl = ollamaUrl;
+          }
+        } else if (useDeepSeek || aiProvider === 'deepseek') {
+          options.useDeepSeek = true;
+          const deepseekKey = config.get<string>('deepseekApiKey', '');
+          const deepseekModel = config.get<string>('deepseekModel', '');
+          const deepseekUrl = config.get<string>('deepseekUrl', '');
+          if (deepseekKey) {
+            options.deepseekApiKey = deepseekKey;
+          }
+          if (deepseekModel) {
+            options.deepseekModel = deepseekModel;
+          }
+          if (deepseekUrl) {
+            options.deepseekUrl = deepseekUrl;
           }
         } else {
           const openaiKey = config.get<string>('openaiApiKey', '');

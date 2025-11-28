@@ -29,13 +29,25 @@ export interface RiskAssessment {
   recommendations: string[];
 }
 
+export type AIProvider = 'openai' | 'deepseek';
+
 export class AIReasoner {
   private apiKey: string;
   private baseUrl: string;
+  private provider: AIProvider;
 
-  constructor(apiKey: string, baseUrl: string = 'https://api.openai.com/v1') {
+  constructor(apiKey: string, baseUrl?: string, provider: AIProvider = 'openai') {
     this.apiKey = apiKey;
-    this.baseUrl = baseUrl;
+    this.provider = provider;
+    
+    // Set default base URL based on provider
+    if (baseUrl) {
+      this.baseUrl = baseUrl;
+    } else {
+      this.baseUrl = provider === 'deepseek' 
+        ? 'https://api.deepseek.com/v1'
+        : 'https://api.openai.com/v1';
+    }
   }
 
   async explainMigration(
@@ -49,7 +61,7 @@ export class AIReasoner {
 
     try {
       const prompt = this.buildMigrationExplanationPrompt(mismatches, codeSchema, dbSchema);
-      const response = await this.callOpenAI(prompt);
+      const response = await this.callAI(prompt);
       return this.parseMigrationExplanation(response);
     } catch (error) {
       console.error('AI explanation failed, using template:', error);
@@ -68,7 +80,7 @@ export class AIReasoner {
 
     try {
       const prompt = this.buildRiskAssessmentPrompt(mismatches, codeSchema, dbSchema);
-      const response = await this.callOpenAI(prompt);
+      const response = await this.callAI(prompt);
       return this.parseRiskAssessment(response);
     } catch (error) {
       console.error('AI risk assessment failed, using template:', error);
@@ -88,7 +100,7 @@ export class AIReasoner {
 
     try {
       const prompt = this.buildQueryPrompt(question, mismatches, codeSchema, dbSchema);
-      const response = await this.callOpenAI(prompt);
+      const response = await this.callAI(prompt);
       return response.choices[0]?.message?.content || 'No response from AI.';
     } catch (error) {
       return `Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -164,7 +176,10 @@ ${dbSchema ? JSON.stringify(dbSchema, null, 2) : 'Not provided'}
 Provide a clear, helpful answer.`;
   }
 
-  private async callOpenAI(prompt: string): Promise<any> {
+  private async callAI(prompt: string): Promise<any> {
+    // Determine model based on provider
+    const model = this.provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini';
+    
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -172,7 +187,7 @@ Provide a clear, helpful answer.`;
         'Authorization': `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: model,
         messages: [
           {
             role: 'system',
@@ -196,7 +211,8 @@ Provide a clear, helpful answer.`;
       } catch {
         errorMessage = response.statusText;
       }
-      throw new Error(`OpenAI API error: ${errorMessage}`);
+      const providerName = this.provider === 'deepseek' ? 'DeepSeek' : 'OpenAI';
+      throw new Error(`${providerName} API error: ${errorMessage}`);
     }
 
     return response.json();

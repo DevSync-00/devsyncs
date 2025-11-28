@@ -201,6 +201,32 @@
           "default": "",
           "description": "OpenAI API key for AI analysis (or set OPENAI_API_KEY env var)"
         },
+        "devsync.useDeepSeek": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use DeepSeek instead of OpenAI for AI analysis"
+        },
+        "devsync.deepseekApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "DeepSeek API key for AI analysis (or set DEEPSEEK_API_KEY env var)"
+        },
+        "devsync.deepseekModel": {
+          "type": "string",
+          "default": "deepseek-chat",
+          "description": "DeepSeek model name"
+        },
+        "devsync.deepseekUrl": {
+          "type": "string",
+          "default": "https://api.deepseek.com/v1",
+          "description": "DeepSeek API URL"
+        },
+        "devsync.ai.provider": {
+          "type": "string",
+          "enum": ["openai", "ollama", "deepseek"],
+          "default": "openai",
+          "description": "AI provider to use for chat and analysis"
+        },
         "devsync.analyzerUrl": {
           "type": "string",
           "default": "http://localhost:4000",

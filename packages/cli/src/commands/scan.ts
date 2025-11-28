@@ -42,32 +42,45 @@ export async function scanCommand(options: ScanOptions) {
     // 1. Scan codebase (extract schema - Prisma, TypeORM, Sequelize, Drizzle, or Raw SQL, or AI)
     console.log(chalk.gray('📁 Scanning codebase...'));
     // Check if AI analysis is requested
-    const useAI = options.aiAnalysis || !!process.env.OPENAI_API_KEY || !!process.env.OLLAMA_URL;
+    const useAI = options.aiAnalysis || !!process.env.OPENAI_API_KEY || !!process.env.OLLAMA_URL || !!process.env.DEEPSEEK_API_KEY;
     const useOllama = options.useOllama || !!process.env.OLLAMA_URL;
+    const useDeepSeek = options.useDeepSeek || !!process.env.DEEPSEEK_API_KEY;
     const openaiApiKey = options.openaiApiKey || process.env.OPENAI_API_KEY;
+    const deepseekApiKey = options.deepseekApiKey || process.env.DEEPSEEK_API_KEY;
     const ollamaUrl = options.ollamaUrl || process.env.OLLAMA_URL || 'http://localhost:11434';
     const ollamaModel = options.ollamaModel || process.env.OLLAMA_MODEL || 'llama3.2:3b';
+    const deepseekUrl = options.deepseekUrl || process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1';
+    const deepseekModel = options.deepseekModel || process.env.DEEPSEEK_MODEL || 'deepseek-chat';
     
     // Prefer Ollama (free, local) if enabled
     if (useAI && useOllama) {
       console.log(chalk.blue('🤖 Using Ollama (local, free) for AI analysis...'));
       console.log(chalk.gray(`   Model: ${ollamaModel}`));
       console.log(chalk.gray(`   URL: ${ollamaUrl}\n`));
+    } else if (useAI && useDeepSeek && deepseekApiKey) {
+      console.log(chalk.blue('🤖 Using DeepSeek for AI analysis...'));
+      console.log(chalk.gray(`   Model: ${deepseekModel}`));
+      console.log(chalk.gray(`   URL: ${deepseekUrl}\n`));
     } else if (useAI && openaiApiKey) {
       console.log(chalk.blue('🤖 Using AI-powered code analysis (OpenAI)...'));
-    } else if (useAI && !openaiApiKey && !useOllama) {
+    } else if (useAI && !openaiApiKey && !useOllama && !useDeepSeek) {
       console.error(chalk.red('❌ Error: --ai-analysis requires either:'));
       console.error(chalk.gray('   --use-ollama (local, free)'));
+      console.error(chalk.gray('   OR --use-deepseek --deepseek-api-key / DEEPSEEK_API_KEY'));
       console.error(chalk.gray('   OR --openai-api-key flag / OPENAI_API_KEY environment variable'));
       process.exit(1);
     }
     
     const codeSchema = await scanCodebase(absolutePath, {
       useAI: !!useAI,
-      openaiApiKey: useOllama ? undefined : (openaiApiKey || undefined),
+      openaiApiKey: (useOllama || useDeepSeek) ? undefined : (openaiApiKey || undefined),
       useOllama: !!useOllama,
       ollamaModel: ollamaModel,
       ollamaUrl: ollamaUrl,
+      useDeepSeek: !!useDeepSeek,
+      deepseekApiKey: deepseekApiKey,
+      deepseekModel: deepseekModel,
+      deepseekUrl: deepseekUrl,
       useCache: true,
       showProgress: !options.json
     });
