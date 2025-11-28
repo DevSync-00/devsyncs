@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 
 type EventName = 'INSERT' | 'UPDATE' | 'DELETE' | '*';
 
-interface UseRealtimeTableOptions<T> {
+interface UseRealtimeTableOptions<T extends Record<string, any> = Record<string, any>> {
   table: string;
   schema?: string;
   event?: EventName;
@@ -18,9 +18,10 @@ interface UseRealtimeTableOptions<T> {
   onInsert?: (payload: RealtimePostgresChangesPayload<T>) => void;
   onUpdate?: (payload: RealtimePostgresChangesPayload<T>) => void;
   onDelete?: (payload: RealtimePostgresChangesPayload<T>) => void;
+  onError?: (error: Error) => void;
 }
 
-export function useRealtimeTable<T = Record<string, unknown>>(options: UseRealtimeTableOptions<T>) {
+export function useRealtimeTable<T extends Record<string, any> = Record<string, any>>(options: UseRealtimeTableOptions<T>) {
   const {
     table,
     schema = 'public',
@@ -34,7 +35,7 @@ export function useRealtimeTable<T = Record<string, unknown>>(options: UseRealti
 
   useEffect(() => {
     handlersRef.current = options;
-  }, [options.onPayload, options.onInsert, options.onUpdate, options.onDelete]);
+  }, [options.onPayload, options.onInsert, options.onUpdate, options.onDelete, options.onError]);
 
   useEffect(() => {
     if (!enabled) {
@@ -65,7 +66,7 @@ export function useRealtimeTable<T = Record<string, unknown>>(options: UseRealti
     };
 
     realtimeChannel.on(
-      'postgres_changes',
+      'postgres_changes' as any,
       {
         event,
         schema,
@@ -73,7 +74,16 @@ export function useRealtimeTable<T = Record<string, unknown>>(options: UseRealti
         filter,
       },
       handler
-    ).subscribe();
+    ).subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        // Successfully subscribed
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        const { onError } = handlersRef.current;
+        if (onError) {
+          onError(new Error(`Realtime subscription ${status.toLowerCase()}`));
+        }
+      }
+    });
 
     return () => {
       supabase.removeChannel(realtimeChannel);
@@ -106,12 +116,14 @@ export function useTeamActivityNotifications(teamIds: string[]) {
     payload: RealtimePostgresChangesPayload<Record<string, any>>,
     type: 'created' | 'updated'
   ) {
-    const teamId = payload.new?.team_id || payload.old?.team_id;
+    const newRecord = payload.new as any;
+    const oldRecord = payload.old as any;
+    const teamId = newRecord?.team_id || oldRecord?.team_id;
     if (!teamId || !teamIdsRef.current.has(teamId)) {
       return;
     }
 
-    const projectName = payload.new?.name || 'A project';
+    const projectName = newRecord?.name || 'A project';
     toast({
       title: type === 'created' ? 'Team project created' : 'Team project updated',
       description: `${projectName} was ${type} by your team.`,

@@ -8,6 +8,10 @@ import {
   resolveUser,
   VALID_SCHEMA_TYPES,
 } from './utils';
+import { measurePerformance } from '@/lib/performance-monitor';
+import { trackError } from '@/lib/error-tracking';
+import { logger } from '@/lib/logger';
+import { withRateLimit, addRateLimitHeaders } from '@/lib/rate-limit-middleware';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +54,10 @@ async function triggerGitClone(projectId: string, gitUrl: string, supabase: any)
     }
     
     // Clone the repository
-    console.log(`[Background Job] Cloning Git repository for project ${projectId}: ${gitUrl}`);
+    logger.info(`Cloning Git repository for project ${projectId}`, {
+      projectId,
+      gitUrl,
+    });
     const git = simpleGit();
     
     await git.clone(gitUrl, cloneDir, {
@@ -74,10 +81,21 @@ async function triggerGitClone(projectId: string, gitUrl: string, supabase: any)
       })
       .eq('id', projectId);
     
-    console.log(`[Background Job] Successfully cloned repository to ${cloneDir}`);
+    logger.info(`Successfully cloned repository to ${cloneDir}`, {
+      projectId,
+      cloneDir,
+    });
     
   } catch (error: any) {
-    console.error('Error in Git clone job:', error);
+    logger.error('Error in Git clone job', error, {
+      projectId,
+      gitUrl,
+    });
+    trackError(error, {
+      operation: 'triggerGitClone',
+      projectId,
+      metadata: { gitUrl },
+    });
     
     // Update project status to failed
     await supabase
@@ -99,9 +117,12 @@ async function triggerGitClone(projectId: string, gitUrl: string, supabase: any)
 
 // GET: Fetch user's projects
 export async function GET(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-    const user = await resolveUser(request, supabase);
+  return withRateLimit(async (req: NextRequest) => {
+    return measurePerformance('GET /api/projects', async () => {
+    let user: any = null;
+    try {
+      const supabase = await createClient();
+      user = await resolveUser(req, supabase);
 
     if (!user) {
       return NextResponse.json(
@@ -110,7 +131,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const searchParams = request.nextUrl.searchParams;
+    const searchParams = req.nextUrl.searchParams;
     const search = searchParams.get('search')?.trim();
     const limitParam = Number.parseInt(searchParams.get('limit') || '', 10);
     const limit = Number.isNaN(limitParam)
@@ -161,21 +182,32 @@ export async function GET(request: NextRequest) {
       formatProjectSummary(project, latestScanMap.get(project.id))
     );
 
-    return NextResponse.json({ projects: projectsWithMeta });
-  } catch (error) {
-    console.error('API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+      return NextResponse.json({ projects: projectsWithMeta });
+    } catch (error) {
+      logger.error('GET /api/projects failed', error instanceof Error ? error : new Error(String(error)), {
+        userId: user?.id,
+      });
+      trackError(error, {
+        operation: 'GET /api/projects',
+        userId: user?.id,
+      });
+      return NextResponse.json(
+        { error: 'Internal server error' },
+        { status: 500 }
+      );
+    }
+  });
+  })(request);
 }
 
 // POST: Create a new project
 export async function POST(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-    const user = await resolveUser(request, supabase);
+  return withRateLimit(async (req: NextRequest) => {
+    return measurePerformance('POST /api/projects', async () => {
+    let user: any = null;
+    try {
+      const supabase = await createClient();
+      user = await resolveUser(req, supabase);
 
     if (!user) {
       return NextResponse.json(
@@ -184,7 +216,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    const body = await req.json();
 
     if (body.action === 'trigger-git-clone') {
       const { projectId, gitUrl } = body;
@@ -217,7 +249,15 @@ export async function POST(request: NextRequest) {
       }
 
       triggerGitClone(projectId, gitUrl, supabase).catch((error) => {
-        console.error('Error triggering Git clone:', error);
+        logger.error('Error triggering Git clone', error, {
+          userId: user.id,
+          projectId,
+        });
+        trackError(error, {
+          operation: 'POST /api/projects - trigger git clone',
+          userId: user.id,
+          projectId,
+        });
       });
 
       return NextResponse.json({
@@ -276,16 +316,24 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (insertError) {
-      console.error('Error creating project:', insertError);
-      return NextResponse.json(
-        {
-          error: 'Failed to create project',
-          details: insertError.message,
-        },
-        { status: 500 }
-      );
-    }
+      if (insertError) {
+        logger.error('Error creating project', insertError, {
+          userId: user.id,
+          schemaType,
+        });
+        trackError(insertError, {
+          operation: 'POST /api/projects',
+          userId: user.id,
+          metadata: { schemaType },
+        });
+        return NextResponse.json(
+          {
+            error: 'Failed to create project',
+            details: insertError.message,
+          },
+          { status: 500 }
+        );
+      }
 
     if (codebase?.type === 'upload' && codebase.files) {
       try {
@@ -307,8 +355,10 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        codebaseConfig.status = uploadedFiles.length > 0 ? 'completed' : 'failed';
-        codebaseConfig.uploadedFiles = uploadedFiles;
+        if (codebaseConfig) {
+          (codebaseConfig as any).status = uploadedFiles.length > 0 ? 'completed' : 'failed';
+          (codebaseConfig as any).uploadedFiles = uploadedFiles;
+        }
 
         await supabase
           .from('projects')
@@ -319,9 +369,19 @@ export async function POST(request: NextRequest) {
           })
           .eq('id', project.id);
       } catch (error: any) {
-        console.error('Error uploading files:', error);
-        codebaseConfig.status = 'failed';
-        codebaseConfig.error = error.message;
+        logger.error('Error uploading files', error, {
+          userId: user.id,
+          projectId: project.id,
+        });
+        trackError(error, {
+          operation: 'POST /api/projects - file upload',
+          userId: user.id,
+          projectId: project.id,
+        });
+        if (codebaseConfig) {
+          (codebaseConfig as any).status = 'failed';
+          (codebaseConfig as any).error = error.message;
+        }
 
         await supabase
           .from('projects')
@@ -334,32 +394,54 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (codebase?.type === 'git' && codebase.url) {
-      triggerGitClone(project.id, codebase.url, supabase).catch((error) => {
-        console.error('Error triggering Git clone:', error);
-      });
-    }
+      if (codebase?.type === 'git' && codebase.url) {
+        triggerGitClone(project.id, codebase.url, supabase).catch((error) => {
+          logger.error('Error triggering Git clone', error, {
+            userId: user.id,
+            projectId: project.id,
+          });
+          trackError(error, {
+            operation: 'POST /api/projects - git clone',
+            userId: user.id,
+            projectId: project.id,
+          });
+        });
+      }
 
-    return NextResponse.json({
-      success: true,
-      project: {
-        ...project,
-        slug: projectSlug,
-        config: {
-          ...project.config,
-          codebase: codebaseConfig,
+      logger.info('Project created successfully', {
+        userId: user.id,
+        projectId: project.id,
+        schemaType,
+      });
+
+      return NextResponse.json({
+        success: true,
+        project: {
+          ...project,
+          slug: projectSlug,
+          config: {
+            ...project.config,
+            codebase: codebaseConfig,
+          },
         },
-      },
-      message: 'Project created successfully',
-    });
-  } catch (error: any) {
-    console.error('API error:', error);
-    return NextResponse.json(
-      {
-        error: 'Internal server error',
-        details: error.message,
-      },
-      { status: 500 }
-    );
-  }
+        message: 'Project created successfully',
+      });
+    } catch (error: any) {
+      logger.error('POST /api/projects failed', error, {
+        userId: user?.id,
+      });
+      trackError(error, {
+        operation: 'POST /api/projects',
+        userId: user?.id,
+      });
+      return NextResponse.json(
+        {
+          error: 'Internal server error',
+          details: error.message,
+        },
+        { status: 500 }
+      );
+    }
+  });
+  })(request);
 }

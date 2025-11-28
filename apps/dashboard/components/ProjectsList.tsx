@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { ProjectCardSkeleton } from './LoadingSkeleton';
 import { useRealtimeTable, useTeamActivityNotifications } from '@/hooks/use-realtime';
 import { useToast } from '@/hooks/use-toast';
+import { formatErrorMessage } from '@/lib/error-utils';
+import { executeSupabaseQuery } from '@/lib/supabase-client-wrapper';
 
 function formatSchemaType(schemaType: string): string {
   const schemaTypeMap: Record<string, string> = {
@@ -104,45 +106,63 @@ export default function ProjectsList({
       const from = (currentPage - 1) * perPage;
       const to = from + perPage - 1;
 
-      const { data: projectsData, error: projectsError, count } = await supabase
-        .from('projects')
-        .select('*', { count: 'exact' })
-        .eq('user_id', currentUserId)
-        .order('created_at', { ascending: false })
-        .range(from, to);
+      // Use retry wrapper for projects query
+      const projectsResult = await executeSupabaseQuery(
+        async () => {
+          const result = await supabase
+            .from('projects')
+            .select('*', { count: 'exact' })
+            .eq('user_id', currentUserId)
+            .order('created_at', { ascending: false })
+            .range(from, to);
+          return result;
+        },
+        { retries: 3, retryDelay: 1000 }
+      );
 
-      if (projectsError) throw projectsError;
+      const projectsData = projectsResult.data || [];
+      const count = projectsResult.count ?? projectsData.length;
 
-      setProjects(projectsData || []);
-      setTotalCount(count ?? projectsData?.length ?? 0);
+      setProjects(projectsData);
+      setTotalCount(count);
 
-      if (projectsData && projectsData.length > 0) {
+      if (projectsData.length > 0) {
         const projectIds = projectsData.map(p => p.id);
-        const { data: scansData, error: scansError } = await supabase
-          .from('scan_reports')
-          .select('id, project_id, status, created_at, mismatches')
-          .in('project_id', projectIds)
-          .order('created_at', { ascending: false });
-
-        if (scansError) throw scansError;
+        
+        // Use retry wrapper for scans query
+        const scansData = await executeSupabaseQuery(
+          async () => {
+            const result = await supabase
+              .from('scan_reports')
+              .select('id, project_id, status, created_at, mismatches')
+              .in('project_id', projectIds)
+              .order('created_at', { ascending: false });
+            return result;
+          },
+          { retries: 3, retryDelay: 1000 }
+        );
 
         const latestScansMap = new Map<string, ScanReport>();
-        scansData?.forEach(scan => {
+        (scansData.data || []).forEach(scan => {
           if (!latestScansMap.has(scan.project_id)) {
             latestScansMap.set(scan.project_id, scan);
           }
         });
         setScanMap(latestScansMap);
-        setScans(scansData || []);
+        setScans(scansData.data || []);
       } else {
         setScans([]);
         setScanMap(new Map());
       }
     } catch (error) {
       console.error('Error fetching projects:', error);
+      const formatted = formatErrorMessage(error, {
+        operation: 'load',
+        resource: 'projects',
+      });
       toast({
-        title: 'Unable to load projects',
-        description: error instanceof Error ? error.message : 'Please try again later.',
+        title: formatted.title,
+        description: formatted.actionable || formatted.message,
         variant: 'destructive',
       });
     } finally {

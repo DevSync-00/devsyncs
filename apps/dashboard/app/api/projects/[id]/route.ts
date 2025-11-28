@@ -7,6 +7,7 @@ import {
   generateSlug,
   resolveUser,
 } from '../utils';
+import { withRateLimit } from '@/lib/rate-limit-middleware';
 
 const schemaTypeEnum = z.enum([
   'prisma',
@@ -39,9 +40,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
+  return withRateLimit(async (req: NextRequest) => {
+    try {
     const supabase = await createClient();
-    const user = await resolveUser(request, supabase);
+    const user = await resolveUser(req, supabase);
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -74,15 +76,17 @@ export async function GET(
       { status: 500 }
     );
   }
+  })(request);
 }
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
+  return withRateLimit(async (req: NextRequest) => {
+    try {
     const supabase = await createClient();
-    const user = await resolveUser(request, supabase);
+    const user = await resolveUser(req, supabase);
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -93,7 +97,7 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
-    const payload = updateSchema.safeParse(await request.json());
+    const payload = updateSchema.safeParse(await req.json());
     if (!payload.success) {
       return NextResponse.json(
         { error: payload.error.issues[0]?.message || 'Invalid payload' },
@@ -177,15 +181,17 @@ export async function PATCH(
       { status: 500 }
     );
   }
+  })(request);
 }
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
+  return withRateLimit(async (req: NextRequest) => {
+    try {
     const supabase = await createClient();
-    const user = await resolveUser(request, supabase);
+    const user = await resolveUser(req, supabase);
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -217,6 +223,7 @@ export async function DELETE(
       { status: 500 }
     );
   }
+  })(request);
 }
 
 async function fetchProjectWithAccess(supabase: any, projectId: string, userId: string) {

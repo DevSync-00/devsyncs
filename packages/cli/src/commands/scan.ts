@@ -30,7 +30,8 @@ export async function scanCommand(options: ScanOptions) {
     const apiKey = options.apiKey || config?.api?.key;
 
     if (!projectId && apiUrl && apiKey && process.stdout.isTTY) {
-      projectId = await promptForProjectSelection(apiUrl, apiKey);
+      const selectedProjectId = await promptForProjectSelection(apiUrl, apiKey);
+      projectId = selectedProjectId || undefined;
     } else if (!projectId && apiUrl && apiKey && !process.stdout.isTTY) {
       console.log(chalk.yellow('⚠️  No project ID provided and interactive prompts are disabled.'));
       console.log(chalk.gray('   Use --project-id or set project.id in .devsync/config.json to sync with the dashboard.\n'));

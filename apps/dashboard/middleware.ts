@@ -1,7 +1,18 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { rateLimitMiddleware } from './lib/rate-limit-middleware';
 
 export function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  
+  // Handle API routes with rate limiting
+  if (path.startsWith('/api/')) {
+    const rateLimitResponse = rateLimitMiddleware(request);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+  }
+
   const response = NextResponse.next();
 
   // Security headers
@@ -32,13 +43,12 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
+     * Match all request paths except for:
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };
 

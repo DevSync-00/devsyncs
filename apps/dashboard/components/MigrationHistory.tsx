@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Clock, CheckCircle, XCircle, Loader2, TestTube, Play } from 'lucide-react';
 import { useRealtimeTable } from '@/hooks/use-realtime';
+import { formatErrorMessage } from '@/lib/error-utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface MigrationHistoryProps {
   migrationId: string;
@@ -28,6 +30,7 @@ export default function MigrationHistory({ migrationId }: MigrationHistoryProps)
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -46,8 +49,18 @@ export default function MigrationHistory({ migrationId }: MigrationHistoryProps)
       }
 
       setHistory((data as any[]) || []);
+      setError(null);
     } catch (err: any) {
-      setError(err.message || 'Failed to load migration history');
+      const formatted = formatErrorMessage(err, {
+        operation: 'load',
+        resource: 'migration history',
+      });
+      setError(formatted.message);
+      toast({
+        title: formatted.title,
+        description: formatted.actionable || formatted.message,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -62,6 +75,14 @@ export default function MigrationHistory({ migrationId }: MigrationHistoryProps)
     filter: `migration_id=eq.${migrationId}`,
     enabled: Boolean(migrationId),
     onPayload: fetchHistory,
+    onError: (error) => {
+      console.error('Realtime subscription error:', error);
+      toast({
+        title: 'Connection issue',
+        description: 'Lost connection to live updates. Refreshing...',
+        variant: 'destructive',
+      });
+    },
   });
 
   if (loading) {
@@ -74,8 +95,9 @@ export default function MigrationHistory({ migrationId }: MigrationHistoryProps)
 
   if (error) {
     return (
-      <div className="px-4 py-3 rounded-md bg-red-500/10 text-red-500 text-sm">
-        {error}
+      <div className="px-4 py-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm space-y-1">
+        <div className="font-medium">Failed to load migration history</div>
+        <div className="text-destructive/80 text-xs mt-1">{error}</div>
       </div>
     );
   }

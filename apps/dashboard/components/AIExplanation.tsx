@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Loader2, AlertTriangle, Shield, Clock, Database } from 'lucide-react';
+import { fetchJSON } from '@/lib/fetch-utils';
+import { formatErrorMessage } from '@/lib/error-utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface AIExplanationProps {
   scanReportId: string;
@@ -34,33 +37,37 @@ export default function AIExplanation({ scanReportId, migrationId }: AIExplanati
   const [explanation, setExplanation] = useState<MigrationExplanation | null>(null);
   const [riskAssessment, setRiskAssessment] = useState<RiskAssessment | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const handleGenerate = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/ai/explain', {
+      const data = await fetchJSON<{ explanation: MigrationExplanation; riskAssessment: RiskAssessment }>('/api/ai/explain', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           scanReportId,
           migrationId,
         }),
+        timeout: 60000, // 60 seconds for AI queries
+        retries: 2,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate explanation');
-      }
-
-      const data = await response.json();
       setExplanation(data.explanation);
       setRiskAssessment(data.riskAssessment);
+      setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate AI explanation');
+      const formatted = formatErrorMessage(err, {
+        operation: 'generate',
+        resource: 'AI explanation',
+      });
+      setError(formatted.message);
+      toast({
+        title: formatted.title,
+        description: formatted.actionable || formatted.message,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }

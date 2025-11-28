@@ -179,9 +179,10 @@ export default function NotificationCenter({
         return updated.slice(0, MAX_VISIBLE_NOTIFICATIONS);
       });
       setUnreadCount((prev) => prev + 1);
+      const notification = payload.new as any;
       toast({
-        title: payload.new.title,
-        description: payload.new.message ?? 'You have a new notification.',
+        title: notification?.title || 'New Notification',
+        description: notification?.message ?? 'You have a new notification.',
       });
     },
     onUpdate: () => {

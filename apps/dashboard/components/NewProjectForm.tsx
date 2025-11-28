@@ -11,6 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/client';
 import { GitBranch, Upload, Loader2 } from 'lucide-react';
+import { formatErrorMessage } from '@/lib/error-utils';
+import { useToast } from '@/hooks/use-toast';
+import { fetchJSON } from '@/lib/fetch-utils';
 
 interface NewProjectFormProps {
   userId: string;
@@ -91,8 +94,10 @@ const SCHEMA_TYPES = [
 export default function NewProjectForm({ userId, teamId }: NewProjectFormProps) {
   const router = useRouter();
   const supabase = createClient();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
   const {
     register,
@@ -230,50 +235,78 @@ export default function NewProjectForm({ userId, teamId }: NewProjectFormProps) 
         } catch (uploadErr: any) {
           console.error('File upload error:', uploadErr);
           // Update project status to indicate upload failed
-          await supabase
-            .from('projects')
-            .update({
-              config: {
-                codebase: {
-                  ...codebaseConfig,
-                  status: 'error',
-                  error: uploadErr.message,
+          try {
+            await supabase
+              .from('projects')
+              .update({
+                config: {
+                  codebase: {
+                    ...codebaseConfig,
+                    status: 'error',
+                    error: uploadErr.message,
+                  },
                 },
-              },
-            })
-            .eq('id', project.id)
-            .catch(() => {}); // Ignore update errors
+              })
+              .eq('id', project.id);
+          } catch {
+            // Ignore update errors
+          }
         }
       }
 
       // Trigger Git clone via API if needed (background job)
       if (data.codebaseSource === 'git' && data.gitUrl && project) {
-        // Trigger background job asynchronously
-        fetch('/api/projects', {
+        // Trigger background job asynchronously (fire and forget)
+        fetchJSON('/api/projects', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'trigger-git-clone',
             projectId: project.id,
             gitUrl: data.gitUrl,
           }),
-        }).catch(err => console.error('Error triggering Git clone:', err));
+          timeout: 10000, // 10 seconds for trigger
+          retries: 1, // Only retry once for background jobs
+        }).catch(err => {
+          console.error('Error triggering Git clone:', err);
+          // Don't show error to user as this is a background operation
+        });
       }
+
+      // Show success toast
+      toast({
+        title: 'Project created',
+        description: `${data.name} has been created successfully.`,
+      });
 
       // Redirect to project dashboard
       router.push(`/dashboard/projects/${project.id}`);
     } catch (err: any) {
       console.error('Project creation error:', err);
-      setError(err.message || 'An error occurred while creating the project');
+      const formatted = formatErrorMessage(err, {
+        operation: 'create',
+        resource: 'project',
+      });
+      setError(formatted.message);
+      setErrorDetails(formatted.actionable || null);
       setLoading(false);
+      
+      // Also show toast for error
+      toast({
+        title: formatted.title,
+        description: formatted.actionable || formatted.message,
+        variant: 'destructive',
+      });
     }
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {error && (
-        <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm border border-destructive/20">
-          {error}
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md text-sm space-y-1">
+          <div className="font-medium">{error}</div>
+          {errorDetails && (
+            <div className="text-destructive/80 text-xs mt-1">{errorDetails}</div>
+          )}
         </div>
       )}
 

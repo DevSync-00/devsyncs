@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { CheckCircle, Clock, AlertTriangle, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useRealtimeTable } from '@/hooks/use-realtime';
+import { useToast } from '@/hooks/use-toast';
 
 interface ScanReport {
   id: string;
@@ -22,6 +23,8 @@ interface ScanReportsListProps {
 
 export default function ScanReportsList({ reports, projectId }: ScanReportsListProps) {
   const [reportList, setReportList] = useState<ScanReport[]>(reports);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     setReportList(reports);
@@ -38,28 +41,51 @@ export default function ScanReportsList({ reports, projectId }: ScanReportsListP
     enabled: Boolean(projectId),
     onInsert: (payload) => {
       if (!payload.new) return;
+      const newReport = payload.new as any;
       setReportList((prev) => {
-        const exists = prev.some((report) => report.id === payload.new!.id);
-        return exists ? prev : [payload.new as ScanReport, ...prev];
+        const exists = prev.some((report) => report.id === newReport?.id);
+        return exists ? prev : [newReport as ScanReport, ...prev];
       });
     },
     onUpdate: (payload) => {
       if (!payload.new) return;
+      const updatedReport = payload.new as any;
       setReportList((prev) =>
-        prev.map((report) => (report.id === payload.new!.id ? (payload.new as ScanReport) : report))
+        prev.map((report) => (report.id === updatedReport?.id ? (updatedReport as ScanReport) : report))
       );
     },
     onDelete: (payload) => {
-      if (!payload.old?.id) return;
-      setReportList((prev) => prev.filter((report) => report.id !== payload.old!.id));
+      const deletedReport = payload.old as any;
+      if (!deletedReport?.id) return;
+      setReportList((prev) => prev.filter((report) => report.id !== deletedReport.id));
+    },
+    onError: (error) => {
+      console.error('Realtime subscription error:', error);
+      toast({
+        title: 'Connection issue',
+        description: 'Lost connection to live updates. Refreshing...',
+        variant: 'destructive',
+      });
     },
   });
+
+  if (loading && sortedReports.length === 0) {
+    return (
+      <div className="text-center py-12 border border-border rounded-lg bg-card">
+        <Loader2 className="w-10 h-10 text-muted-foreground mx-auto mb-4 animate-spin" />
+        <h3 className="text-lg font-semibold mb-2">Loading scan reports...</h3>
+        <p className="text-muted-foreground max-w-sm mx-auto">
+          Please wait while we fetch your scan reports.
+        </p>
+      </div>
+    );
+  }
 
   if (sortedReports.length === 0) {
     return (
       <div className="text-center py-12 border border-border rounded-lg bg-card">
-        <Loader2 className="w-10 h-10 text-muted-foreground mx-auto mb-4 animate-spin" />
-        <h3 className="text-lg font-semibold mb-2">Waiting for scan reports</h3>
+        <Clock className="w-10 h-10 text-muted-foreground mx-auto mb-4" />
+        <h3 className="text-lg font-semibold mb-2">No scan reports yet</h3>
         <p className="text-muted-foreground max-w-sm mx-auto">
           Trigger a scan from the CLI and keep this page open—we&apos;ll stream results here as soon as they finish.
         </p>
