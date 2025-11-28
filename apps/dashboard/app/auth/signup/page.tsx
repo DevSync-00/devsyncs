@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 
 function SignupForm() {
   const router = useRouter();
@@ -16,6 +17,8 @@ function SignupForm() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     // Pre-fill email from query param if present
@@ -25,37 +28,110 @@ function SignupForm() {
     }
   }, [searchParams]);
 
+  /**
+   * Format error message to be more user-friendly and actionable
+   */
+  function formatAuthError(error: any): { message: string; details: string | null } {
+    const errorMessage = error?.message || 'An error occurred';
+    
+    // Map common Supabase errors to actionable messages
+    if (errorMessage.includes('User already registered') || 
+        errorMessage.includes('already registered')) {
+      return {
+        message: 'An account with this email already exists',
+        details: 'Please sign in instead, or use a different email address.',
+      };
+    }
+    
+    if (errorMessage.includes('Password')) {
+      return {
+        message: 'Password requirements not met',
+        details: 'Password must be at least 6 characters long.',
+      };
+    }
+    
+    if (errorMessage.includes('Email')) {
+      return {
+        message: 'Invalid email address',
+        details: 'Please enter a valid email address.',
+      };
+    }
+    
+    if (errorMessage.includes('Too many requests')) {
+      return {
+        message: 'Too many signup attempts',
+        details: 'Please wait a few minutes before trying again.',
+      };
+    }
+    
+    if (errorMessage.includes('Network') || errorMessage.includes('fetch')) {
+      return {
+        message: 'Network error',
+        details: 'Please check your internet connection and try again.',
+      };
+    }
+    
+    return {
+      message: errorMessage,
+      details: null,
+    };
+  }
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setErrorDetails(null);
+    setSuccess(false);
 
+    // Client-side validation
     if (password !== confirmPassword) {
       setError('Passwords do not match');
+      setErrorDetails('Please make sure both password fields match.');
       setLoading(false);
       return;
     }
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
+      setErrorDetails('Please choose a password that is at least 6 characters long.');
       setLoading(false);
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
-      },
-    });
+    try {
+      const { error, data } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
 
-    if (error) {
-      setError(error.message);
+      if (error) {
+        const formatted = formatAuthError(error);
+        setError(formatted.message);
+        setErrorDetails(formatted.details);
+        setLoading(false);
+      } else {
+        // Check if email confirmation is required
+        if (data.user && !data.session) {
+          setSuccess(true);
+          setError(null);
+          setErrorDetails(null);
+          setLoading(false);
+        } else {
+          // Auto-logged in, redirect
+          router.push('/dashboard');
+          router.refresh();
+        }
+      }
+    } catch (err) {
+      // Handle unexpected errors
+      const formatted = formatAuthError(err);
+      setError(formatted.message || 'An unexpected error occurred');
+      setErrorDetails('Please try again. If the problem persists, contact support.');
       setLoading(false);
-    } else {
-      router.push('/dashboard');
-      router.refresh();
     }
   };
 
@@ -70,9 +146,20 @@ function SignupForm() {
         </div>
 
         <form onSubmit={handleSignup} className="space-y-6">
+          {success && (
+            <div className="bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400 px-4 py-3 rounded-md text-sm space-y-1">
+              <div className="font-medium">Account created successfully!</div>
+              <div className="text-green-600 dark:text-green-500 text-xs mt-1">
+                Please check your email to confirm your account before signing in.
+              </div>
+            </div>
+          )}
           {error && (
-            <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm">
-              {error}
+            <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md text-sm space-y-1">
+              <div className="font-medium">{error}</div>
+              {errorDetails && (
+                <div className="text-destructive/80 text-xs mt-1">{errorDetails}</div>
+              )}
             </div>
           )}
 
@@ -123,8 +210,15 @@ function SignupForm() {
             </div>
           </div>
 
-          <Button type="submit" className="w-full" size="lg" disabled={loading}>
-            {loading ? 'Creating account...' : 'Sign up'}
+          <Button type="submit" className="w-full" size="lg" disabled={loading || success}>
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating account...
+              </>
+            ) : (
+              'Sign up'
+            )}
           </Button>
         </form>
 

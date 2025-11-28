@@ -6,6 +6,8 @@ import { ApiClient } from '../services/api-client.js';
 import { saveScanResults, getScanExitCode } from '../utils/output.js';
 import chalk from 'chalk';
 import { resolve } from 'path';
+import readline from 'node:readline/promises';
+import { stdin as input, stdout as output } from 'node:process';
 import type { ScanOptions, CodeSchema, DbSchema, Mismatch } from '../types/index.js';
 
 export async function scanCommand(options: ScanOptions) {
@@ -23,40 +25,62 @@ export async function scanCommand(options: ScanOptions) {
     const dbConnection = options.db || config?.database?.connectionString;
 
     // API settings
-    const projectId = options.projectId || config?.project?.id;
+    let projectId = options.projectId || config?.project?.id;
     const apiUrl = options.apiUrl || config?.api?.url;
     const apiKey = options.apiKey || config?.api?.key;
+
+    if (!projectId && apiUrl && apiKey && process.stdout.isTTY) {
+      const selectedProjectId = await promptForProjectSelection(apiUrl, apiKey);
+      projectId = selectedProjectId || undefined;
+    } else if (!projectId && apiUrl && apiKey && !process.stdout.isTTY) {
+      console.log(chalk.yellow('⚠️  No project ID provided and interactive prompts are disabled.'));
+      console.log(chalk.gray('   Use --project-id or set project.id in .devsync/config.json to sync with the dashboard.\n'));
+    }
+
     const shouldSync = options.sync !== false && projectId && apiUrl && apiKey;
 
     // 1. Scan codebase (extract schema - Prisma, TypeORM, Sequelize, Drizzle, or Raw SQL, or AI)
     console.log(chalk.gray('📁 Scanning codebase...'));
     // Check if AI analysis is requested
-    const useAI = options.aiAnalysis || !!process.env.OPENAI_API_KEY || !!process.env.OLLAMA_URL;
+    const useAI = options.aiAnalysis || !!process.env.OPENAI_API_KEY || !!process.env.OLLAMA_URL || !!process.env.DEEPSEEK_API_KEY;
     const useOllama = options.useOllama || !!process.env.OLLAMA_URL;
+    const useDeepSeek = options.useDeepSeek || !!process.env.DEEPSEEK_API_KEY;
     const openaiApiKey = options.openaiApiKey || process.env.OPENAI_API_KEY;
+    const deepseekApiKey = options.deepseekApiKey || process.env.DEEPSEEK_API_KEY;
     const ollamaUrl = options.ollamaUrl || process.env.OLLAMA_URL || 'http://localhost:11434';
     const ollamaModel = options.ollamaModel || process.env.OLLAMA_MODEL || 'llama3.2:3b';
+    const deepseekUrl = options.deepseekUrl || process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1';
+    const deepseekModel = options.deepseekModel || process.env.DEEPSEEK_MODEL || 'deepseek-chat';
     
     // Prefer Ollama (free, local) if enabled
     if (useAI && useOllama) {
       console.log(chalk.blue('🤖 Using Ollama (local, free) for AI analysis...'));
       console.log(chalk.gray(`   Model: ${ollamaModel}`));
       console.log(chalk.gray(`   URL: ${ollamaUrl}\n`));
+    } else if (useAI && useDeepSeek && deepseekApiKey) {
+      console.log(chalk.blue('🤖 Using DeepSeek for AI analysis...'));
+      console.log(chalk.gray(`   Model: ${deepseekModel}`));
+      console.log(chalk.gray(`   URL: ${deepseekUrl}\n`));
     } else if (useAI && openaiApiKey) {
       console.log(chalk.blue('🤖 Using AI-powered code analysis (OpenAI)...'));
-    } else if (useAI && !openaiApiKey && !useOllama) {
+    } else if (useAI && !openaiApiKey && !useOllama && !useDeepSeek) {
       console.error(chalk.red('❌ Error: --ai-analysis requires either:'));
       console.error(chalk.gray('   --use-ollama (local, free)'));
+      console.error(chalk.gray('   OR --use-deepseek --deepseek-api-key / DEEPSEEK_API_KEY'));
       console.error(chalk.gray('   OR --openai-api-key flag / OPENAI_API_KEY environment variable'));
       process.exit(1);
     }
     
     const codeSchema = await scanCodebase(absolutePath, {
       useAI: !!useAI,
-      openaiApiKey: useOllama ? undefined : (openaiApiKey || undefined),
+      openaiApiKey: (useOllama || useDeepSeek) ? undefined : (openaiApiKey || undefined),
       useOllama: !!useOllama,
       ollamaModel: ollamaModel,
       ollamaUrl: ollamaUrl,
+      useDeepSeek: !!useDeepSeek,
+      deepseekApiKey: deepseekApiKey,
+      deepseekModel: deepseekModel,
+      deepseekUrl: deepseekUrl,
       useCache: true,
       showProgress: !options.json
     });
@@ -78,7 +102,7 @@ export async function scanCommand(options: ScanOptions) {
       });
 
       // Try to sync to cloud even without DB
-      if (shouldSync) {
+      if (shouldSync && projectId && apiUrl && apiKey) {
         await syncToCloud(apiUrl, apiKey, projectId, codeSchema, null, []);
       }
       return;
@@ -126,7 +150,7 @@ export async function scanCommand(options: ScanOptions) {
     }
 
     // 6. Sync to cloud if configured
-    if (shouldSync) {
+    if (shouldSync && projectId && apiUrl && apiKey) {
       await syncToCloud(apiUrl, apiKey, projectId, codeSchema, dbSchema, diff.mismatches);
     }
 
@@ -245,6 +269,161 @@ async function syncToCloud(
     } else {
       console.log(chalk.yellow('⚠️  Failed to sync to cloud\n'));
     }
+  }
+}
+
+function formatLastScan(lastScan?: string | null): string {
+  if (!lastScan) {
+    return 'Never';
+  }
+
+  try {
+    const date = new Date(lastScan);
+    if (Number.isNaN(date.getTime())) {
+      return lastScan;
+    }
+    return date.toLocaleString();
+  } catch {
+    return lastScan;
+  }
+}
+
+function buildProjectLine(index: number, project: Awaited<ReturnType<ApiClient['listProjects']>>[number]) {
+  const mismatchCount = project.mismatchCount ?? project.metadata?.mismatchCount ?? 0;
+  const lastScanAt = project.lastScanAt ?? project.metadata?.lastScanAt ?? null;
+  const lastScanStatus = project.lastScanStatus ?? project.metadata?.lastScanStatus ?? null;
+  const schemaLabel = project.schemaType || 'Unknown schema';
+  const lastScanLabel = `${formatLastScan(lastScanAt)}${lastScanStatus ? ` (${lastScanStatus})` : ''}`;
+
+  console.log(chalk.cyan(`  ${index + 1}. ${project.name}`));
+  console.log(
+    chalk.gray(
+      `     ${schemaLabel} • Last scan: ${lastScanLabel} • Mismatches: ${mismatchCount}`
+    )
+  );
+}
+
+async function promptForProjectSelection(apiUrl: string, apiKey: string): Promise<string | null> {
+  const apiClient = new ApiClient({
+    apiUrl,
+    apiKey,
+    timeout: 30000,
+    maxRetries: 3,
+  });
+
+  const rl = readline.createInterface({ input, output });
+  let searchTerm: string | undefined;
+
+  console.log(chalk.blue('☁️  Select a project to sync scan results with:'));
+
+  try {
+    while (true) {
+      let projects;
+      try {
+        projects = await apiClient.listProjects(searchTerm);
+      } catch (error) {
+        console.log(chalk.red(`❌ Failed to load projects: ${(error as Error).message}`));
+        return null;
+      }
+
+      if (!projects.length) {
+        console.log(chalk.yellow('\nNo projects found.'));
+        const emptyAction = (await rl.question(
+          chalk.cyan('Type (c) to create one, (s) to search again, or (q) to cancel: ')
+        ))
+          .trim()
+          .toLowerCase();
+
+        if (emptyAction === 'q') {
+          return null;
+        }
+
+        if (emptyAction === 's') {
+          const term = await rl.question(chalk.cyan('Enter search term (leave empty to show all): '));
+          searchTerm = term.trim() || undefined;
+          continue;
+        }
+
+        if (emptyAction === 'c') {
+          console.log(chalk.blue(`\n➡️  Create a new project at ${apiUrl}/dashboard/projects/new`));
+          console.log(chalk.gray('   After creating it, return here and choose search to refresh the list.\n'));
+          await rl.question(chalk.cyan('Press Enter to continue...'));
+          continue;
+        }
+
+        continue;
+      }
+
+      console.log(chalk.blue('\n📋 Your Projects:\n'));
+      projects.forEach((project, index) => buildProjectLine(index, project));
+
+      const createOption = projects.length + 1;
+      const searchOption = projects.length + 2;
+      const manualOption = projects.length + 3;
+      const cancelOption = projects.length + 4;
+
+      console.log(chalk.cyan(`  ${createOption}. Create new project...`));
+      console.log(chalk.cyan(`  ${searchOption}. Search / filter projects...`));
+      console.log(chalk.cyan(`  ${manualOption}. Enter project ID manually`));
+      console.log(chalk.cyan(`  ${cancelOption}. Cancel`));
+
+      const answer = (await rl.question(chalk.cyan('\nSelect an option: '))).trim();
+      const choice = Number.parseInt(answer, 10);
+
+      if (!Number.isNaN(choice)) {
+        if (choice >= 1 && choice <= projects.length) {
+          const selected = projects[choice - 1];
+          console.log(chalk.green(`\n✅ Selected project: ${selected.name} (${selected.id})\n`));
+          return selected.id;
+        }
+
+        if (choice === createOption) {
+          console.log(chalk.blue(`\n➡️  Create a new project at ${apiUrl}/dashboard/projects/new`));
+          console.log(chalk.gray('   After creating it, return here and choose search to refresh the list.\n'));
+          await rl.question(chalk.cyan('Press Enter to continue...'));
+          continue;
+        }
+
+        if (choice === searchOption) {
+          const term = await rl.question(chalk.cyan('Enter search term (leave empty to show all): '));
+          searchTerm = term.trim() || undefined;
+          continue;
+        }
+
+        if (choice === manualOption) {
+          const manualId = (await rl.question(chalk.cyan('Enter project ID: '))).trim();
+          if (manualId) {
+            console.log(chalk.green(`\n✅ Using project: ${manualId}\n`));
+            return manualId;
+          }
+          continue;
+        }
+
+        if (choice === cancelOption) {
+          return null;
+        }
+      } else {
+        const normalized = answer.toLowerCase();
+        if (normalized === 'c') {
+          console.log(chalk.blue(`\n➡️  Create a new project at ${apiUrl}/dashboard/projects/new`));
+          console.log(chalk.gray('   After creating it, return here and choose search to refresh the list.\n'));
+          await rl.question(chalk.cyan('Press Enter to continue...'));
+          continue;
+        }
+
+        if (normalized === 's') {
+          const term = await rl.question(chalk.cyan('Enter search term (leave empty to show all): '));
+          searchTerm = term.trim() || undefined;
+          continue;
+        }
+
+        if (normalized === 'q') {
+          return null;
+        }
+      }
+    }
+  } finally {
+    rl.close();
   }
 }
 

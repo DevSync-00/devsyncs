@@ -8,7 +8,16 @@ import type { CodeSchema, Model, Field } from '../types/index.js';
  */
 export async function analyzeCodebaseWithAI(
   basePath: string,
-  options?: { openaiApiKey?: string; useOllama?: boolean; ollamaModel?: string; ollamaUrl?: string }
+  options?: { 
+    openaiApiKey?: string; 
+    useOllama?: boolean; 
+    ollamaModel?: string; 
+    ollamaUrl?: string;
+    useDeepSeek?: boolean;
+    deepseekApiKey?: string;
+    deepseekModel?: string;
+    deepseekUrl?: string;
+  }
 ): Promise<CodeSchema | null> {
   // Collect all relevant code files
   const codeFiles = collectCodeFiles(basePath);
@@ -29,6 +38,15 @@ export async function analyzeCodebaseWithAI(
     const model = options.ollamaModel || 'llama3.2:3b';
     console.log(`🤖 Using Ollama (local, free): ${model}`);
     const schemaAnalysis = await analyzeWithOllama(ollamaUrl, model, fileContents, basePath);
+    return schemaAnalysis;
+  }
+
+  // Use DeepSeek if enabled
+  if (options?.useDeepSeek && options?.deepseekApiKey) {
+    const deepseekUrl = options.deepseekUrl || 'https://api.deepseek.com/v1';
+    const model = options.deepseekModel || 'deepseek-chat';
+    console.log(`🤖 Using DeepSeek: ${model}`);
+    const schemaAnalysis = await analyzeWithDeepSeek(options.deepseekApiKey, deepseekUrl, model, fileContents, basePath);
     return schemaAnalysis;
   }
 
@@ -202,6 +220,73 @@ Return only the JSON object, no markdown, no code blocks, just pure JSON:`,
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.warn(`⚠️  Ollama analysis failed: ${errorMessage}`);
+    console.warn('⚠️  Using pattern matching fallback');
+    return analyzeWithPatterns(files);
+  }
+}
+
+/**
+ * Analyze code with DeepSeek
+ */
+async function analyzeWithDeepSeek(
+  deepseekApiKey: string,
+  deepseekUrl: string,
+  model: string,
+  files: Array<{ path: string; content: string }>,
+  basePath: string
+): Promise<CodeSchema> {
+  const prompt = buildAnalysisPrompt(files, basePath);
+
+  try {
+    // Call DeepSeek API (compatible with OpenAI format)
+    const response = await fetch(`${deepseekUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${deepseekApiKey}`,
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert database schema analyzer. Analyze code files and infer the expected database schema. Return only valid JSON.'
+          },
+          {
+            role: 'user',
+            content: `You are an expert database schema analyzer. Analyze code files and infer the expected database schema. Return only valid JSON.
+
+${prompt}
+
+Return only the JSON object, no markdown, no code blocks, just pure JSON:`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 4000
+      })
+    });
+
+    if (!response.ok) {
+      const errorData: any = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
+      throw new Error(`DeepSeek API error: ${errorData?.error?.message || response.statusText}`);
+    }
+
+    const data: any = await response.json();
+    const aiResponse = data.choices[0]?.message?.content || '';
+
+    // Parse AI response
+    const inferredSchema = parseAISchemaResponse(aiResponse);
+
+    // Check if we got valid results
+    if (!inferredSchema || inferredSchema.models.length === 0) {
+      console.warn('⚠️  DeepSeek analysis returned no results, using pattern matching fallback');
+      return analyzeWithPatterns(files);
+    }
+
+    return inferredSchema;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.warn(`⚠️  DeepSeek analysis failed: ${errorMessage}`);
     console.warn('⚠️  Using pattern matching fallback');
     return analyzeWithPatterns(files);
   }

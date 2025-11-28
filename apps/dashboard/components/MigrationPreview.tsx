@@ -6,6 +6,7 @@ import { Download, Copy, CheckCircle, AlertTriangle, FileCode, History } from 'l
 import ApplyMigrationButton from './ApplyMigrationButton';
 import RollbackMigrationButton from './RollbackMigrationButton';
 import MigrationHistory from './MigrationHistory';
+import { useToast } from '@/hooks/use-toast';
 
 interface MigrationPreviewProps {
   migration: {
@@ -23,14 +24,23 @@ interface MigrationPreviewProps {
 export default function MigrationPreview({ migration, onApply }: MigrationPreviewProps) {
   const [copied, setCopied] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const { toast } = useToast();
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(migration.content);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      toast({
+        title: 'SQL copied',
+        description: `${migration.filename} copied to clipboard.`,
+      });
     } catch (error) {
-      alert('Failed to copy to clipboard');
+      toast({
+        title: 'Copy failed',
+        description: error instanceof Error ? error.message : 'Unable to copy SQL to clipboard.',
+        variant: 'destructive',
+      });
     }
   };
 

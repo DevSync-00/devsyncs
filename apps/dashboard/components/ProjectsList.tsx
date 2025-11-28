@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { FolderKanban, Clock, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FolderKanban, Clock, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProjectCardSkeleton } from './LoadingSkeleton';
+import { useRealtimeTable, useTeamActivityNotifications } from '@/hooks/use-realtime';
+import { useToast } from '@/hooks/use-toast';
+import { formatErrorMessage } from '@/lib/error-utils';
+import { executeSupabaseQuery } from '@/lib/supabase-client-wrapper';
 
 function formatSchemaType(schemaType: string): string {
   const schemaTypeMap: Record<string, string> = {
@@ -28,6 +32,9 @@ interface Project {
   slug: string;
   schema_type: string;
   created_at: string;
+  updated_at?: string;
+  team_id?: string | null;
+  user_id?: string;
 }
 
 interface ScanReport {
@@ -43,13 +50,15 @@ interface ProjectsListProps {
   initialScans?: ScanReport[];
   page?: number;
   perPage?: number;
+  currentUserId: string;
 }
 
 export default function ProjectsList({ 
   initialProjects = [], 
   initialScans = [],
   page: initialPage = 1,
-  perPage = 12
+  perPage = 12,
+  currentUserId,
 }: ProjectsListProps) {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [scans, setScans] = useState<ScanReport[]>(initialScans);
@@ -57,6 +66,19 @@ export default function ProjectsList({
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [totalCount, setTotalCount] = useState(initialProjects.length);
   const [scanMap, setScanMap] = useState<Map<string, ScanReport>>(new Map());
+  const { toast } = useToast();
+  const projectIdsRef = useRef(new Set(initialProjects.map(p => p.id)));
+  const teamIds = useMemo(() => {
+    const ids = new Set<string>();
+    projects.forEach((project) => {
+      if (project.team_id) {
+        ids.add(project.team_id);
+      }
+    });
+    return Array.from(ids);
+  }, [projects]);
+
+  useTeamActivityNotifications(teamIds);
 
   useEffect(() => {
     // Initialize scan map
@@ -70,67 +92,107 @@ export default function ProjectsList({
   }, [scans]);
 
   useEffect(() => {
-    const fetchProjects = async () => {
-      setLoading(true);
-      try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
+    projectIdsRef.current = new Set(projects.map(p => p.id));
+  }, [projects]);
+
+  const fetchProjects = useCallback(async () => {
+    if (!currentUserId) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const supabase = createClient();
+      const from = (currentPage - 1) * perPage;
+      const to = from + perPage - 1;
+
+      // Use retry wrapper for projects query
+      const projectsResult = await executeSupabaseQuery(
+        async () => {
+          const result = await supabase
+            .from('projects')
+            .select('*', { count: 'exact' })
+            .eq('user_id', currentUserId)
+            .order('created_at', { ascending: false })
+            .range(from, to);
+          return result;
+        },
+        { retries: 3, retryDelay: 1000 }
+      );
+
+      const projectsData = projectsResult.data || [];
+      const count = projectsResult.count ?? projectsData.length;
+
+      setProjects(projectsData);
+      setTotalCount(count);
+
+      if (projectsData.length > 0) {
+        const projectIds = projectsData.map(p => p.id);
         
-        if (!user) return;
+        // Use retry wrapper for scans query
+        const scansData = await executeSupabaseQuery(
+          async () => {
+            const result = await supabase
+              .from('scan_reports')
+              .select('id, project_id, status, created_at, mismatches')
+              .in('project_id', projectIds)
+              .order('created_at', { ascending: false });
+            return result;
+          },
+          { retries: 3, retryDelay: 1000 }
+        );
 
-        // Fetch total count
-        const { count } = await supabase
-          .from('projects')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id);
-        
-        setTotalCount(count || 0);
-
-        // Fetch paginated projects
-        const from = (currentPage - 1) * perPage;
-        const to = from + perPage - 1;
-
-        const { data: projectsData, error: projectsError } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .range(from, to);
-
-        if (projectsError) throw projectsError;
-
-        setProjects(projectsData || []);
-
-        // Fetch latest scans for these projects
-        if (projectsData && projectsData.length > 0) {
-          const projectIds = projectsData.map(p => p.id);
-          const { data: scansData } = await supabase
-            .from('scan_reports')
-            .select('id, project_id, status, created_at, mismatches')
-            .in('project_id', projectIds)
-            .order('created_at', { ascending: false });
-
-          // Create scan map (latest per project)
-          const latestScansMap = new Map<string, ScanReport>();
-          scansData?.forEach(scan => {
-            if (!latestScansMap.has(scan.project_id)) {
-              latestScansMap.set(scan.project_id, scan);
-            }
-          });
-          setScanMap(latestScansMap);
-          setScans(scansData || []);
-        }
-      } catch (error) {
-        console.error('Error fetching projects:', error);
-      } finally {
-        setLoading(false);
+        const latestScansMap = new Map<string, ScanReport>();
+        (scansData.data || []).forEach(scan => {
+          if (!latestScansMap.has(scan.project_id)) {
+            latestScansMap.set(scan.project_id, scan);
+          }
+        });
+        setScanMap(latestScansMap);
+        setScans(scansData.data || []);
+      } else {
+        setScans([]);
+        setScanMap(new Map());
       }
-    };
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      const formatted = formatErrorMessage(error, {
+        operation: 'load',
+        resource: 'projects',
+      });
+      toast({
+        title: formatted.title,
+        description: formatted.actionable || formatted.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUserId, currentPage, perPage, toast]);
 
+  useEffect(() => {
+    if (!currentUserId) return;
     if (currentPage !== initialPage || initialProjects.length === 0) {
       fetchProjects();
     }
-  }, [currentPage, initialPage, initialProjects.length, perPage]);
+  }, [currentUserId, currentPage, initialPage, initialProjects.length, fetchProjects]);
+
+  const refreshProjects = useCallback(() => {
+    if (!currentUserId) return;
+    fetchProjects();
+  }, [currentUserId, fetchProjects]);
+
+  useRealtimeTable({
+    table: 'projects',
+    enabled: Boolean(currentUserId),
+    onPayload: refreshProjects,
+  });
+
+  useRealtimeTable({
+    table: 'scan_reports',
+    enabled: Boolean(currentUserId),
+    onPayload: refreshProjects,
+  });
 
   const totalPages = Math.ceil(totalCount / perPage);
   const hasNextPage = currentPage < totalPages;
@@ -163,7 +225,16 @@ export default function ProjectsList({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="relative">
+        {loading && projects.length > 0 && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/80 backdrop-blur-sm border border-border">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="assertive">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Refreshing projects...
+            </div>
+          </div>
+        )}
+        <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-3 ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
         {projects.map((project) => {
           const latestScan = scanMap.get(project.id);
           const mismatchCount = (latestScan?.mismatches as any[])?.length || 0;
@@ -210,6 +281,7 @@ export default function ProjectsList({
             </Link>
           );
         })}
+        </div>
       </div>
 
       {/* Pagination */}

@@ -4,6 +4,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sparkles, Send, Loader2 } from 'lucide-react';
+import { fetchJSON } from '@/lib/fetch-utils';
+import { formatErrorMessage } from '@/lib/error-utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface AIQueryProps {
   scanReportId: string;
@@ -14,6 +17,7 @@ export default function AIQuery({ scanReportId }: AIQueryProps) {
   const [loading, setLoading] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const handleQuery = async () => {
     if (!question.trim()) {
@@ -25,26 +29,29 @@ export default function AIQuery({ scanReportId }: AIQueryProps) {
     setAnswer(null);
 
     try {
-      const response = await fetch('/api/ai/query', {
+      const data = await fetchJSON<{ answer: string }>('/api/ai/query', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           question,
           scanReportId,
         }),
+        timeout: 60000, // 60 seconds for AI queries
+        retries: 2,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to query AI');
-      }
-
-      const data = await response.json();
       setAnswer(data.answer);
+      setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to query AI');
+      const formatted = formatErrorMessage(err, {
+        operation: 'query',
+        resource: 'AI',
+      });
+      setError(formatted.message);
+      toast({
+        title: formatted.title,
+        description: formatted.actionable || formatted.message,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }

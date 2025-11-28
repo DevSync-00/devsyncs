@@ -5,31 +5,88 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
+
+  /**
+   * Format error message to be more user-friendly and actionable
+   */
+  function formatAuthError(error: any): { message: string; details: string | null } {
+    const errorMessage = error?.message || 'An error occurred';
+    
+    // Map common Supabase errors to actionable messages
+    if (errorMessage.includes('Invalid login credentials') || 
+        errorMessage.includes('Email not confirmed') ||
+        errorMessage.includes('Invalid email or password')) {
+      return {
+        message: 'Invalid email or password',
+        details: 'Please check your credentials and try again. If you forgot your password, you can reset it.',
+      };
+    }
+    
+    if (errorMessage.includes('Email not confirmed')) {
+      return {
+        message: 'Email not confirmed',
+        details: 'Please check your email and click the confirmation link before signing in.',
+      };
+    }
+    
+    if (errorMessage.includes('Too many requests')) {
+      return {
+        message: 'Too many login attempts',
+        details: 'Please wait a few minutes before trying again. This helps protect your account.',
+      };
+    }
+    
+    if (errorMessage.includes('Network') || errorMessage.includes('fetch')) {
+      return {
+        message: 'Network error',
+        details: 'Please check your internet connection and try again. If the problem persists, the service may be temporarily unavailable.',
+      };
+    }
+    
+    return {
+      message: errorMessage,
+      details: null,
+    };
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setErrorDetails(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { error, data } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      setError(error.message);
+      if (error) {
+        const formatted = formatAuthError(error);
+        setError(formatted.message);
+        setErrorDetails(formatted.details);
+        setLoading(false);
+      } else {
+        // Success - redirect to dashboard
+        router.push('/dashboard');
+        router.refresh();
+      }
+    } catch (err) {
+      // Handle unexpected errors
+      const formatted = formatAuthError(err);
+      setError(formatted.message || 'An unexpected error occurred');
+      setErrorDetails('Please try again. If the problem persists, contact support.');
       setLoading(false);
-    } else {
-      router.push('/dashboard');
-      router.refresh();
     }
   };
 
@@ -45,8 +102,11 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-6">
           {error && (
-            <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm">
-              {error}
+            <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md text-sm space-y-1">
+              <div className="font-medium">{error}</div>
+              {errorDetails && (
+                <div className="text-destructive/80 text-xs mt-1">{errorDetails}</div>
+              )}
             </div>
           )}
 
@@ -83,7 +143,14 @@ export default function LoginPage() {
           </div>
 
           <Button type="submit" className="w-full" size="lg" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              'Sign in'
+            )}
           </Button>
         </form>
 

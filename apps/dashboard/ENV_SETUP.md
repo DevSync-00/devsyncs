@@ -67,6 +67,28 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
+### `NEXT_PUBLIC_ANALYZER_URL`
+
+**What it is:**
+- The base URL of the DevSync analyzer service
+- Used for CLI device authorization and VS Code extension logins
+
+**Where to find it:**
+1. If running locally, this is typically `http://localhost:4000`
+2. In production, use the public URL where `apps/analyzer` is deployed
+
+**Format:**
+```
+http://localhost:4000
+```
+
+**Example:**
+```
+NEXT_PUBLIC_ANALYZER_URL=http://localhost:4000
+```
+
+---
+
 ## Optional Variables
 
 ### `OPENAI_API_KEY`
@@ -98,15 +120,93 @@ OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ---
 
+### `DEEPSEEK_API_KEY`
+
+**What it is:**
+- DeepSeek API key for AI features
+- Alternative to OpenAI for AI-powered features
+- Often more cost-effective than OpenAI
+
+**Where to find it:**
+1. Go to [DeepSeek Platform](https://platform.deepseek.com)
+2. Sign in or create account
+3. Navigate to API Keys section
+4. Create new API key
+
+**Format:**
+```
+sk-...
+```
+
+**Example:**
+```
+DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+**What it enables:**
+- ✅ AI-powered migration explanations
+- ✅ Risk assessments
+- ✅ Natural language queries about migrations
+- ✅ Same features as OpenAI, often at lower cost
+- ⚠️ Without it (and OpenAI), AI features won't work
+
+---
+
+### `DEEPSEEK_API_URL`
+
+**What it is:**
+- DeepSeek API base URL
+- Optional - defaults to official DeepSeek API endpoint
+
+**Format:**
+```
+https://api.deepseek.com/v1
+```
+
+**Example:**
+```
+DEEPSEEK_API_URL=https://api.deepseek.com/v1
+```
+
+**Default:**
+If not set, defaults to `https://api.deepseek.com/v1`
+
+---
+
+### `AI_PROVIDER`
+
+**What it is:**
+- Global AI provider preference
+- Determines which AI provider to use when both are configured
+
+**Options:**
+- `openai` - Use OpenAI (default)
+- `deepseek` - Use DeepSeek
+
+**Example:**
+```
+AI_PROVIDER=deepseek
+```
+
+**Note:**
+- Individual API routes can override this via request body
+- If only one provider is configured, that provider will be used regardless of this setting
+
+---
+
 ## Complete Example
 
 ```env
 # Required
 NEXT_PUBLIC_SUPABASE_URL=https://lzvaidnvedhzpaczpxlk.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dmFpZG52ZWRoenBhY3pweGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDk4NzY1MjAsImV4cCI6MjAyNTQ1MjUyMH0.xxxxx
+NEXT_PUBLIC_ANALYZER_URL=http://localhost:4000
 
 # Optional (for AI features)
+# Use either OpenAI or DeepSeek (or both)
 OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+AI_PROVIDER=deepseek  # Optional: prefer DeepSeek when both are configured
 ```
 
 ---

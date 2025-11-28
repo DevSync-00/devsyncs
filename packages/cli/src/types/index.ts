@@ -57,6 +57,10 @@ export interface ScanOptions {
   useOllama?: boolean; // Use Ollama (local, free) instead of OpenAI
   ollamaModel?: string; // Ollama model name (default: llama3.2:3b)
   ollamaUrl?: string; // Ollama API URL (default: http://localhost:11434)
+  useDeepSeek?: boolean; // Use DeepSeek instead of OpenAI
+  deepseekApiKey?: string; // DeepSeek API key for AI analysis
+  deepseekModel?: string; // DeepSeek model name (default: deepseek-chat)
+  deepseekUrl?: string; // DeepSeek API URL (default: https://api.deepseek.com/v1)
 }
 
 export interface InitOptions {
@@ -67,7 +71,7 @@ export interface Config {
   version: string;
   project: {
     name: string;
-    schemaType: 'prisma' | 'typeorm' | 'raw-sql';
+    schemaType: 'prisma' | 'supabase' | 'typeorm' | 'kysely' | 'sequelize' | 'drizzle' | 'django' | 'sqlalchemy' | 'raw-sql';
     id?: string; // Project ID from dashboard
   };
   database: {

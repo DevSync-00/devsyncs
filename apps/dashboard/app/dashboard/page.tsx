@@ -5,6 +5,8 @@ import { Plus } from 'lucide-react';
 import { Suspense } from 'react';
 import ProjectsList from '@/components/ProjectsList';
 import { ProjectCardSkeleton } from '@/components/LoadingSkeleton';
+import { NotificationCenter } from '@/components/notifications';
+import { getNotificationPreferences } from '@/lib/notifications';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -35,6 +37,21 @@ export default async function DashboardPage() {
         .order('created_at', { ascending: false })
     : { data: null };
 
+  const { data: notifications } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(15);
+
+  const { count: unreadCount } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .is('read_at', null);
+
+  const notificationPreferences = await getNotificationPreferences(supabase, user.id);
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -44,12 +61,20 @@ export default async function DashboardPage() {
             Manage your projects and view scan reports
           </p>
         </div>
-        <Link href="/dashboard/projects/new">
-          <Button size="lg">
-            <Plus className="w-4 h-4 mr-2" />
-            New Project
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <NotificationCenter
+            userId={user.id}
+            initialNotifications={notifications || []}
+            initialUnreadCount={unreadCount ?? 0}
+            initialPreferences={notificationPreferences}
+          />
+          <Link href="/dashboard/projects/new">
+            <Button size="lg">
+              <Plus className="w-4 h-4 mr-2" />
+              New Project
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Suspense fallback={
@@ -64,6 +89,7 @@ export default async function DashboardPage() {
           initialScans={latestScans || []}
           page={initialPage}
           perPage={perPage}
+          currentUserId={user.id}
         />
       </Suspense>
     </div>

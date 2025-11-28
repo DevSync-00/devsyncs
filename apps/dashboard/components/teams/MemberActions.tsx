@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2, Shield, User, Crown, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { robustFetchJSON, getErrorMessage } from '@/lib/fetch';
 
 interface MemberActionsProps {
   memberId: string;
@@ -23,29 +25,32 @@ export default function MemberActions({
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
   const [showRoleMenu, setShowRoleMenu] = useState(false);
+  const { toast } = useToast();
 
   const handleRoleChange = async (newRole: string) => {
     if (newRole === currentRole) return;
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/teams/${teamId}/members/${memberId}`, {
+      await robustFetchJSON(`/api/teams/${teamId}/members/${memberId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ role: newRole }),
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to update role');
-      }
+      toast({
+        title: 'Role updated',
+        description: 'Team member role has been updated successfully.',
+      });
 
       setShowRoleMenu(false);
       onUpdate?.();
     } catch (err: any) {
-      alert(`Failed to update role: ${err.message}`);
+      toast({
+        title: 'Unable to update role',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      });
+    } finally {
       setLoading(false);
     }
   };
@@ -57,18 +62,23 @@ export default function MemberActions({
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/teams/${teamId}/members/${memberId}`, {
+      await robustFetchJSON(`/api/teams/${teamId}/members/${memberId}`, {
         method: 'DELETE',
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to remove member');
-      }
+      toast({
+        title: 'Member removed',
+        description: 'Team member has been removed successfully.',
+      });
 
       onUpdate?.();
     } catch (err: any) {
-      alert(`Failed to remove member: ${err.message}`);
+      toast({
+        title: 'Unable to remove member',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      });
+    } finally {
       setLoading(false);
     }
   };

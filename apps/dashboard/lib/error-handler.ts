@@ -102,11 +102,17 @@ export function logError(error: unknown, context?: Record<string, any>): void {
     stack: error instanceof Error ? error.stack : undefined,
   };
 
-  // Log to console with proper formatting
-  console.error('[ERROR]', JSON.stringify(logData, null, 2));
+  // Use logger for structured logging
+  const { logger } = require('./logger');
+  logger.error('Error occurred', error instanceof Error ? error : new Error(String(error)), context);
   
-  // In production, you would send this to an error tracking service
-  // e.g., Sentry, LogRocket, etc.
+  // Also track error if error tracking is enabled
+  try {
+    const { trackError } = require('./error-tracking');
+    trackError(error, context as any);
+  } catch {
+    // Error tracking not initialized, just log
+  }
 }
 
 export async function withErrorHandling<T>(

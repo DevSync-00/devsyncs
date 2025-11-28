@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import {
+  buildCodebaseConfig,
+  DEFAULT_PROJECT_LIMIT,
+  formatProjectSummary,
+  generateSlug,
+  resolveUser,
+  VALID_SCHEMA_TYPES,
+} from './utils';
+import { measurePerformance } from '@/lib/performance-monitor';
+import { trackError } from '@/lib/error-tracking';
+import { logger } from '@/lib/logger';
+import { withRateLimit, addRateLimitHeaders } from '@/lib/rate-limit-middleware';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +54,10 @@ async function triggerGitClone(projectId: string, gitUrl: string, supabase: any)
     }
     
     // Clone the repository
-    console.log(`[Background Job] Cloning Git repository for project ${projectId}: ${gitUrl}`);
+    logger.info(`Cloning Git repository for project ${projectId}`, {
+      projectId,
+      gitUrl,
+    });
     const git = simpleGit();
     
     await git.clone(gitUrl, cloneDir, {
@@ -66,10 +81,21 @@ async function triggerGitClone(projectId: string, gitUrl: string, supabase: any)
       })
       .eq('id', projectId);
     
-    console.log(`[Background Job] Successfully cloned repository to ${cloneDir}`);
+    logger.info(`Successfully cloned repository to ${cloneDir}`, {
+      projectId,
+      cloneDir,
+    });
     
   } catch (error: any) {
-    console.error('Error in Git clone job:', error);
+    logger.error('Error in Git clone job', error, {
+      projectId,
+      gitUrl,
+    });
+    trackError(error, {
+      operation: 'triggerGitClone',
+      projectId,
+      metadata: { gitUrl },
+    });
     
     // Update project status to failed
     await supabase
@@ -91,25 +117,40 @@ async function triggerGitClone(projectId: string, gitUrl: string, supabase: any)
 
 // GET: Fetch user's projects
 export async function GET(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-    
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+  return withRateLimit(async (req: NextRequest) => {
+    return measurePerformance('GET /api/projects', async () => {
+    let user: any = null;
+    try {
+      const supabase = await createClient();
+      user = await resolveUser(req, supabase);
+
+    if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    // Fetch user's projects
-    const { data: projects, error } = await supabase
+    const searchParams = req.nextUrl.searchParams;
+    const search = searchParams.get('search')?.trim();
+    const limitParam = Number.parseInt(searchParams.get('limit') || '', 10);
+    const limit = Number.isNaN(limitParam)
+      ? DEFAULT_PROJECT_LIMIT
+      : Math.max(1, Math.min(limitParam, 100));
+
+    let query = supabase
       .from('projects')
-      .select('*')
+      .select('id, name, slug, schema_type, created_at, updated_at, team_id, config')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (search) {
+      const pattern = `%${search.replace(/[%_]/g, '\\$&')}%`;
+      query = query.ilike('name', pattern);
+    }
+
+    const { data: projects, error } = await query;
 
     if (error) {
       return NextResponse.json(
@@ -118,93 +159,113 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ projects });
-  } catch (error) {
-    console.error('API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+    const projectIds = projects?.map((project) => project.id) || [];
+    const latestScanMap = new Map<string, any>();
+
+    if (projectIds.length > 0) {
+      const { data: scans, error: scansError } = await supabase
+        .from('scan_reports')
+        .select('id, project_id, status, created_at, mismatches')
+        .in('project_id', projectIds)
+        .order('created_at', { ascending: false });
+
+      if (!scansError && scans) {
+        for (const scan of scans) {
+          if (!latestScanMap.has(scan.project_id)) {
+            latestScanMap.set(scan.project_id, scan);
+          }
+        }
+      }
+    }
+
+    const projectsWithMeta = (projects || []).map((project) =>
+      formatProjectSummary(project, latestScanMap.get(project.id))
     );
-  }
+
+      return NextResponse.json({ projects: projectsWithMeta });
+    } catch (error) {
+      logger.error('GET /api/projects failed', error instanceof Error ? error : new Error(String(error)), {
+        userId: user?.id,
+      });
+      trackError(error, {
+        operation: 'GET /api/projects',
+        userId: user?.id,
+      });
+      return NextResponse.json(
+        { error: 'Internal server error' },
+        { status: 500 }
+      );
+    }
+  });
+  })(request);
 }
 
 // POST: Create a new project
 export async function POST(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-    
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError) {
-      console.error('Auth error:', authError);
-      return NextResponse.json(
-        { 
-          error: 'Unauthorized',
-          details: authError.message 
-        },
-        { status: 401 }
-      );
-    }
-    
+  return withRateLimit(async (req: NextRequest) => {
+    return measurePerformance('POST /api/projects', async () => {
+    let user: any = null;
+    try {
+      const supabase = await createClient();
+      user = await resolveUser(req, supabase);
+
     if (!user) {
-      console.error('No user found in session');
       return NextResponse.json(
-        { 
-          error: 'Unauthorized',
-          details: 'No user session found. Please log in again.' 
-        },
+        { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    // Parse request body
-    const body = await request.json();
-    
-    // Handle Git clone trigger action (called from client after project creation)
+    const body = await req.json();
+
     if (body.action === 'trigger-git-clone') {
       const { projectId, gitUrl } = body;
-      
+
       if (!projectId || !gitUrl) {
         return NextResponse.json(
           { error: 'projectId and gitUrl are required' },
           { status: 400 }
         );
       }
-      
-      // Verify project exists and user has access
+
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .select('id, user_id')
         .eq('id', projectId)
         .single();
-      
+
       if (projectError || !project) {
         return NextResponse.json(
           { error: 'Project not found' },
           { status: 404 }
         );
       }
-      
+
       if (project.user_id !== user.id) {
         return NextResponse.json(
           { error: 'Access denied' },
           { status: 403 }
         );
       }
-      
-      // Trigger Git clone asynchronously
+
       triggerGitClone(projectId, gitUrl, supabase).catch((error) => {
-        console.error('Error triggering Git clone:', error);
+        logger.error('Error triggering Git clone', error, {
+          userId: user.id,
+          projectId,
+        });
+        trackError(error, {
+          operation: 'POST /api/projects - trigger git clone',
+          userId: user.id,
+          projectId,
+        });
       });
-      
+
       return NextResponse.json({
         success: true,
         message: 'Git clone job triggered',
       });
     }
-    
-    // Original project creation flow (for backward compatibility)
+
     const {
       name,
       slug,
@@ -214,92 +275,40 @@ export async function POST(request: NextRequest) {
       teamId,
     } = body;
 
-    // Validate required fields
-    if (!name || !slug || !schemaType || !dbConnectionString || !codebase) {
+    if (!name || !schemaType) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Validate schema type
-    const validSchemaTypes = [
-      'prisma',
-      'supabase',
-      'typeorm',
-      'kysely',
-      'sequelize',
-      'drizzle',
-      'django',
-      'sqlalchemy',
-      'raw-sql'
-    ];
-    
-    if (!validSchemaTypes.includes(schemaType)) {
+    if (!VALID_SCHEMA_TYPES.includes(schemaType)) {
       return NextResponse.json(
         { error: 'Invalid schema type' },
         { status: 400 }
       );
     }
 
-    // Handle codebase source
-    let codebaseConfig: any = {
-      type: codebase.type,
-    };
+    const projectSlug = (slug?.trim() || generateSlug(name));
 
-    if (codebase.type === 'git') {
-      if (!codebase.url) {
-        return NextResponse.json(
-          { error: 'Git URL is required' },
-          { status: 400 }
-        );
-      }
-      
-      // Validate Git URL format
-      try {
-        const url = new URL(codebase.url);
-        if (!['http:', 'https:', 'git:'].includes(url.protocol)) {
-          throw new Error('Invalid protocol');
-        }
-      } catch {
-        return NextResponse.json(
-          { error: 'Invalid Git URL format' },
-          { status: 400 }
-        );
-      }
+    const { codebaseConfig, validationError } = buildCodebaseConfig(codebase);
 
-      codebaseConfig.url = codebase.url;
-      codebaseConfig.status = 'pending'; // Will be cloned asynchronously
-      
-      // Queue Git clone job
-      // We'll trigger it asynchronously after project creation
-      codebaseConfig.jobId = `git-clone-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
-    } else if (codebase.type === 'upload') {
-      // Handle file uploads
-      const files = codebase.files || [];
-      
-      if (files.length === 0) {
-        return NextResponse.json(
-          { error: 'No files uploaded' },
-          { status: 400 }
-        );
-      }
-
-      codebaseConfig.status = 'pending';
-      codebaseConfig.fileCount = files.length;
+    if (validationError) {
+      return NextResponse.json(
+        { error: validationError },
+        { status: 400 }
+      );
     }
 
-    // Create project in database first (we need the project ID for file paths)
     const { data: project, error: insertError } = await supabase
       .from('projects')
       .insert({
         name,
-        slug,
+        slug: projectSlug,
         user_id: user.id,
         team_id: teamId || null,
         schema_type: schemaType,
-        db_connection_string: dbConnectionString,
+        db_connection_string: dbConnectionString || null,
         config: {
           codebase: codebaseConfig,
         },
@@ -307,46 +316,50 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (insertError) {
-      console.error('Error creating project:', insertError);
-      return NextResponse.json(
-        { 
-          error: 'Failed to create project',
-          details: insertError.message 
-        },
-        { status: 500 }
-      );
-    }
+      if (insertError) {
+        logger.error('Error creating project', insertError, {
+          userId: user.id,
+          schemaType,
+        });
+        trackError(insertError, {
+          operation: 'POST /api/projects',
+          userId: user.id,
+          metadata: { schemaType },
+        });
+        return NextResponse.json(
+          {
+            error: 'Failed to create project',
+            details: insertError.message,
+          },
+          { status: 500 }
+        );
+      }
 
-    // Handle file uploads after project creation
-    if (codebase.type === 'upload' && codebase.files) {
+    if (codebase?.type === 'upload' && codebase.files) {
       try {
         const storage = supabase.storage.from('project-files');
         const uploadedFiles: string[] = [];
-        
-        // Upload each file to Supabase Storage
+
         for (const file of codebase.files) {
           const filePath = `${project.id}/${file.name}`;
-          
-          // Convert File to ArrayBuffer for Supabase Storage
           const arrayBuffer = await file.arrayBuffer();
           const { error: uploadError } = await storage.upload(filePath, arrayBuffer, {
             contentType: file.type || 'application/octet-stream',
             upsert: false,
           });
-          
+
           if (uploadError) {
             console.error(`Error uploading file ${file.name}:`, uploadError);
-            // Continue with other files even if one fails
           } else {
             uploadedFiles.push(filePath);
           }
         }
-        
-        // Update project config with uploaded file paths
-        codebaseConfig.status = uploadedFiles.length > 0 ? 'completed' : 'failed';
-        codebaseConfig.uploadedFiles = uploadedFiles;
-        
+
+        if (codebaseConfig) {
+          (codebaseConfig as any).status = uploadedFiles.length > 0 ? 'completed' : 'failed';
+          (codebaseConfig as any).uploadedFiles = uploadedFiles;
+        }
+
         await supabase
           .from('projects')
           .update({
@@ -356,11 +369,20 @@ export async function POST(request: NextRequest) {
           })
           .eq('id', project.id);
       } catch (error: any) {
-        console.error('Error uploading files:', error);
-        // Don't fail the project creation, just log the error
-        codebaseConfig.status = 'failed';
-        codebaseConfig.error = error.message;
-        
+        logger.error('Error uploading files', error, {
+          userId: user.id,
+          projectId: project.id,
+        });
+        trackError(error, {
+          operation: 'POST /api/projects - file upload',
+          userId: user.id,
+          projectId: project.id,
+        });
+        if (codebaseConfig) {
+          (codebaseConfig as any).status = 'failed';
+          (codebaseConfig as any).error = error.message;
+        }
+
         await supabase
           .from('projects')
           .update({
@@ -372,33 +394,54 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Trigger background job for Git cloning if needed (after project is created)
-    if (codebase.type === 'git' && codebase.url) {
-      // Trigger Git clone asynchronously (don't await to avoid blocking)
-      triggerGitClone(project.id, codebase.url, supabase).catch((error) => {
-        console.error('Error triggering Git clone:', error);
+      if (codebase?.type === 'git' && codebase.url) {
+        triggerGitClone(project.id, codebase.url, supabase).catch((error) => {
+          logger.error('Error triggering Git clone', error, {
+            userId: user.id,
+            projectId: project.id,
+          });
+          trackError(error, {
+            operation: 'POST /api/projects - git clone',
+            userId: user.id,
+            projectId: project.id,
+          });
+        });
+      }
+
+      logger.info('Project created successfully', {
+        userId: user.id,
+        projectId: project.id,
+        schemaType,
       });
-    }
-    
-    return NextResponse.json({
-      success: true,
-      project: {
-        ...project,
-        config: {
-          ...project.config,
-          codebase: codebaseConfig,
+
+      return NextResponse.json({
+        success: true,
+        project: {
+          ...project,
+          slug: projectSlug,
+          config: {
+            ...project.config,
+            codebase: codebaseConfig,
+          },
         },
-      },
-      message: 'Project created successfully',
-    });
-  } catch (error: any) {
-    console.error('API error:', error);
-    return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        details: error.message 
-      },
-      { status: 500 }
-    );
-  }
+        message: 'Project created successfully',
+      });
+    } catch (error: any) {
+      logger.error('POST /api/projects failed', error, {
+        userId: user?.id,
+      });
+      trackError(error, {
+        operation: 'POST /api/projects',
+        userId: user?.id,
+      });
+      return NextResponse.json(
+        {
+          error: 'Internal server error',
+          details: error.message,
+        },
+        { status: 500 }
+      );
+    }
+  });
+  })(request);
 }

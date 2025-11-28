@@ -1,6 +1,0 @@
-{
-  "/page": "app/page.js",
-  "/docs/page": "app/docs/page.js",
-  "/docs/migration-execution/page": "app/docs/migration-execution/page.js",
-  "/docs/migration-history/page": "app/docs/migration-history/page.js"
-}

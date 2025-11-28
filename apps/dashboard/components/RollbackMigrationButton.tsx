@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, Loader2, AlertTriangle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { robustFetchJSON, getErrorMessage } from '@/lib/fetch';
 
 interface RollbackMigrationButtonProps {
   migrationId: string;
@@ -19,6 +21,7 @@ export default function RollbackMigrationButton({
 }: RollbackMigrationButtonProps) {
   const [loading, setLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const { toast } = useToast();
 
   const handleRollback = async () => {
     if (!confirmOpen) {
@@ -28,26 +31,27 @@ export default function RollbackMigrationButton({
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/migrations/${migrationId}/rollback`, {
+      await robustFetchJSON(`/api/migrations/${migrationId}/rollback`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ confirm: true }),
+        timeout: 120000, // 2 minutes for rollback
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || 'Failed to rollback migration');
-      }
-
       setConfirmOpen(false);
+      toast({
+        title: 'Rollback scheduled',
+        description: 'Migration rollback has been queued.',
+      });
       onSuccess?.();
     } catch (error: any) {
-      alert(`Failed to rollback migration: ${error.message}`);
-      setLoading(false);
+      toast({
+        title: 'Rollback failed',
+        description: getErrorMessage(error),
+        variant: 'destructive',
+      });
       setConfirmOpen(false);
+    } finally {
+      setLoading(false);
     }
   };
 
