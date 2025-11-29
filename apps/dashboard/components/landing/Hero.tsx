@@ -34,7 +34,7 @@ const Hero = () => {
 
           {/* Subheadline */}
           <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
-            DevSync.ai monitors, diagnoses, and resolves schema mismatches, API inconsistencies, 
+            Dev-Sync monitors, diagnoses, and resolves schema mismatches, API inconsistencies, 
             and deployment drift — before they break your app.
           </p>
 
