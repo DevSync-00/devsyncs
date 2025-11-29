@@ -13,16 +13,16 @@ const Footer = () => {
           </div>
 
           <div className="flex gap-8 text-sm">
-            <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+            <a href="https://dev-sync.dev/docs" className="text-muted-foreground hover:text-primary transition-colors">
               Documentation
             </a>
-            <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+            <a href="https://dev-sync.dev/blog" className="text-muted-foreground hover:text-primary transition-colors">
               Blog
             </a>
-            <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+            <a href="https://dev-sync.dev/privacy" className="text-muted-foreground hover:text-primary transition-colors">
               Privacy
             </a>
-            <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+            <a href="https://dev-sync.dev/terms" className="text-muted-foreground hover:text-primary transition-colors">
               Terms
             </a>
           </div>

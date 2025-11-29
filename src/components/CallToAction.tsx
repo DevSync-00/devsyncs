@@ -48,7 +48,7 @@ const CallToAction = () => {
           {/* Community links */}
           <div className="flex items-center justify-center gap-4 pt-8">
             <a
-              href="https://github.com"
+              href="https://github.com/devsync-ai"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-6 py-3 rounded-lg border border-border bg-card/50 hover:border-primary/50 transition-colors"
@@ -57,13 +57,13 @@ const CallToAction = () => {
               <span className="font-medium">GitHub</span>
             </a>
             <a
-              href="https://discord.com"
+              href="https://dev-sync.dev/community"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-6 py-3 rounded-lg border border-border bg-card/50 hover:border-primary/50 transition-colors"
             >
               <MessageSquare className="w-5 h-5" />
-              <span className="font-medium">Discord</span>
+              <span className="font-medium">Community</span>
             </a>
           </div>
         </div>
