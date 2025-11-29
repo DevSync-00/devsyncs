@@ -1,6 +1,10 @@
-import axios, { AxiosError } from 'axios';
 import * as vscode from 'vscode';
 import type { AuthSessionState } from './types';
+import {
+  HttpRequestError,
+  isAbortError,
+  requestJson,
+} from './lib/http';
 
 const TOKENS_KEY = 'devsync.chat.tokens';
 
@@ -87,30 +91,40 @@ export class AuthManager {
     this.updateSession({ status: 'authenticating' });
 
     try {
-      const startResponse = await axios.post<DeviceStartResponse>(
-        `${this.analyzerUrl}/api/auth/device/start`,
-        { client_id: 'vscode' },
-        { timeout: 15_000 }
+      const startResponse = await this.postWithTimeout<DeviceStartResponse>(
+        '/api/auth/device/start',
+        { client_id: 'vscode' }
       );
 
-      progress?.({ kind: 'deviceCode', payload: startResponse.data });
+      progress?.({ kind: 'deviceCode', payload: startResponse });
 
-      const expiresAt = Date.now() + startResponse.data.expires_in * 1000;
-      let intervalMs = Math.max(2000, startResponse.data.interval * 1000);
+      const expiresAt = Date.now() + startResponse.expires_in * 1000;
+      let intervalMs = Math.max(2000, startResponse.interval * 1000);
 
       while (Date.now() < expiresAt) {
         await delay(intervalMs);
         progress?.({ kind: 'status', message: 'Waiting for approval...' });
 
         try {
-          const pollResponse = await axios.post<DeviceTokenResponse>(
-            `${this.analyzerUrl}/api/auth/device/token`,
-            { device_code: startResponse.data.device_code },
-            { timeout: 15_000 }
+          const pollResponse = await this.postWithTimeout<DeviceTokenResponse>(
+            '/api/auth/device/token',
+            { device_code: startResponse.device_code }
           );
 
-          await this.storeTokens(pollResponse.data);
+          // Validate response has required fields
+          if (!pollResponse.access_token || !pollResponse.refresh_token) {
+            throw new Error('Invalid token response: missing access or refresh token');
+          }
+
+          await this.storeTokens(pollResponse);
           progress?.({ kind: 'status', message: 'Signed in successfully.' });
+          
+          // Ensure session is updated before returning
+          if (this.session.status !== 'authenticated') {
+            console.error('[Auth] Session not updated after storing tokens');
+            throw new Error('Failed to update session after authentication');
+          }
+          
           return this.session;
         } catch (error) {
           const handled = this.handleDeviceError(error);
@@ -147,32 +161,44 @@ export class AuthManager {
       throw new Error('No refresh token available.');
     }
 
-    const response = await axios.post<DeviceTokenResponse>(
-      `${this.analyzerUrl}/api/auth/token/refresh`,
-      { refresh_token: this.tokens.refreshToken },
-      { timeout: 15_000 }
+    const response = await this.postWithTimeout<DeviceTokenResponse>(
+      '/api/auth/token/refresh',
+      { refresh_token: this.tokens.refreshToken }
     );
 
-    await this.storeTokens(response.data);
+    await this.storeTokens(response);
   }
 
   private async storeTokens(tokens: DeviceTokenResponse): Promise<void> {
-    const stored: StoredTokens = {
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      expiresAt: Date.now() + tokens.expires_in * 1000,
-      userId: tokens.user_id,
-      clientId: tokens.client_id,
-    };
+    try {
+      const stored: StoredTokens = {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiresAt: Date.now() + tokens.expires_in * 1000,
+        userId: tokens.user_id,
+        clientId: tokens.client_id,
+      };
 
-    this.tokens = stored;
-    await this.context.secrets.store(TOKENS_KEY, JSON.stringify(stored));
-    this.updateSession({
-      status: 'authenticated',
-      userId: tokens.user_id,
-      clientId: tokens.client_id,
-      expiresAt: stored.expiresAt,
-    });
+      // Validate tokens before storing
+      if (!stored.accessToken || !stored.refreshToken) {
+        throw new Error('Cannot store tokens: access or refresh token is empty');
+      }
+
+      this.tokens = stored;
+      await this.context.secrets.store(TOKENS_KEY, JSON.stringify(stored));
+      
+      this.updateSession({
+        status: 'authenticated',
+        userId: tokens.user_id,
+        clientId: tokens.client_id,
+        expiresAt: stored.expiresAt,
+      });
+      
+      console.log('[Auth] Tokens stored successfully for user:', tokens.user_id);
+    } catch (error) {
+      console.error('[Auth] Error storing tokens:', error);
+      throw error;
+    }
   }
 
   private async restoreTokens(): Promise<void> {
@@ -209,31 +235,72 @@ export class AuthManager {
   }
 
   private handleDeviceError(error: unknown): 'retry' | 'slow_down' | Error {
-    const axiosError = error as AxiosError<DeviceTokenErrorResponse>;
-    const payload = axiosError.response?.data;
-    const code = payload?.error;
+    if (error instanceof HttpRequestError) {
+      const payload = error.data as DeviceTokenErrorResponse | undefined;
+      const code = payload?.error;
 
-    if (code === 'authorization_pending') {
-      return 'retry';
+      if (code === 'authorization_pending') {
+        return 'retry';
+      }
+
+      if (code === 'slow_down') {
+        return 'slow_down';
+      }
+
+      if (code === 'expired_token') {
+        return new Error('Device code expired. Please start again.');
+      }
+
+      if (code === 'access_denied') {
+        return new Error('The request was denied. Please restart the login flow.');
+      }
+
+      const message =
+        payload?.error_description ||
+        error.message ||
+        'Device authorization failed.';
+      return new Error(message);
     }
 
-    if (code === 'slow_down') {
-      return 'slow_down';
+    if (error instanceof Error) {
+      return error;
     }
 
-    if (code === 'expired_token') {
-      return new Error('Device code expired. Please start again.');
+    return new Error('Device authorization failed.');
+  }
+
+  private async postWithTimeout<T>(
+    path: string,
+    payload: unknown,
+    timeoutMs: number = 15_000
+  ): Promise<T> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      return await requestJson<T>(`${this.analyzerUrl}${path}`, {
+        method: 'POST',
+        json: payload,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw new Error('DevSync analyzer request timeout');
+      }
+      if (error instanceof HttpRequestError && error.status === 0) {
+        const details =
+          (error.cause instanceof Error && error.cause.message) ||
+          error.message ||
+          'Network request failed';
+        throw new Error(
+          `Unable to reach the DevSync analyzer at ${this.analyzerUrl}. ${details}. ` +
+            `Check the "devsync.analyzerUrl" setting and ensure the analyzer service is running.`
+        );
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    if (code === 'access_denied') {
-      return new Error('The request was denied. Please restart the login flow.');
-    }
-
-    const message =
-      payload?.error_description ||
-      (axiosError.response?.statusText ?? axiosError.message ?? 'Device authorization failed.');
-
-    return new Error(message);
   }
 
   private updateSession(state: AuthSessionState) {
@@ -254,5 +321,3 @@ function delay(ms: number): Promise<void> {
     }, ms);
   });
 }
-
-

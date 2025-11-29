@@ -19,7 +19,7 @@ export function activate(context: vscode.ExtensionContext) {
   const apiUrl = config.get<string>('apiUrl', 'http://localhost:3000');
   const apiKey = config.get<string>('apiKey', '');
   const projectId = config.get<string>('projectId', '');
-  const analyzerUrl = config.get<string>('analyzerUrl', 'http://localhost:4000');
+  const analyzerUrl = config.get<string>('analyzerUrl', apiUrl); // Default to same URL as dashboard
 
   const apiClient = new DevSyncApiClient(apiUrl, apiKey, projectId);
 

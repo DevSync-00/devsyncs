@@ -100,7 +100,7 @@ export class DeepSeekClient {
         throw this.normalizeError(response.status, errorData);
       }
 
-      return await response.json();
+      return await response.json() as DeepSeekCompletionResponse;
     } catch (error) {
       clearTimeout(timeoutId);
       if (error instanceof Error && error.name === 'AbortError') {

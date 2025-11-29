@@ -14,15 +14,17 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private getHtml(webview: vscode.Webview): string {
+    const nonce = generateNonce();
+    const cspSource = webview.cspSource;
+    
     webview.options = {
       enableScripts: true,
       localResourceRoots: [
         vscode.Uri.joinPath(this.context.extensionUri, 'webview'),
         vscode.Uri.joinPath(this.context.extensionUri, 'node_modules'),
       ],
+      enableCommandUris: false,
     };
-
-    const nonce = generateNonce();
 
     const resources = {
       chatCss: this.getResourceUri(webview, 'webview', 'chat.css'),

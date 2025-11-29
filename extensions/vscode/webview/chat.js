@@ -81,11 +81,12 @@ function ChatApp() {
           break;
         case 'authFlow':
           setAuthFlow(message.payload);
-          if (message.payload.kind === 'status') {
-            setBanner({ type: 'info', text: message.payload.message, ts: Date.now() });
-          }
+          // Only show banner for errors, not status updates (to avoid duplicates)
           if (message.payload.kind === 'error') {
             setBanner({ type: 'error', text: message.payload.message, ts: Date.now() });
+          } else if (message.payload.kind === 'status') {
+            // Clear banner on status updates to avoid clutter
+            setBanner(null);
           }
           break;
         default:
@@ -183,12 +184,14 @@ function ChatApp() {
       banner && React.createElement('div', { className: `status-banner ${banner.type}` }, banner.text),
       authCard && (
         React.createElement('div', { className: 'auth-flow-card' },
-          React.createElement('div', null, 'Enter this code on the verification page:'),
-          React.createElement('code', null, authCard.user_code),
+          React.createElement('div', { style: { fontWeight: 500, marginBottom: 4 } }, 'Device Authorization'),
+          React.createElement('div', { style: { fontSize: '0.8rem', color: 'var(--vscode-descriptionForeground)' } }, 'Enter this code on the verification page:'),
+          React.createElement('code', { style: { fontSize: '1.2rem', letterSpacing: '0.2rem', fontWeight: 600, padding: '8px 12px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '6px', display: 'block', textAlign: 'center' } }, authCard.user_code),
           React.createElement('div', { className: 'quick-actions' },
             React.createElement('button', { onClick: () => vscode.postMessage({ type: 'openUrl', url: authCard.verification_uri }) }, 'Open Verification'),
             React.createElement('button', { onClick: () => copyToClipboard(authCard.user_code) }, 'Copy Code')
-          )
+          ),
+          session.status === 'authenticating' && React.createElement('div', { style: { fontSize: '0.8rem', color: '#38bdf8', marginTop: 8 } }, 'Waiting for approval...')
         )
       ),
       React.createElement('div', { className: 'message-list', ref: messageListRef },
@@ -209,10 +212,10 @@ function ChatApp() {
           )
         )
       ),
-      session.status !== 'authenticated' && (
+      session.status === 'unauthenticated' && !authFlow && (
         React.createElement('div', { className: 'login-overlay' },
           React.createElement('p', null, 'Sign in to DevSync to chat with your schema assistant.'),
-          React.createElement('button', { className: 'chat-btn primary', onClick: login }, session.status === 'authenticating' ? 'Waiting for approval…' : 'Sign in')
+          React.createElement('button', { className: 'chat-btn primary', onClick: login }, 'Sign in')
         )
       ),
       React.createElement('div', { className: 'composer' },

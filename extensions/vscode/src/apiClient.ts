@@ -1,7 +1,12 @@
-import axios, { AxiosError, AxiosInstance } from 'axios';
 import type { AuthManager } from './auth';
 import type { AiQueryResult } from './types';
 import type { ScanReport } from './api';
+import {
+  HttpRequestError,
+  JsonRequestInit,
+  isAbortError,
+  requestJson,
+} from './lib/http';
 
 interface AiQueryResponse {
   answer: string;
@@ -14,34 +19,25 @@ interface ScanResponsePayload {
 }
 
 export class ChatApiClient {
-  private client: AxiosInstance;
-
-  constructor(private apiUrl: string, private readonly auth: AuthManager) {
-    this.client = axios.create({
-      baseURL: this.normalizeUrl(apiUrl),
-    });
-  }
+  constructor(private apiUrl: string, private readonly auth: AuthManager) {}
 
   setApiUrl(apiUrl: string) {
     this.apiUrl = apiUrl;
-    this.client = axios.create({
-      baseURL: this.normalizeUrl(apiUrl),
-    });
   }
 
   async getLatestScanReport(projectId: string): Promise<ScanReport | null> {
     const headers = await this.buildHeaders();
 
     try {
-      const response = await this.client.get<ScanResponsePayload>('/api/scans', {
+      const response = await this.request<ScanResponsePayload>('/api/scans', {
+        method: 'GET',
         headers,
-        params: {
-          projectId,
-          limit: 1,
-        },
+      }, {
+        projectId,
+        limit: '1',
       });
 
-      const reports = response.data.scanReports || [];
+      const reports = response.scanReports || [];
       return reports.length > 0 ? reports[0] : null;
     } catch (error) {
       throw new Error(this.extractError(error, 'Failed to load scan reports.'));
@@ -52,19 +48,23 @@ export class ChatApiClient {
     const headers = await this.buildHeaders();
 
     try {
-      const response = await this.client.post<AiQueryResponse>(
+      const response = await this.request<AiQueryResponse>(
         '/api/ai/query',
-        { question, scanReportId },
-        { headers, signal }
+        {
+          method: 'POST',
+          headers,
+          json: { question, scanReportId },
+          signal,
+        }
       );
 
       return {
-        answer: response.data.answer,
-        question: response.data.question,
-        scanReportId: response.data.scanReportId,
+        answer: response.answer,
+        question: response.question,
+        scanReportId: response.scanReportId,
       };
     } catch (error) {
-      if (axios.isCancel(error)) {
+      if (isAbortError(error)) {
         throw new Error('Request cancelled.');
       }
       throw new Error(this.extractError(error, 'AI query failed.'));
@@ -84,13 +84,48 @@ export class ChatApiClient {
   }
 
   private extractError(error: unknown, fallback: string): string {
-    const axiosError = error as AxiosError<{ error?: string; details?: string }>;
-    return (
-      axiosError.response?.data?.error ||
-      axiosError.response?.data?.details ||
-      axiosError.message ||
-      fallback
-    );
+    if (error instanceof HttpRequestError) {
+      if (error.status === 0) {
+        const detail =
+          (error.cause instanceof Error && error.cause.message) ||
+          error.message ||
+          'Network request failed';
+        return `Unable to reach the DevSync API at ${this.normalizeUrl(
+          this.apiUrl
+        )}. ${detail}.`;
+      }
+
+      if (typeof error.data === 'object' && error.data !== null) {
+        const payload = error.data as { error?: string; details?: string };
+        return payload.error || payload.details || error.message || fallback;
+      }
+      return error.message || fallback;
+    }
+
+    if (error instanceof Error) {
+      return error.message || fallback;
+    }
+
+    return fallback;
+  }
+
+  private buildUrl(path: string, params?: Record<string, string>): string {
+    const base = this.normalizeUrl(this.apiUrl);
+    const url = new URL(path, base.endsWith('/') ? base : `${base}/`);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        url.searchParams.append(key, value);
+      });
+    }
+    return url.toString();
+  }
+
+  private async request<T>(
+    path: string,
+    init: JsonRequestInit,
+    params?: Record<string, string>
+  ): Promise<T> {
+    return requestJson<T>(this.buildUrl(path, params), init);
   }
 }
 

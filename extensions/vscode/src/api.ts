@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from 'axios';
+import { requestJson } from './lib/http';
 
 export interface ScanReport {
   id: string;
@@ -31,46 +31,32 @@ export interface Migration {
 }
 
 export class DevSyncApiClient {
-  private apiUrl: string;
-  private apiKey: string;
-  private projectId: string;
-  private client: AxiosInstance;
-
-  constructor(apiUrl: string, apiKey: string, projectId: string) {
-    this.apiUrl = apiUrl;
-    this.apiKey = apiKey;
-    this.projectId = projectId;
-
-    this.client = axios.create({
-      baseURL: apiUrl,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey && { Authorization: `Bearer ${apiKey}` }),
-      },
-    });
-  }
+  constructor(
+    private readonly apiUrl: string,
+    private readonly apiKey: string,
+    private readonly projectId: string
+  ) {}
 
   async scan(projectPath: string, databaseConnection?: string): Promise<ScanReport> {
     // For now, we'll trigger a scan via API
     // In the future, this could use the CLI directly
-    const response = await this.client.post('/api/scans', {
+    return this.post<ScanReport>('/api/scans', {
       projectId: this.projectId,
       path: projectPath,
       databaseConnection,
     });
-
-    return response.data;
   }
 
   async getScanReports(limit: number = 10): Promise<ScanReport[]> {
-    const response = await this.client.get('/api/scans', {
-      params: {
+    const response = await this.get<{ scanReports?: ScanReport[] }>(
+      '/api/scans',
+      {
         projectId: this.projectId,
-        limit,
-      },
-    });
+        limit: String(limit),
+      }
+    );
 
-    return response.data.scanReports || [];
+    return response.scanReports || [];
   }
 
   async getLatestScanReport(): Promise<ScanReport | null> {
@@ -79,26 +65,59 @@ export class DevSyncApiClient {
   }
 
   async generateMigration(scanReportId: string, format: string = 'sql'): Promise<Migration> {
-    const response = await this.client.post('/api/migrations', {
+    return this.post<Migration>('/api/migrations', {
       scanReportId,
       format,
     });
-
-    return response.data;
   }
 
   async getMigrations(scanReportId?: string): Promise<Migration[]> {
-    const params: any = { projectId: this.projectId };
+    const params: Record<string, string> = { projectId: this.projectId };
     if (scanReportId) {
       params.scanReportId = scanReportId;
     }
 
-    const response = await this.client.get('/api/migrations', { params });
-    return response.data.migrations || [];
+    const response = await this.get<{ migrations?: Migration[] }>(
+      '/api/migrations',
+      params
+    );
+    return response.migrations || [];
   }
 
   getDashboardUrl(): string {
     return `${this.apiUrl}/dashboard/projects/${this.projectId}`;
+  }
+
+  private buildUrl(path: string, params?: Record<string, string>): string {
+    const url = new URL(path, this.apiUrl);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        url.searchParams.append(key, value);
+      });
+    }
+    return url.toString();
+  }
+
+  private get authHeaders(): Record<string, string> {
+    return this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {};
+  }
+
+  private async post<T>(path: string, payload: unknown): Promise<T> {
+    return requestJson<T>(this.buildUrl(path), {
+      method: 'POST',
+      headers: this.authHeaders,
+      json: payload,
+    });
+  }
+
+  private async get<T>(
+    path: string,
+    params?: Record<string, string>
+  ): Promise<T> {
+    return requestJson<T>(this.buildUrl(path, params), {
+      method: 'GET',
+      headers: this.authHeaders,
+    });
   }
 }
 

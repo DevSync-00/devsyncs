@@ -7,11 +7,8 @@ import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { Check, Copy, Loader2, RefreshCw, ShieldAlert, ShieldCheck } from 'lucide-react';
 
-const RAW_ANALYZER_URL = process.env.NEXT_PUBLIC_ANALYZER_URL;
-const ANALYZER_BASE_URL = RAW_ANALYZER_URL && RAW_ANALYZER_URL.length > 0
-  ? RAW_ANALYZER_URL
-  : 'http://localhost:4000';
-const USING_DEFAULT_ANALYZER = !RAW_ANALYZER_URL || RAW_ANALYZER_URL.length === 0;
+// Use the dashboard's own API endpoints (same origin)
+const API_BASE_URL = typeof window !== 'undefined' ? window.location.origin : '';
 
 type DeviceLookupResponse = {
   client_name: string;
@@ -58,19 +55,19 @@ export function DeviceAuthCard({ initialCode }: DeviceAuthCardProps) {
     return token;
   }, [supabase]);
 
-  const callAnalyzer = useCallback(
-    async <T,>(path: string, payload: Record<string, unknown>): Promise<T> => {
+  const callApi = useCallback(
+    async <T,>(path: string, method: 'GET' | 'POST' | 'PUT' = 'POST', payload?: Record<string, unknown>): Promise<T> => {
       const token = await ensureSessionToken();
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
       try {
-        const response = await fetch(`${ANALYZER_BASE_URL}${path}`, {
-          method: 'POST',
+        const response = await fetch(`${API_BASE_URL}${path}`, {
+          method,
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(payload),
+          ...(payload && { body: JSON.stringify(payload) }),
           signal: controller.signal,
         });
         const body = await response.json().catch(() => null);
@@ -84,7 +81,7 @@ export function DeviceAuthCard({ initialCode }: DeviceAuthCardProps) {
         return body as T;
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') {
-          throw new Error('Request timed out. The analyzer service may be offline.');
+          throw new Error('Request timed out.');
         }
         throw err instanceof Error ? err : new Error('Request failed');
       } finally {
@@ -99,7 +96,7 @@ export function DeviceAuthCard({ initialCode }: DeviceAuthCardProps) {
     const user_code = toUserCode(rawCode);
     setStatus('checking');
     try {
-      const response = await callAnalyzer<DeviceLookupResponse>('/api/auth/device/lookup', {
+      const response = await callApi<DeviceLookupResponse>('/api/auth/device/verify', 'POST', {
         user_code,
       });
       setDetails(response);
@@ -108,7 +105,7 @@ export function DeviceAuthCard({ initialCode }: DeviceAuthCardProps) {
       setStatus('error');
       setError(err instanceof Error ? err.message : 'Failed to check code.');
     }
-  }, [callAnalyzer, rawCode]);
+  }, [callApi, rawCode]);
 
   const handleApprove = useCallback(async () => {
     if (!details) return;
@@ -116,7 +113,7 @@ export function DeviceAuthCard({ initialCode }: DeviceAuthCardProps) {
     const user_code = toUserCode(rawCode);
     setStatus('approving');
     try {
-      await callAnalyzer<DeviceApproveResponse>('/api/auth/device/approve', { user_code });
+      await callApi<DeviceApproveResponse>('/api/auth/device/verify', 'PUT', { user_code });
       setDetails((current) =>
         current
           ? {
@@ -130,7 +127,7 @@ export function DeviceAuthCard({ initialCode }: DeviceAuthCardProps) {
       setStatus('error');
       setError(err instanceof Error ? err.message : 'Approval failed.');
     }
-  }, [callAnalyzer, details, rawCode]);
+  }, [callApi, details, rawCode]);
 
   const handleCopy = useCallback(() => {
     if (!hasFullCode) return;
@@ -160,12 +157,6 @@ export function DeviceAuthCard({ initialCode }: DeviceAuthCardProps) {
             Enter the code displayed in your CLI or VS Code extension to authorize this device.
             The terminal will update automatically once you approve.
           </p>
-          {USING_DEFAULT_ANALYZER && (
-            <p className="text-sm text-yellow-600 border border-yellow-500/40 bg-yellow-500/10 rounded-lg px-4 py-2">
-              Using default analyzer URL ({ANALYZER_BASE_URL}). Set <code>NEXT_PUBLIC_ANALYZER_URL</code> in
-              <code>.env.local</code> for production deployments.
-            </p>
-          )}
         </header>
 
         <div className="space-y-2">
