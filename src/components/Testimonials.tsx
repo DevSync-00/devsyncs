@@ -2,17 +2,17 @@ import { Quote } from "lucide-react";
 
 const testimonials = [
   {
-    quote: "DevSync.ai saved us hours of debugging after every migration. It's like having a safety net for our entire database.",
+    quote: "DevSync caught a missing table that would have broken production. The AI explanation helped our team understand the issue immediately. Game changer for our Prisma + PostgreSQL stack.",
     author: "Sarah Chen",
     role: "Lead Engineer @ TechCorp",
   },
   {
-    quote: "It's like having an AI DevOps teammate who never sleeps. The peace of mind is invaluable.",
+    quote: "The GitHub Actions integration is brilliant. Every PR automatically gets schema mismatch reports. We've eliminated 100% of schema-related production incidents since using DevSync.",
     author: "Marcus Rodriguez",
     role: "CTO @ StartupXYZ",
   },
   {
-    quote: "We caught three critical schema mismatches before they hit production. This tool pays for itself instantly.",
+    quote: "Supporting 9 schema types means it works with our entire stack—Prisma, TypeORM, and Supabase. The migration generation with rollback scripts saved us from a disaster last week.",
     author: "Aisha Patel",
     role: "Senior Developer @ CloudScale",
   },

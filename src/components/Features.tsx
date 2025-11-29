@@ -3,33 +3,33 @@ import { Database, Wrench, Code2, GitMerge, Shield, Users } from "lucide-react";
 const features = [
   {
     icon: Database,
-    title: "AI-Powered Schema Syncing",
-    description: "Detects and corrects mismatches in seconds with intelligent analysis.",
+    title: "9+ Schema Types Supported",
+    description: "Works with Prisma, Supabase, TypeORM, Kysely, Sequelize, Drizzle, Django, SQLAlchemy, and Raw SQL. AI infers schemas from code patterns when definitions are missing.",
   },
   {
     icon: Wrench,
-    title: "Smart Migration Suggestions",
-    description: "Generates SQL or Prisma migration scripts automatically.",
+    title: "Intelligent Migration Generation",
+    description: "Automatically generates SQL migrations with risk assessment, rollback scripts, and AI-powered explanations. Review and apply with one click.",
   },
   {
     icon: Code2,
-    title: "Code–DB Auto-Refactor",
-    description: "Keeps your codebase consistent with your schema at all times.",
+    title: "AI-Powered Code Analysis",
+    description: "Infers database schemas directly from your code patterns—no migration files needed. Works with OpenAI or free local Ollama models.",
   },
   {
     icon: GitMerge,
-    title: "CI/CD Integration",
-    description: "Sync logic built into your pipelines for seamless deployment.",
+    title: "GitHub Actions Integration",
+    description: "Automatically scans on every PR, comments with mismatch reports, and prevents merging critical schema issues. Zero configuration required.",
   },
   {
     icon: Shield,
-    title: "Error Prevention Engine",
-    description: "Stops breaking changes before deployment with smart validation.",
+    title: "Production-Safe Validation",
+    description: "Detects breaking changes before deployment. Categorizes mismatches by severity (error/warning/info) and provides safe migration paths.",
   },
   {
     icon: Users,
-    title: "Team Insights Dashboard",
-    description: "Collaboration view for teams with detailed CI logs and analytics.",
+    title: "Team Collaboration Hub",
+    description: "Shared projects, team permissions, migration history, and real-time sync status. Keep your entire team aligned on schema changes.",
   },
 ];
 
@@ -39,10 +39,10 @@ const Features = () => {
       <div className="container mx-auto max-w-7xl">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Built for <span className="text-gradient">Modern Teams</span>
+            Enterprise-Grade <span className="text-gradient">Schema Management</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Everything you need to keep your development workflow in perfect harmony
+            From AI-powered detection to automated migrations—everything you need to eliminate schema drift and keep your stack perfectly synchronized
           </p>
         </div>
 

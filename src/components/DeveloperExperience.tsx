@@ -9,7 +9,7 @@ const DeveloperExperience = () => {
             Developer <span className="text-gradient">Experience</span>
           </h2>
           <p className="text-xl text-muted-foreground">
-            Command-line simplicity. AI-level intelligence.
+            Powerful CLI commands. AI-powered insights. Zero configuration required.
           </p>
         </div>
 
@@ -35,20 +35,25 @@ const DeveloperExperience = () => {
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="text-primary">$</span>
-                  <span className="text-foreground">devsync detect</span>
+                  <span className="text-foreground">devsync scan --path . --db $DATABASE_URL</span>
                 </div>
                 <div className="pl-4 space-y-1">
                   <div className="flex items-center gap-2 animate-fade-in">
                     <span className="text-accent">→</span>
-                    <span className="text-muted-foreground">Scanning IDE and database...</span>
+                    <span className="text-muted-foreground">Scanning Prisma schema...</span>
+                  </div>
+                  <div className="flex items-center gap-2 animate-fade-in delay-300">
+                    <span className="text-accent">→</span>
+                    <span className="text-muted-foreground">Extracting database schema...</span>
                   </div>
                   <div className="flex items-center gap-2 animate-fade-in delay-500">
                     <span className="text-accent">→</span>
-                    <span className="text-foreground">2 mismatched models found</span>
+                    <span className="text-foreground">Found 3 mismatches</span>
                   </div>
-                  <div className="pl-4 space-y-1 text-muted-foreground animate-fade-in delay-1000">
-                    <div>• User.profile (missing in DB)</div>
-                    <div>• Post.publishedAt (type mismatch)</div>
+                  <div className="pl-4 space-y-1 text-muted-foreground animate-fade-in delay-700">
+                    <div>❌ MISSING_TABLE: notifications (code expects, DB missing)</div>
+                    <div>⚠️  MISSING_FIELD: users.deleted_at (nullable timestamp)</div>
+                    <div>ℹ️  EXTRA_FIELD: projects.created_at (in DB, not in code)</div>
                   </div>
                 </div>
               </div>
@@ -57,20 +62,24 @@ const DeveloperExperience = () => {
               <div className="space-y-2 pt-4">
                 <div className="flex items-center gap-2">
                   <span className="text-primary">$</span>
-                  <span className="text-foreground">devsync fix --apply</span>
+                  <span className="text-foreground">devsync migrate --path . --db $DATABASE_URL</span>
                 </div>
-                <div className="pl-4 space-y-1 animate-fade-in delay-1500">
+                <div className="pl-4 space-y-1 animate-fade-in delay-1000">
                   <div className="flex items-center gap-2">
                     <span className="text-accent">→</span>
-                    <span className="text-muted-foreground">Generating migration script...</span>
+                    <span className="text-muted-foreground">Generating migration SQL...</span>
                   </div>
-                  <div className="flex items-center gap-2 animate-fade-in delay-2000">
+                  <div className="flex items-center gap-2 animate-fade-in delay-1200">
                     <span className="text-accent">→</span>
-                    <span className="text-muted-foreground">Applying changes...</span>
+                    <span className="text-muted-foreground">AI analyzing risks...</span>
                   </div>
-                  <div className="flex items-center gap-2 animate-fade-in delay-2500">
+                  <div className="flex items-center gap-2 animate-fade-in delay-1400">
                     <span className="text-primary">✓</span>
-                    <span className="text-primary font-semibold">Schema and models synced successfully</span>
+                    <span className="text-primary font-semibold">Migration generated: .devsync/migration.sql</span>
+                  </div>
+                  <div className="pl-4 text-xs text-muted-foreground animate-fade-in delay-1600">
+                    <div>CREATE TABLE notifications (...)</div>
+                    <div>ALTER TABLE users ADD COLUMN deleted_at TIMESTAMP;</div>
                   </div>
                 </div>
               </div>
@@ -91,7 +100,7 @@ const DeveloperExperience = () => {
         {/* Bottom tagline */}
         <div className="text-center mt-12">
           <p className="text-lg text-muted-foreground italic">
-            "Your AI DevOps teammate that never sleeps."
+            "Catch schema mismatches before they reach production. Generate migrations in seconds. Sleep better at night."
           </p>
         </div>
       </div>

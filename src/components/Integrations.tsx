@@ -2,19 +2,19 @@ import { Code2, Database, GitBranch } from "lucide-react";
 
 const integrations = [
   {
-    category: "IDE",
+    category: "Schema Types",
     icon: Code2,
-    tools: ["Cursor", "VS Code", "JetBrains"],
+    tools: ["Prisma", "TypeORM", "Supabase", "Kysely", "Sequelize", "Drizzle", "Django", "SQLAlchemy", "Raw SQL"],
   },
   {
     category: "Databases",
     icon: Database,
-    tools: ["Supabase", "PostgreSQL", "Firebase"],
+    tools: ["PostgreSQL", "MySQL", "SQLite", "Supabase", "Neon", "Railway"],
   },
   {
-    category: "DevOps Tools",
+    category: "DevOps & CI/CD",
     icon: GitBranch,
-    tools: ["GitHub Actions", "Docker", "Vercel"],
+    tools: ["GitHub Actions", "VS Code Extension", "CLI Tool", "Docker", "Vercel"],
   },
 ];
 
@@ -24,10 +24,10 @@ const Integrations = () => {
       <div className="container mx-auto max-w-6xl">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Works With Your <span className="text-gradient">Entire Stack</span>
+            Universal <span className="text-gradient">Compatibility</span>
           </h2>
           <p className="text-xl text-muted-foreground">
-            Seamlessly integrates with the tools you already use
+            Works with 9+ schema types, all major databases, and your existing development workflow
           </p>
         </div>
 

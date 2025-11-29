@@ -3,18 +3,18 @@ import { Search, Stethoscope, RefreshCw } from "lucide-react";
 const steps = [
   {
     icon: Search,
-    title: "Detect",
-    description: "DevSync.ai scans your IDE and database connections in real-time, identifying potential mismatches.",
+    title: "Scan & Detect",
+    description: "Scans your codebase for Prisma schemas, TypeORM entities, Supabase migrations, or infers from code patterns. Connects to your database and extracts the actual schema. Compares code expectations vs. database reality in seconds.",
   },
   {
     icon: Stethoscope,
-    title: "Diagnose",
-    description: "Finds mismatches, outdated migrations, or missing fields before they cause production issues.",
+    title: "AI-Powered Analysis",
+    description: "Identifies missing tables, type mismatches, constraint differences, and extra fields. Categorizes by severity and provides AI explanations of what changed and why it matters. Assesses migration risks automatically.",
   },
   {
     icon: RefreshCw,
-    title: "Sync",
-    description: "Auto-generates fix suggestions or executes safe sync operations to keep everything aligned.",
+    title: "Generate & Apply",
+    description: "Creates production-ready SQL migrations with rollback scripts. Review in the dashboard with AI explanations, then apply with one click. Track all changes in migration history with full audit trail.",
   },
 ];
 
@@ -27,7 +27,7 @@ const HowItWorks = () => {
             How It <span className="text-gradient">Works</span>
           </h2>
           <p className="text-xl text-muted-foreground">
-            Three simple steps to perfect sync
+            From detection to deployment—automated schema synchronization in three steps
           </p>
         </div>
 

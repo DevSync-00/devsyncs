@@ -21,11 +21,12 @@ const CallToAction = () => {
       <div className="container mx-auto max-w-4xl relative z-10">
         <div className="text-center space-y-8">
           <h2 className="text-4xl md:text-6xl font-bold leading-tight">
-            Your Stack. Always in{" "}
-            <span className="text-gradient">Sync</span>.
+            Stop Schema Drift Before It{" "}
+            <span className="text-gradient">Breaks Production</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Join early access and experience the future of AI-powered development.
+            Join early access and eliminate schema mismatches forever. Get AI-powered migrations, 
+            real-time sync detection, and team collaboration—all in one platform.
           </p>
 
           {/* Email form */}

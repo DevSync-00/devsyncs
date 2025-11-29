@@ -27,14 +27,14 @@ const Hero = () => {
 
           {/* Main headline */}
           <h1 className="text-5xl md:text-7xl font-bold leading-tight">
-            Keep Your Code and Database in{" "}
-            <span className="text-gradient">Perfect Sync</span> — Automatically.
+            Never Lose Sync Between{" "}
+            <span className="text-gradient">Code and Database</span> Again
           </h1>
 
           {/* Subheadline */}
           <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
-            DevSync.ai monitors, diagnoses, and resolves schema mismatches, API inconsistencies, 
-            and deployment drift — before they break your app.
+            AI-powered schema synchronization that detects mismatches across 9+ schema types, 
+            generates migrations automatically, and prevents production disasters before they happen.
           </p>
 
           {/* CTA Buttons */}
@@ -60,19 +60,23 @@ const Hero = () => {
               <div className="font-mono text-left space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="text-accent">→</span>
-                  <span className="text-muted-foreground">Scanning IDE and database connections...</span>
+                  <span className="text-muted-foreground">Scanning Prisma, TypeORM, Supabase schemas...</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-primary">✓</span>
-                  <span className="text-foreground">2 schema mismatches detected</span>
+                  <span className="text-foreground">Found 3 mismatches across 2 projects</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-accent">→</span>
-                  <span className="text-muted-foreground">Generating migration scripts...</span>
+                  <span className="text-muted-foreground">AI analyzing risks and generating migrations...</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-primary">✓</span>
+                  <span className="text-foreground">Migration ready: CREATE TABLE users (id UUID...)</span>
                 </div>
                 <div className="flex items-center gap-2 animate-pulse">
                   <span className="text-primary">⟳</span>
-                  <span className="text-primary font-semibold">Syncing in real-time...</span>
+                  <span className="text-primary font-semibold">All schemas synchronized successfully</span>
                 </div>
               </div>
             </div>
