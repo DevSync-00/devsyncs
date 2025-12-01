@@ -3,8 +3,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { FolderKanban, Clock, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { FolderKanban, Clock, ChevronLeft, ChevronRight, Loader2, Search, GitBranch, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ProjectCardSkeleton } from './LoadingSkeleton';
 import { useRealtimeTable, useTeamActivityNotifications } from '@/hooks/use-realtime';
 import { useToast } from '@/hooks/use-toast';
@@ -66,8 +67,10 @@ export default function ProjectsList({
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [totalCount, setTotalCount] = useState(initialProjects.length);
   const [scanMap, setScanMap] = useState<Map<string, ScanReport>>(new Map());
+  const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
   const projectIdsRef = useRef(new Set(initialProjects.map(p => p.id)));
+  const prevSearchQueryRef = useRef<string>('');
   const teamIds = useMemo(() => {
     const ids = new Set<string>();
     projects.forEach((project) => {
@@ -95,7 +98,7 @@ export default function ProjectsList({
     projectIdsRef.current = new Set(projects.map(p => p.id));
   }, [projects]);
 
-  const fetchProjects = useCallback(async () => {
+  const fetchProjects = useCallback(async (searchTerm?: string) => {
     if (!currentUserId) {
       return;
     }
@@ -103,19 +106,29 @@ export default function ProjectsList({
     setLoading(true);
     try {
       const supabase = createClient();
-      const from = (currentPage - 1) * perPage;
-      const to = from + perPage - 1;
+      
+      // When searching, fetch all projects (no pagination)
+      // When not searching, use pagination
+      const isSearching = Boolean(searchTerm?.trim());
+      const from = isSearching ? undefined : (currentPage - 1) * perPage;
+      const to = isSearching ? undefined : from! + perPage - 1;
+
+      // Build the query
+      let query = supabase
+        .from('projects')
+        .select('*', { count: 'exact' })
+        .eq('user_id', currentUserId)
+        .order('created_at', { ascending: false });
+
+      // Only apply range when not searching
+      if (!isSearching && from !== undefined && to !== undefined) {
+        query = query.range(from, to);
+      }
 
       // Use retry wrapper for projects query
       const projectsResult = await executeSupabaseQuery(
         async () => {
-          const result = await supabase
-            .from('projects')
-            .select('*', { count: 'exact' })
-            .eq('user_id', currentUserId)
-            .order('created_at', { ascending: false })
-            .range(from, to);
-          return result;
+          return await query;
         },
         { retries: 3, retryDelay: 1000 }
       );
@@ -170,17 +183,40 @@ export default function ProjectsList({
     }
   }, [currentUserId, currentPage, perPage, toast]);
 
+  // Fetch projects when page changes (non-search mode) or when search query changes
   useEffect(() => {
     if (!currentUserId) return;
-    if (currentPage !== initialPage || initialProjects.length === 0) {
+    
+    const prevSearchQuery = prevSearchQueryRef.current;
+    const wasSearching = prevSearchQuery.trim().length > 0;
+    const isSearching = searchQuery.trim().length > 0;
+    const searchCleared = wasSearching && !isSearching;
+    const searchQueryChanged = prevSearchQuery !== searchQuery;
+    
+    // Update ref for next render
+    prevSearchQueryRef.current = searchQuery;
+    
+    // If searching, fetch all projects (only when search query actually changes, not on page changes)
+    if (isSearching) {
+      // Only fetch if search query changed, not if only currentPage changed
+      if (searchQueryChanged) {
+        fetchProjects(searchQuery);
+      }
+    } 
+    // If not searching, fetch paginated projects when:
+    // - Page changed from initial page (and search query hasn't changed)
+    // - Initial load (no initial projects)
+    // - Search was just cleared (transition from search to no-search)
+    else if (searchCleared || initialProjects.length === 0 || (!searchQueryChanged && currentPage !== initialPage)) {
       fetchProjects();
     }
-  }, [currentUserId, currentPage, initialPage, initialProjects.length, fetchProjects]);
+  }, [currentUserId, currentPage, initialPage, initialProjects.length, searchQuery, fetchProjects]);
 
   const refreshProjects = useCallback(() => {
     if (!currentUserId) return;
-    fetchProjects();
-  }, [currentUserId, fetchProjects]);
+    // Pass current search query to maintain search state on refresh
+    fetchProjects(searchQuery.trim() || undefined);
+  }, [currentUserId, fetchProjects, searchQuery]);
 
   useRealtimeTable({
     table: 'projects',
@@ -194,9 +230,44 @@ export default function ProjectsList({
     onPayload: refreshProjects,
   });
 
-  const totalPages = Math.ceil(totalCount / perPage);
+  // Filter projects based on search query
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return projects;
+    }
+    
+    const query = searchQuery.toLowerCase();
+    return projects.filter(project => {
+      const nameMatch = project.name.toLowerCase().includes(query);
+      const schemaMatch = formatSchemaType(project.schema_type).toLowerCase().includes(query);
+      const slugMatch = project.slug?.toLowerCase().includes(query);
+      
+      return nameMatch || schemaMatch || slugMatch;
+    });
+  }, [projects, searchQuery]);
+
+  // Reset to page 1 when search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  // Calculate pagination based on filtered results when searching, otherwise use totalCount
+  const displayCount = searchQuery.trim() ? filteredProjects.length : totalCount;
+  const totalPages = Math.ceil(displayCount / perPage);
   const hasNextPage = currentPage < totalPages;
   const hasPrevPage = currentPage > 1;
+
+  // Paginate filtered projects when searching
+  const paginatedProjects = useMemo(() => {
+    if (!searchQuery.trim()) {
+      // When not searching, use server-side pagination (projects already paginated)
+      return filteredProjects;
+    }
+    // When searching, apply client-side pagination to filtered results
+    const startIndex = (currentPage - 1) * perPage;
+    const endIndex = startIndex + perPage;
+    return filteredProjects.slice(startIndex, endIndex);
+  }, [filteredProjects, searchQuery, currentPage, perPage]);
 
   if (loading && projects.length === 0) {
     return (
@@ -223,8 +294,42 @@ export default function ProjectsList({
     );
   }
 
+  if (searchQuery && filteredProjects.length === 0) {
+    return (
+      <div className="text-center py-12 border border-border rounded-lg bg-card">
+        <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+        <h3 className="text-lg font-semibold mb-2">No projects found</h3>
+        <p className="text-muted-foreground mb-6">
+          No projects match your search query "{searchQuery}"
+        </p>
+        <Button variant="outline" onClick={() => setSearchQuery('')}>
+          Clear search
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+        <Input
+          type="text"
+          placeholder="Search projects by name, schema type, or slug..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+      {/* Results count */}
+      {searchQuery && (
+        <div className="text-sm text-muted-foreground">
+          Found {filteredProjects.length} project{filteredProjects.length !== 1 ? 's' : ''} matching "{searchQuery}"
+        </div>
+      )}
+
       <div className="relative">
         {loading && projects.length > 0 && (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/80 backdrop-blur-sm border border-border">
@@ -235,7 +340,7 @@ export default function ProjectsList({
           </div>
         )}
         <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-3 ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
-        {projects.map((project) => {
+        {paginatedProjects.map((project) => {
           const latestScan = scanMap.get(project.id);
           const mismatchCount = (latestScan?.mismatches as any[])?.length || 0;
 
@@ -261,10 +366,18 @@ export default function ProjectsList({
                   </span>
                 )}
               </div>
-              <h3 className="font-semibold text-lg mb-2">{project.name}</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                {formatSchemaType(project.schema_type)} schema
-              </p>
+              <div className="mb-2">
+                <h3 className="font-semibold text-lg">{project.name}</h3>
+                {project.slug && (
+                  <p className="text-xs text-muted-foreground mt-1">/{project.slug}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mb-4">
+                <Package className="w-4 h-4 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  {formatSchemaType(project.schema_type)} schema
+                </p>
+              </div>
               {latestScan && (
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
@@ -288,7 +401,8 @@ export default function ProjectsList({
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-4 border-t border-border">
           <div className="text-sm text-muted-foreground">
-            Showing {(currentPage - 1) * perPage + 1} to {Math.min(currentPage * perPage, totalCount)} of {totalCount} projects
+            Showing {(currentPage - 1) * perPage + 1} to {Math.min(currentPage * perPage, displayCount)} of {displayCount} project{displayCount !== 1 ? 's' : ''}
+            {searchQuery.trim() && ` (filtered from ${totalCount} total)`}
           </div>
           <div className="flex items-center gap-2">
             <Button

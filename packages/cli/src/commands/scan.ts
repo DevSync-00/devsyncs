@@ -4,6 +4,7 @@ import { compareSchemas } from '../services/diff-engine.js';
 import { loadConfig } from '../utils/config.js';
 import { ApiClient } from '../services/api-client.js';
 import { saveScanResults, getScanExitCode } from '../utils/output.js';
+import { detectProjectInfo, matchProject } from '../utils/project-detector.js';
 import chalk from 'chalk';
 import { resolve } from 'path';
 import readline from 'node:readline/promises';
@@ -24,17 +25,85 @@ export async function scanCommand(options: ScanOptions) {
     const config = options.config ? await loadConfig(options.config) : null;
     const dbConnection = options.db || config?.database?.connectionString;
 
+    // Auto-detect project information
+    const projectInfo = detectProjectInfo(absolutePath);
+    
     // API settings
     let projectId = options.projectId || config?.project?.id;
     const apiUrl = options.apiUrl || config?.api?.url;
     const apiKey = options.apiKey || config?.api?.key;
 
-    if (!projectId && apiUrl && apiKey && process.stdout.isTTY) {
-      const selectedProjectId = await promptForProjectSelection(apiUrl, apiKey);
-      projectId = selectedProjectId || undefined;
-    } else if (!projectId && apiUrl && apiKey && !process.stdout.isTTY) {
-      console.log(chalk.yellow('⚠️  No project ID provided and interactive prompts are disabled.'));
-      console.log(chalk.gray('   Use --project-id or set project.id in .devsync/config.json to sync with the dashboard.\n'));
+    // Auto-match with existing projects if API is configured
+    if (!projectId && apiUrl && apiKey) {
+      try {
+        const apiClient = new ApiClient({
+          apiUrl,
+          apiKey,
+          timeout: 10000,
+          maxRetries: 2
+        });
+        
+        const existingProjects = await apiClient.listProjects();
+        const matches = matchProject(projectInfo, existingProjects);
+        
+        if (matches.length > 0 && matches[0].score >= 50) {
+          // Found a good match
+          const bestMatch = matches[0].project;
+          console.log(chalk.blue(`🔗 Found matching project: ${bestMatch.name} (${bestMatch.id})`));
+          console.log(chalk.gray(`   Match score: ${matches[0].score}/100\n`));
+          
+          if (process.stdout.isTTY) {
+            const rl = readline.createInterface({ input, output });
+            try {
+              const answer = (await rl.question(
+                chalk.cyan(`Use this project? (Y/n): `)
+              )).trim().toLowerCase();
+              
+              if (answer === '' || answer === 'y' || answer === 'yes') {
+                projectId = bestMatch.id;
+                console.log(chalk.green(`✅ Using project: ${bestMatch.name}\n`));
+              } else {
+                // Let user select manually
+                const selectedProjectId = await promptForProjectSelection(apiUrl, apiKey, projectInfo);
+                projectId = selectedProjectId || undefined;
+              }
+            } finally {
+              rl.close();
+            }
+          } else {
+            // Non-interactive: use best match if score is high enough
+            if (matches[0].score >= 80) {
+              projectId = bestMatch.id;
+              console.log(chalk.green(`✅ Auto-matched with project: ${bestMatch.name}\n`));
+            } else {
+              console.log(chalk.yellow('⚠️  Found potential matches but score too low for auto-match.'));
+              console.log(chalk.gray('   Use --project-id or set project.id in .devsync/config.json to sync with the dashboard.\n'));
+            }
+          }
+        } else if (process.stdout.isTTY) {
+          // No good matches, prompt user
+          console.log(chalk.blue(`📋 Project detected: ${projectInfo.name}`));
+          if (projectInfo.schemaType) {
+            console.log(chalk.gray(`   Schema type: ${projectInfo.schemaType}`));
+          }
+          console.log();
+          const selectedProjectId = await promptForProjectSelection(apiUrl, apiKey, projectInfo);
+          projectId = selectedProjectId || undefined;
+        } else {
+          console.log(chalk.yellow('⚠️  No project ID provided and interactive prompts are disabled.'));
+          console.log(chalk.gray('   Use --project-id or set project.id in .devsync/config.json to sync with the dashboard.\n'));
+        }
+      } catch (error) {
+        // If API call fails, fall back to manual selection
+        if (process.stdout.isTTY) {
+          console.log(chalk.yellow('⚠️  Could not auto-match project. Please select manually:\n'));
+          const selectedProjectId = await promptForProjectSelection(apiUrl, apiKey, projectInfo);
+          projectId = selectedProjectId || undefined;
+        } else {
+          console.log(chalk.yellow('⚠️  Could not auto-match project.'));
+          console.log(chalk.gray('   Use --project-id or set project.id in .devsync/config.json to sync with the dashboard.\n'));
+        }
+      }
     }
 
     const shouldSync = options.sync !== false && projectId && apiUrl && apiKey;
@@ -303,7 +372,7 @@ function buildProjectLine(index: number, project: Awaited<ReturnType<ApiClient['
   );
 }
 
-async function promptForProjectSelection(apiUrl: string, apiKey: string): Promise<string | null> {
+async function promptForProjectSelection(apiUrl: string, apiKey: string, projectInfo?: { name: string; schemaType?: string | null }): Promise<string | null> {
   const apiClient = new ApiClient({
     apiUrl,
     apiKey,
@@ -315,6 +384,13 @@ async function promptForProjectSelection(apiUrl: string, apiKey: string): Promis
   let searchTerm: string | undefined;
 
   console.log(chalk.blue('☁️  Select a project to sync scan results with:'));
+  if (projectInfo) {
+    console.log(chalk.gray(`   Detected project: ${projectInfo.name}`));
+    if (projectInfo.schemaType) {
+      console.log(chalk.gray(`   Schema type: ${projectInfo.schemaType}`));
+    }
+    console.log();
+  }
 
   try {
     while (true) {
