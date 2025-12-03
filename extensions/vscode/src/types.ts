@@ -17,6 +17,8 @@ export interface ChatMessageMetadata {
   projectId?: string;
   scanReportId?: string;
   command?: ChatCliCommand;
+  conversationId?: string;
+  branchId?: string;
 }
 
 export type ChatAction =

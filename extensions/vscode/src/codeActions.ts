@@ -1,16 +1,49 @@
 import * as vscode from 'vscode';
 import { DevSyncApiClient, Mismatch } from './api';
 import { DevSyncDiagnostics } from './diagnostics';
+import { ICodeActions, IApiClient, IDiagnostics } from './interfaces';
 
-export class DevSyncCodeActions implements vscode.CodeActionProvider {
-  private apiClient: DevSyncApiClient;
-  private diagnostics: DevSyncDiagnostics;
+/**
+ * Provides code actions for Prisma schema files based on DevSync diagnostics.
+ * 
+ * Code actions appear as lightbulb suggestions in VS Code when hovering over
+ * diagnostics. They allow users to quickly apply fixes for schema mismatches.
+ * 
+ * @example
+ * When a diagnostic appears for a missing field, users can:
+ * - Apply the suggested fix directly
+ * - Generate a migration for all mismatches
+ * - Trigger a new scan
+ */
+export class DevSyncCodeActions implements ICodeActions {
+  private apiClient: IApiClient;
+  private diagnostics: IDiagnostics;
 
-  constructor(apiClient: DevSyncApiClient, diagnostics: DevSyncDiagnostics) {
+  /**
+   * Creates a new code actions provider.
+   * 
+   * @param apiClient - API client for generating migrations
+   * @param diagnostics - Diagnostics provider for refreshing after fixes
+   */
+  constructor(apiClient: IApiClient, diagnostics: IDiagnostics) {
     this.apiClient = apiClient;
     this.diagnostics = diagnostics;
   }
 
+  /**
+   * Provides code actions for a given document and range.
+   * 
+   * Analyzes diagnostics in the context and creates appropriate code actions:
+   * - Quick fix actions for individual mismatches
+   * - Generate migration action for multiple mismatches
+   * - Scan schema action if no recent scan exists
+   * 
+   * @param document - The text document
+   * @param range - The range for which code actions should be provided
+   * @param context - Code action context containing diagnostics
+   * @param token - Cancellation token
+   * @returns Array of code actions, or undefined if none available
+   */
   provideCodeActions(
     document: vscode.TextDocument,
     range: vscode.Range,

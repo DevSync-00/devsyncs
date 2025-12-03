@@ -46,7 +46,9 @@ export type AuthFlowUpdate =
 
 const TOKEN_REFRESH_BUFFER_MS = 60_000;
 
-export class AuthManager {
+import { IAuthManager } from './interfaces';
+
+export class AuthManager implements IAuthManager {
   private session: AuthSessionState = { status: 'unauthenticated' };
   private readonly sessionEmitter = new vscode.EventEmitter<AuthSessionState>();
   private tokens?: StoredTokens;
@@ -313,11 +315,4 @@ export class AuthManager {
   }
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    const handle = setTimeout(() => {
-      clearTimeout(handle);
-      resolve();
-    }, ms);
-  });
-}
+import { delay } from './utils';

@@ -1,10 +1,7 @@
 import * as vscode from 'vscode';
-import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { randomUUID } from 'crypto';
-import { AuthManager, type AuthFlowUpdate } from './auth';
-import { ChatApiClient } from './apiClient';
-import { CliRunner, type CliRunHooks } from './cliRunner';
+import type { AuthFlowUpdate } from './auth';
+import type { CliRunHooks } from './cliRunner';
 import type { ExtensionToWebviewMessage, WebviewToExtensionMessage } from './messaging';
 import type {
   AiQueryResult,
@@ -14,6 +11,12 @@ import type {
   ChatMessageStatus,
   ChatViewConfig,
 } from './types';
+import { IAuthManager, IChatApiClient, ICliRunner } from './interfaces';
+import { PluginRegistry, IAiProviderPlugin } from './plugins';
+import { EnhancedChatManager } from './chat/enhancedManager';
+import { CodeBlockActions } from './chat/codeBlockActions';
+import { ErrorRecovery } from './chat/errorRecovery';
+import { EditorService } from './ui/editor';
 
 const MESSAGE_STORE_KEY = 'devsync.chat.messages';
 const MAX_MESSAGES = 50;
@@ -32,12 +35,21 @@ export class ChatPanelManager {
   private cliCancellation?: vscode.CancellationTokenSource;
   private config: ChatViewConfig;
 
+  private aiProvider?: IAiProviderPlugin;
+  private enhancedManager?: EnhancedChatManager;
+  private codeBlockActions?: CodeBlockActions;
+
   constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly auth: AuthManager,
-    private readonly api: ChatApiClient,
-    private readonly cliRunner: CliRunner
+    private readonly auth: IAuthManager,
+    private readonly api: IChatApiClient,
+    private readonly cliRunner: ICliRunner,
+    private readonly pluginRegistry?: PluginRegistry
   ) {
+    // Initialize enhanced features
+    this.enhancedManager = new EnhancedChatManager(context, this);
+    const editorService = new EditorService();
+    this.codeBlockActions = new CodeBlockActions(editorService);
     this.config = {
       apiUrl: '',
       projectId: undefined,
@@ -48,6 +60,15 @@ export class ChatPanelManager {
     this.auth.onDidChangeSession((session) => {
       this.postMessage({ type: 'session', payload: session });
     });
+
+    // Get default AI provider from plugin registry if available
+    // This is done lazily - provider will be retrieved when first needed
+    // to avoid blocking initialization
+    if (this.pluginRegistry) {
+      // Try to get provider immediately, but it's OK if not ready yet
+      // (will be retrieved again when needed)
+      this.aiProvider = this.pluginRegistry.getDefaultAiProvider();
+    }
   }
 
   attachWebview(view: vscode.WebviewView, resolveHtml: () => string) {
@@ -101,10 +122,20 @@ export class ChatPanelManager {
   }
 
   async newConversation() {
-    this.messages.length = 0;
-    await this.persistMessages();
-    if (this.viewReady) {
-      this.sendInitialState();
+    if (this.enhancedManager) {
+      const conversationId = this.enhancedManager.createConversation();
+      this.messages.length = 0;
+      await this.persistMessages();
+      if (this.viewReady) {
+        this.sendInitialState();
+        this.sendConversationsUpdate();
+      }
+    } else {
+      this.messages.length = 0;
+      await this.persistMessages();
+      if (this.viewReady) {
+        this.sendInitialState();
+      }
     }
   }
 
@@ -144,6 +175,74 @@ export class ChatPanelManager {
       case 'newConversation':
         await this.newConversation();
         return;
+      case 'runCode':
+        if (this.codeBlockActions) {
+          await this.codeBlockActions.runCode(message.code, message.language);
+        }
+        return;
+      case 'applyCode':
+        if (this.codeBlockActions) {
+          await this.codeBlockActions.applyToFile(message.code, message.language);
+        }
+        return;
+      case 'showDiff':
+        if (this.codeBlockActions) {
+          const editor = vscode.window.activeTextEditor;
+          if (editor) {
+            await this.codeBlockActions.showDiff(editor.document, message.code);
+          }
+        }
+        return;
+      case 'exportConversation':
+        if (this.enhancedManager) {
+          const conversationId = this.enhancedManager.getCurrentConversationId();
+          if (conversationId) {
+            const exported = this.enhancedManager.exportConversation(conversationId, message.format);
+            if (exported) {
+              await this.saveExportedConversation(exported, message.format);
+            }
+          }
+        }
+        return;
+      case 'searchConversations':
+        if (this.enhancedManager) {
+          const results = this.enhancedManager.searchConversations(message.query);
+          this.postMessage({ type: 'searchResults', payload: { results, query: message.query } });
+        }
+        return;
+      case 'createBranch':
+        if (this.enhancedManager) {
+          const branchId = this.enhancedManager.createBranch(message.messageId);
+          if (branchId) {
+            this.sendInfo(`Created branch: ${branchId}`);
+          }
+        }
+        return;
+      case 'switchConversation':
+        if (this.enhancedManager) {
+          const switched = this.enhancedManager.switchConversation(message.conversationId);
+          if (switched) {
+            this.sendInitialState();
+            this.sendConversationsUpdate();
+          }
+        }
+        return;
+      case 'switchBranch':
+        if (this.enhancedManager) {
+          const switched = this.enhancedManager.switchBranch(message.branchId);
+          if (switched) {
+            this.sendInitialState();
+          }
+        }
+        return;
+      case 'deleteConversation':
+        if (this.enhancedManager) {
+          const deleted = this.enhancedManager.deleteConversation(message.conversationId);
+          if (deleted) {
+            this.sendConversationsUpdate();
+          }
+        }
+        return;
       default:
         this.sendError('Unknown message from chat panel.');
     }
@@ -170,6 +269,12 @@ export class ChatPanelManager {
     };
 
     this.appendMessage(userMessage);
+    
+    // Notify enhanced manager
+    if (this.enhancedManager) {
+      this.enhancedManager.onMessageAdded(userMessage);
+    }
+    
     await this.persistMessages();
 
     await this.sendAssistantResponse(trimmed);
@@ -225,18 +330,50 @@ export class ChatPanelManager {
       };
       await this.persistMessages();
 
-      const result = await this.api.queryAI(query, scan.id, controller.signal);
+      // Use AI provider plugin if available, otherwise fall back to API client
+      // Try to get provider if not already cached (handles lazy initialization)
+      if (!this.aiProvider && this.pluginRegistry) {
+        this.aiProvider = this.pluginRegistry.getDefaultAiProvider();
+      }
+
+      let result: AiQueryResult;
+      if (this.aiProvider) {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        result = await this.aiProvider.query(
+          query,
+          {
+            scanReportId: scan.id,
+            projectId,
+            workspaceFolder,
+          },
+          controller.signal
+        );
+      } else {
+        // Fallback to direct API call
+        result = await this.api.queryAI(query, scan.id, controller.signal);
+      }
       await this.streamAssistantAnswer(assistantMessage.id, result);
       this.finalizeAssistantMessage(assistantMessage.id, 'complete');
     } catch (error) {
       if (error instanceof Error && error.message === 'Request cancelled.') {
         this.finalizeAssistantMessage(assistantMessage.id, 'cancelled');
       } else {
-        this.finalizeAssistantMessage(
-          assistantMessage.id,
-          'error',
-          error instanceof Error ? error.message : String(error)
-        );
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.finalizeAssistantMessage(assistantMessage.id, 'error', errorMessage);
+        
+        // Show enhanced error recovery
+        if (this.enhancedManager) {
+          const errorForRecovery: Error | string = error instanceof Error ? error : errorMessage;
+          await ErrorRecovery.showErrorWithRetry({
+            message: 'Failed to get AI response',
+            error: errorForRecovery,
+            messageId: assistantMessage.id,
+            retryAction: async () => {
+              await this.retryMessage(assistantMessage.id);
+            },
+            alternativeActions: ErrorRecovery.getRecoverySuggestions(errorForRecovery),
+          });
+        }
       }
     } finally {
       this.activeTask = undefined;
@@ -274,7 +411,7 @@ export class ChatPanelManager {
 
     let options: Record<string, any> = {};
     try {
-      options = this.buildCliOptions(command, workspaceRoot);
+      options = await this.buildCliOptions(command, workspaceRoot);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.sendError(message);
@@ -422,6 +559,73 @@ export class ChatPanelManager {
       },
     };
     this.postMessage(payload);
+    
+    // Send enhanced features data
+    if (this.enhancedManager) {
+      this.sendConversationsUpdate();
+      this.sendSuggestedPrompts();
+    }
+  }
+
+  /**
+   * Sends conversations update to webview.
+   */
+  private sendConversationsUpdate(): void {
+    if (!this.enhancedManager || !this.viewReady) {
+      return;
+    }
+    
+    const conversations = this.enhancedManager.getAllConversations();
+    const currentId = this.enhancedManager.getCurrentConversationId();
+    
+    this.postMessage({
+      type: 'conversations',
+      payload: { conversations, currentId },
+    });
+  }
+
+  /**
+   * Sends suggested prompts to webview.
+   */
+  private sendSuggestedPrompts(): void {
+    if (!this.enhancedManager || !this.viewReady) {
+      return;
+    }
+    
+    const prompts = this.enhancedManager.getSuggestedPrompts();
+    this.postMessage({
+      type: 'suggestedPrompts',
+      payload: { prompts },
+    });
+  }
+
+  /**
+   * Saves exported conversation to a file.
+   */
+  private async saveExportedConversation(content: string, format: string): Promise<void> {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      vscode.window.showErrorMessage('No workspace folder open');
+      return;
+    }
+
+    const extension = format === 'json' ? 'json' : format === 'markdown' ? 'md' : 'txt';
+    const fileName = `conversation-${Date.now()}.${extension}`;
+    
+    const uri = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.joinPath(workspaceFolders[0].uri, fileName),
+      filters: {
+        'Text Files': ['txt'],
+        'Markdown': ['md'],
+        'JSON': ['json'],
+      },
+    });
+
+    if (uri) {
+      const encoder = new TextEncoder();
+      await vscode.workspace.fs.writeFile(uri, encoder.encode(content));
+      vscode.window.showInformationMessage(`Conversation exported to ${uri.fsPath}`);
+    }
   }
 
   private appendMessage(message: ChatMessage) {
@@ -462,7 +666,7 @@ export class ChatPanelManager {
     );
   }
 
-  private buildCliOptions(command: ChatCliCommand, workspaceRoot: string): Record<string, any> {
+  private async buildCliOptions(command: ChatCliCommand, workspaceRoot: string): Promise<Record<string, any>> {
     const config = vscode.workspace.getConfiguration('devsync');
     const options: Record<string, any> = {
       path: workspaceRoot,
@@ -512,8 +716,9 @@ export class ChatPanelManager {
         }
       }
 
-      const scanResultsPath = join(workspaceRoot, '.devsync', 'scan-results.json');
-      options.output = scanResultsPath;
+      const { getScanResultsPath } = await import('./utils/paths');
+      const workspaceFolder = { uri: { fsPath: workspaceRoot } } as vscode.WorkspaceFolder;
+      options.output = getScanResultsPath(workspaceFolder);
     }
 
     if (command === 'migrate') {
@@ -523,12 +728,11 @@ export class ChatPanelManager {
       }
       options.db = db;
 
-      const migrationsDir = join(workspaceRoot, '.devsync', 'migrations');
-      if (!existsSync(migrationsDir)) {
-        mkdirSync(migrationsDir, { recursive: true });
-      }
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      options.output = join(migrationsDir, `migration_${timestamp}.sql`);
+      const { ensureMigrationsDir } = await import('./utils/paths');
+      const { generateMigrationFilename } = await import('./utils/id');
+      const workspaceFolder = { uri: { fsPath: workspaceRoot } } as vscode.WorkspaceFolder;
+      const migrationsDir = ensureMigrationsDir(workspaceFolder);
+      options.output = join(migrationsDir, generateMigrationFilename('sql'));
       options.format = 'sql';
     }
 
@@ -536,16 +740,6 @@ export class ChatPanelManager {
   }
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function generateId(): string {
-  try {
-    return randomUUID();
-  } catch {
-    return `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
-  }
-}
+import { delay, generateId } from './utils';
 
 

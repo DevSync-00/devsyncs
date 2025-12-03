@@ -86,6 +86,36 @@
         "category": "DevSync"
       },
       {
+        "command": "devsync.previewFix",
+        "title": "Preview Fix",
+        "category": "DevSync"
+      },
+      {
+        "command": "devsync.showDiff",
+        "title": "Show Diff",
+        "category": "DevSync"
+      },
+      {
+        "command": "devsync.batchApplyFixes",
+        "title": "Apply All Fixes",
+        "category": "DevSync"
+      },
+      {
+        "command": "devsync.previewMigrationImpact",
+        "title": "Preview Migration Impact",
+        "category": "DevSync"
+      },
+      {
+        "command": "devsync.showSchemaComparison",
+        "title": "Show Schema Comparison",
+        "category": "DevSync"
+      },
+      {
+        "command": "devsync.showMigrationHistory",
+        "title": "Show Migration History",
+        "category": "DevSync"
+      },
+      {
         "command": "devsync.sidebar.scan",
         "title": "Scan Schema",
         "icon": "$(search)"
@@ -119,6 +149,16 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "devsync.sidebar.search",
+        "title": "Search in Sidebar",
+        "icon": "$(search)"
+      },
+      {
+        "command": "devsync.sidebar.clearSearch",
+        "title": "Clear Search",
+        "icon": "$(clear-all)"
+      },
+      {
         "command": "devsync.chat.focus",
         "title": "Focus DevSync Chat",
         "category": "DevSync",
@@ -141,6 +181,36 @@
         "title": "Sign Out of DevSync",
         "category": "DevSync",
         "icon": "$(sign-out)"
+      },
+      {
+        "command": "devsync.onboarding.start",
+        "title": "Start Onboarding",
+        "category": "DevSync",
+        "icon": "$(play)"
+      },
+      {
+        "command": "devsync.onboarding.restart",
+        "title": "Restart Onboarding",
+        "category": "DevSync",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "devsync.onboarding.quickStart",
+        "title": "Quick Start Template",
+        "category": "DevSync",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "devsync.queue.pause",
+        "title": "Pause Task Queue",
+        "category": "DevSync",
+        "icon": "$(debug-pause)"
+      },
+      {
+        "command": "devsync.queue.resume",
+        "title": "Resume Task Queue",
+        "category": "DevSync",
+        "icon": "$(play)"
       }
     ],
     "configuration": {
@@ -223,7 +293,11 @@
         },
         "devsync.ai.provider": {
           "type": "string",
-          "enum": ["openai", "ollama", "deepseek"],
+          "enum": [
+            "openai",
+            "ollama",
+            "deepseek"
+          ],
           "default": "openai",
           "description": "AI provider to use for chat and analysis"
         },
@@ -277,9 +351,11 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run compile-tests",
-    "compile-tests": "tsc -p ./",
+    "compile-tests": "tsc -p ./tsconfig.test.json",
     "test": "node ./out/test/runTest.js",
     "test-watch": "npm run compile && npm run test",
+    "docs": "typedoc",
+    "docs:watch": "typedoc --watch",
     "package": "vsce package",
     "publish": "vsce publish"
   },
@@ -291,6 +367,8 @@
     "@vscode/test-electron": "^2.3.0",
     "glob": "^11.0.0",
     "mocha": "^10.0.0",
+    "typedoc": "^0.28.15",
+    "typedoc-plugin-markdown": "^4.9.0",
     "typescript": "^5.0.0"
   },
   "dependencies": {

@@ -1,4 +1,3 @@
-import type { AuthManager } from './auth';
 import type { AiQueryResult } from './types';
 import type { ScanReport } from './api';
 import {
@@ -7,6 +6,7 @@ import {
   isAbortError,
   requestJson,
 } from './lib/http';
+import { IChatApiClient, IAuthManager } from './interfaces';
 
 interface AiQueryResponse {
   answer: string;
@@ -18,8 +18,8 @@ interface ScanResponsePayload {
   scanReports: ScanReport[];
 }
 
-export class ChatApiClient {
-  constructor(private apiUrl: string, private readonly auth: AuthManager) {}
+export class ChatApiClient implements IChatApiClient {
+  constructor(private apiUrl: string, private readonly auth: IAuthManager) {}
 
   setApiUrl(apiUrl: string) {
     this.apiUrl = apiUrl;

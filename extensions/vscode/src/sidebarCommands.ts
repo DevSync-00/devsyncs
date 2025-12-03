@@ -1,13 +1,15 @@
 import * as vscode from 'vscode';
-import { CliRunner } from './cliRunner';
 import { DevSyncSidebarProvider } from './sidebarProvider';
 import { join } from 'path';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync } from 'fs';
+import { ICliRunner } from './interfaces';
+import { getScanResultsPath, ensureMigrationsDir } from './utils/paths';
+import { generateMigrationFilename } from './utils/id';
 
 export class SidebarCommands {
   constructor(
     private sidebarProvider: DevSyncSidebarProvider,
-    private cliRunner: CliRunner
+    private cliRunner: ICliRunner
   ) {}
 
   async scan(): Promise<void> {
@@ -84,9 +86,8 @@ export class SidebarCommands {
       }
 
       // Set output path
-      const workspaceRoot = workspaceFolders[0].uri.fsPath;
-      const outputPath = join(workspaceRoot, '.devsync', 'scan-results.json');
-      options.output = outputPath;
+      const workspaceFolder = workspaceFolders[0];
+      options.output = getScanResultsPath(workspaceFolder);
 
       const result = await this.cliRunner.executeCliCommand('scan', options);
 
@@ -170,16 +171,9 @@ export class SidebarCommands {
     this.cliRunner.showOutput();
 
     try {
-      const workspaceRoot = workspaceFolders[0].uri.fsPath;
-      const outputDir = join(workspaceRoot, '.devsync', 'migrations');
-      
-      // Ensure directory exists
-      if (!existsSync(outputDir)) {
-        mkdirSync(outputDir, { recursive: true });
-      }
-
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const outputPath = join(outputDir, `migration_${timestamp}.sql`);
+      const workspaceFolder = workspaceFolders[0];
+      const outputDir = ensureMigrationsDir(workspaceFolder);
+      const outputPath = join(outputDir, generateMigrationFilename('sql'));
 
       const options: Record<string, any> = {
         db: dbConnection,
@@ -251,7 +245,9 @@ export class SidebarCommands {
         this.sidebarProvider.refresh();
         
         // Open config file if created
-        const configPath = join(workspaceFolders[0].uri.fsPath, '.devsync', 'config.json');
+        const { getConfigPath } = await import('./utils/paths');
+        const configPath = getConfigPath(workspaceFolders[0]);
+        const { existsSync } = await import('fs');
         if (existsSync(configPath)) {
           const doc = await vscode.workspace.openTextDocument(configPath);
           await vscode.window.showTextDocument(doc);
@@ -268,7 +264,7 @@ export class SidebarCommands {
     }
   }
 
-  async viewFix(mismatch: any): Promise<void> {
+  async viewFix(mismatch: import('./api').Mismatch): Promise<void> {
     if (!mismatch || !mismatch.suggestedFix) {
       vscode.window.showWarningMessage('No suggested fix available for this mismatch');
       return;
@@ -290,7 +286,9 @@ export class SidebarCommands {
       return;
     }
 
-    const configPath = join(workspaceFolders[0].uri.fsPath, '.devsync', 'config.json');
+    const { getConfigPath } = await import('./utils/paths');
+    const { existsSync } = await import('fs');
+    const configPath = getConfigPath(workspaceFolders[0]);
     
     if (!existsSync(configPath)) {
       const create = await vscode.window.showWarningMessage(

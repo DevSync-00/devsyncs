@@ -18,7 +18,16 @@ export type WebviewToExtensionMessage =
   | { type: 'requestLogin' }
   | { type: 'requestLogout' }
   | { type: 'newConversation' }
-  | { type: 'openUrl'; url: string };
+  | { type: 'openUrl'; url: string }
+  | { type: 'runCode'; code: string; language: string }
+  | { type: 'applyCode'; code: string; language: string }
+  | { type: 'showDiff'; code: string; language: string }
+  | { type: 'exportConversation'; format: 'json' | 'markdown' | 'text' }
+  | { type: 'searchConversations'; query: string }
+  | { type: 'createBranch'; messageId: string }
+  | { type: 'switchConversation'; conversationId: string }
+  | { type: 'switchBranch'; branchId: string }
+  | { type: 'deleteConversation'; conversationId: string };
 
 export type ExtensionToWebviewMessage =
   | { type: 'init'; payload: { messages: ChatMessage[]; session: AuthSessionState; config: ChatViewConfig } }
@@ -29,6 +38,9 @@ export type ExtensionToWebviewMessage =
   | { type: 'messageUpdate'; payload: { message: ChatMessage } }
   | { type: 'info'; payload: { message: string } }
   | { type: 'error'; payload: { message: string } }
-  | { type: 'authFlow'; payload: AuthFlowUpdate };
+  | { type: 'authFlow'; payload: AuthFlowUpdate }
+  | { type: 'conversations'; payload: { conversations: any[]; currentId: string | null } }
+  | { type: 'searchResults'; payload: { results: any[]; query: string } }
+  | { type: 'suggestedPrompts'; payload: { prompts: string[] } };
 
 

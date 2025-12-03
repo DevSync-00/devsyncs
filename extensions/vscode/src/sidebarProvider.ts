@@ -1,22 +1,79 @@
 import * as vscode from 'vscode';
-import { CliRunner, CliCommandResult } from './cliRunner';
-import { join } from 'path';
-import { existsSync, readFileSync, readdirSync } from 'fs';
+import { CliCommandResult } from './cliRunner';
+import { ICliRunner } from './interfaces';
+import { ScanReport, Mismatch } from './api';
+import { safeParseScanReport } from './types/validation';
+import { getScanResultsPath, getMigrationsDir, getFilesInDir, readJsonFile } from './utils/paths';
+import { formatMismatchType } from './utils/ui';
+import { EnhancedSidebarProvider, OperationProgress } from './sidebar';
 
+/**
+ * DevSync sidebar provider with enhanced UX features.
+ * 
+ * Wraps the enhanced provider to maintain backward compatibility while adding:
+ * - Progress indicators
+ * - Color-coded status
+ * - Expandable/collapsible sections with memory
+ * - Search/filter functionality
+ */
 export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTreeItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<DevSyncTreeItem | undefined | null | void> = new vscode.EventEmitter<DevSyncTreeItem | undefined | null | void>();
   readonly onDidChangeTreeData: vscode.Event<DevSyncTreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
 
-  private cliRunner: CliRunner;
-  private scanResults: any = null;
-  private migrationHistory: any[] = [];
+  private cliRunner: ICliRunner;
+  private scanResults: ScanReport | null = null;
+  private migrationHistory: string[] = [];
   private isScanning: boolean = false;
   private isMigrating: boolean = false;
+  private enhancedProvider?: EnhancedSidebarProvider;
+  private context?: vscode.ExtensionContext;
 
-  constructor(cliRunner: CliRunner) {
+  constructor(cliRunner: ICliRunner, context?: vscode.ExtensionContext) {
     this.cliRunner = cliRunner;
+    this.context = context;
+    if (context) {
+      this.enhancedProvider = new EnhancedSidebarProvider(cliRunner, context);
+      // Forward events from enhanced provider
+      this.enhancedProvider.onDidChangeTreeData(() => {
+        this._onDidChangeTreeData.fire();
+      });
+    }
     this.loadScanResults();
     this.loadMigrationHistory();
+  }
+
+  /**
+   * Gets the enhanced provider if available.
+   */
+  getEnhancedProvider(): EnhancedSidebarProvider | undefined {
+    return this.enhancedProvider;
+  }
+
+  /**
+   * Updates progress for an operation (enhanced feature).
+   */
+  updateProgress(operation: 'scan' | 'migration' | 'init', progress: number, message: string, estimatedTimeRemaining?: number): void {
+    if (this.enhancedProvider) {
+      this.enhancedProvider.updateProgress(operation, progress, message, estimatedTimeRemaining);
+    }
+  }
+
+  /**
+   * Clears progress for an operation (enhanced feature).
+   */
+  clearProgress(operation: 'scan' | 'migration' | 'init'): void {
+    if (this.enhancedProvider) {
+      this.enhancedProvider.clearProgress(operation);
+    }
+  }
+
+  /**
+   * Sets search query (enhanced feature).
+   */
+  setSearchQuery(query: string): void {
+    if (this.enhancedProvider) {
+      this.enhancedProvider.setSearchQuery(query);
+    }
   }
 
   refresh(): void {
@@ -158,8 +215,8 @@ export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTr
 
     if (element.contextValue === 'summary') {
       const mismatches = this.scanResults?.mismatches || [];
-      const errors = mismatches.filter((m: any) => m.severity === 'error').length;
-      const warnings = mismatches.filter((m: any) => m.severity === 'warning').length;
+      const errors = mismatches.filter((m: Mismatch) => m.severity === 'error').length;
+      const warnings = mismatches.filter((m: Mismatch) => m.severity === 'warning').length;
 
       return Promise.resolve([
         new DevSyncTreeItem(
@@ -189,9 +246,11 @@ export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTr
     if (element.contextValue === 'mismatches') {
       const mismatches = this.scanResults?.mismatches || [];
       return Promise.resolve(
-        mismatches.map((mismatch: any, index: number) => {
+        mismatches.map((mismatch: Mismatch, index: number) => {
           const icon = mismatch.severity === 'error' ? 'error' : 'warning';
-          const label = `${mismatch.type || 'Mismatch'}: ${mismatch.model || 'Unknown'}.${mismatch.field || 'N/A'}`;
+          const fieldLabel = 'field' in mismatch ? mismatch.field : 'N/A';
+          const typeLabel = formatMismatchType(mismatch.type);
+          const label = `${typeLabel}: ${mismatch.model}.${fieldLabel}`;
           
           return new DevSyncTreeItem(
             label,
@@ -214,27 +273,23 @@ export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTr
 
       const items: DevSyncTreeItem[] = [];
       
-      if (mismatch.type) {
-        items.push(new DevSyncTreeItem(
-          `Type: ${mismatch.type}`,
-          vscode.TreeItemCollapsibleState.None,
-          'info',
-          undefined,
-          'mismatch-detail'
-        ));
-      }
+      items.push(new DevSyncTreeItem(
+        `Type: ${mismatch.type}`,
+        vscode.TreeItemCollapsibleState.None,
+        'info',
+        undefined,
+        'mismatch-detail'
+      ));
 
-      if (mismatch.model) {
-        items.push(new DevSyncTreeItem(
-          `Model: ${mismatch.model}`,
-          vscode.TreeItemCollapsibleState.None,
-          'info',
-          undefined,
-          'mismatch-detail'
-        ));
-      }
+      items.push(new DevSyncTreeItem(
+        `Model: ${mismatch.model}`,
+        vscode.TreeItemCollapsibleState.None,
+        'info',
+        undefined,
+        'mismatch-detail'
+      ));
 
-      if (mismatch.field) {
+      if ('field' in mismatch && mismatch.field) {
         items.push(new DevSyncTreeItem(
           `Field: ${mismatch.field}`,
           vscode.TreeItemCollapsibleState.None,
@@ -342,19 +397,22 @@ export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTr
     this._onDidChangeTreeData.fire();
   }
 
-  private loadScanResults(): void {
+  private async loadScanResults(): Promise<void> {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
       return;
     }
 
-    const scanResultsPath = join(workspaceFolders[0].uri.fsPath, '.devsync', 'scan-results.json');
-    if (existsSync(scanResultsPath)) {
-      try {
-        const content = readFileSync(scanResultsPath, 'utf-8');
-        this.scanResults = JSON.parse(content);
-      } catch (error) {
-        // Ignore parse errors
+    const scanResultsPath = getScanResultsPath(workspaceFolders[0]);
+    const parsed = readJsonFile<unknown>(scanResultsPath);
+    
+    if (parsed) {
+      // Validate with runtime validation
+      const result = safeParseScanReport(parsed);
+      if (result.success) {
+        this.scanResults = result.data;
+      } else {
+        console.warn('Invalid scan results format:', result.error);
         this.scanResults = null;
       }
     } else {
@@ -368,27 +426,14 @@ export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTr
       return;
     }
 
-    const migrationsDir = join(workspaceFolders[0].uri.fsPath, '.devsync', 'migrations');
-    if (existsSync(migrationsDir)) {
-      try {
-        const files = readdirSync(migrationsDir)
-          .filter((f: string) => f.endsWith('.sql'))
-          .map((f: string) => join(migrationsDir, f))
-          .sort()
-          .reverse(); // Most recent first
-        
-        this.migrationHistory = files;
-      } catch (error) {
-        this.migrationHistory = [];
-      }
-    } else {
-      this.migrationHistory = [];
-    }
+    const migrationsDir = getMigrationsDir(workspaceFolders[0]);
+    const files = getFilesInDir(migrationsDir, /\.sql$/);
+    this.migrationHistory = files.sort().reverse(); // Most recent first
   }
 }
 
 export class DevSyncTreeItem extends vscode.TreeItem {
-  public readonly mismatch?: any;
+  public readonly mismatch?: Mismatch;
 
   constructor(
     public readonly label: string,
@@ -397,7 +442,7 @@ export class DevSyncTreeItem extends vscode.TreeItem {
     public readonly command?: vscode.Command,
     contextValue?: string,
     description?: string,
-    mismatch?: any
+    mismatch?: Mismatch
   ) {
     super(label, collapsibleState);
 

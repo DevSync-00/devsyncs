@@ -1,0 +1,57 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src"],
+  "entryPointStrategy": "expand",
+  "out": "docs/api",
+  "theme": "default",
+  "includeVersion": true,
+  "readme": "none",
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "excludeNotDocumented": false,
+  "excludeNotDocumentedKinds": ["Module"],
+  "categorizeByGroup": true,
+  "categoryOrder": [
+    "Core",
+    "Interfaces",
+    "Classes",
+    "Functions",
+    "Types",
+    "Utilities",
+    "Configuration",
+    "State Management",
+    "Error Handling"
+  ],
+  "kindSortOrder": [
+    "Project",
+    "Module",
+    "Namespace",
+    "Enum",
+    "Class",
+    "Interface",
+    "Constructor",
+    "Property",
+    "Method",
+    "Function",
+    "Accessor",
+    "Variable"
+  ],
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true
+  },
+  "searchInComments": true,
+  "searchCategoryBoosts": {
+    "Classes": 2,
+    "Interfaces": 1.5,
+    "Functions": 1.5
+  },
+  "validation": {
+    "invalidLink": true,
+    "notDocumented": false
+  },
+  "tsconfig": "./tsconfig.json"
+}
+

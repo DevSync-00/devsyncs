@@ -16,7 +16,9 @@ export interface CliRunHooks {
   onClose?: (code: number | null) => void;
 }
 
-export class CliRunner {
+import { ICliRunner } from './interfaces';
+
+export class CliRunner implements ICliRunner {
   private outputChannel: vscode.OutputChannel;
   private runningProcesses: Map<string, ChildProcess> = new Map();
 
