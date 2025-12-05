@@ -5,6 +5,14 @@ export { DevSyncError, ErrorCode } from './base';
 export { ScanError } from './scanError';
 export { MigrationError } from './migrationError';
 export { AuthError } from './authError';
+export { ErrorRecovery, RecoveryResult } from './recovery';
+export { ErrorBoundary, handleErrors } from './boundary';
+export { RetryManager, RetryConfig, RetryResult } from './retry';
+export { PartialSuccessHandler, PartialSuccessResult, PartialResultItem } from './partialSuccess';
+export { RollbackManager, getRollbackManager, OperationState } from './rollback';
+export { ErrorSuggestionProvider, RecoverySuggestion } from './suggestions';
+export { StateSaver } from './stateSaver';
+export { EnhancedRecovery, EnhancedRecoveryOptions, EnhancedRecoveryResult } from './enhancedRecovery';
 
 import { DevSyncError, ErrorCode } from './base';
 

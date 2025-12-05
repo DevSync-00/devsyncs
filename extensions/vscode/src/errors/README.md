@@ -2,6 +2,8 @@
 
 This directory contains the comprehensive error handling implementation for the DevSync VS Code extension, addressing improvement 1.2 from the IMPROVEMENTS.md roadmap.
 
+For detailed information about error recovery features (section 2.3), see [RECOVERY.md](./RECOVERY.md).
+
 ## Overview
 
 The error handling system provides:

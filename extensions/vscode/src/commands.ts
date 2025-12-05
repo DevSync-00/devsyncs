@@ -4,6 +4,7 @@ import { IScanService, IMigrationService } from './services';
 import { ScanError, MigrationError } from './errors';
 import { ErrorLogger } from './errors/logger';
 import { ErrorBoundary } from './errors/boundary';
+import { EnhancedRecovery } from './errors/enhancedRecovery';
 import { scanActions, migrationActions } from './state';
 import { NotificationService, StatusBarService, EditorService } from './ui';
 import { PluginRegistry } from './plugins';
@@ -14,6 +15,7 @@ import {
   StatusReporter,
   StatusLevel,
 } from './execution';
+import type { SecurityManager } from './security';
 
 /**
  * Handles DevSync extension commands.
@@ -39,12 +41,14 @@ import {
  */
 export class DevSyncCommands implements ICommands {
   private errorBoundary: ErrorBoundary;
+  private enhancedRecovery: EnhancedRecovery;
   private notifications: NotificationService;
   private statusBar: StatusBarService;
   private editor: EditorService;
   private taskQueue: TaskQueue;
   private previewManager: PreviewManager;
   private statusReporter: StatusReporter;
+  private securityManager?: SecurityManager;
 
   /**
    * Creates a new commands handler instance.
@@ -58,6 +62,8 @@ export class DevSyncCommands implements ICommands {
    * @param errorLogger - Error logger for tracking errors
    * @param configManager - Configuration manager for accessing settings
    * @param stateStore - State store for managing application state
+   * @param pluginRegistry - Optional plugin registry
+   * @param securityManager - Optional security manager for permission checks
    */
   constructor(
     private scanService: IScanService,
@@ -66,9 +72,12 @@ export class DevSyncCommands implements ICommands {
     private errorLogger: ErrorLogger,
     private configManager: IConfigurationManager,
     private stateStore: IStateStore,
-    private pluginRegistry?: PluginRegistry
+    private pluginRegistry?: PluginRegistry,
+    securityManager?: SecurityManager
   ) {
+    this.securityManager = securityManager;
     this.errorBoundary = new ErrorBoundary(errorLogger);
+    this.enhancedRecovery = new EnhancedRecovery(stateStore);
     this.notifications = new NotificationService();
     this.statusBar = new StatusBarService();
     this.editor = new EditorService();
@@ -126,6 +135,14 @@ export class DevSyncCommands implements ICommands {
    */
   async scan() {
     return this.errorBoundary.wrap(async () => {
+      // Check permission
+      if (this.securityManager) {
+        if (!this.securityManager.checkPermission('scan', 'execute')) {
+          await this.notifications.showError('Permission denied: You do not have permission to execute scans.');
+          throw ScanError.fromError(new Error('Permission denied'), { operation: 'scan' });
+        }
+      }
+
       const workspaceFolders = vscode.workspace.workspaceFolders;
       if (!workspaceFolders || workspaceFolders.length === 0) {
         throw ScanError.noWorkspace();
@@ -206,6 +223,14 @@ export class DevSyncCommands implements ICommands {
 
   async generateMigration() {
     return this.errorBoundary.wrap(async () => {
+      // Check permission
+      if (this.securityManager) {
+        if (!this.securityManager.checkPermission('migrate', 'execute')) {
+          await this.notifications.showError('Permission denied: You do not have permission to generate migrations.');
+          throw MigrationError.fromError(new Error('Permission denied'), { operation: 'generateMigration' });
+        }
+      }
+
       const workspaceFolders = vscode.workspace.workspaceFolders;
       if (!workspaceFolders || workspaceFolders.length === 0) {
         throw MigrationError.fromError(new Error('No workspace folder open'));
@@ -268,6 +293,14 @@ export class DevSyncCommands implements ICommands {
 
   async viewReport() {
     return this.errorBoundary.wrap(async () => {
+      // Check permission
+      if (this.securityManager) {
+        if (!this.securityManager.checkPermission('view_reports', 'read')) {
+          await this.notifications.showError('Permission denied: You do not have permission to view reports.');
+          throw ScanError.fromError(new Error('Permission denied'), { operation: 'viewReport' });
+        }
+      }
+
       try {
         // Business Logic: Get latest scan report
         const scanReport = await this.scanService.getLatestScanReport();
@@ -339,6 +372,17 @@ export class DevSyncCommands implements ICommands {
       queueLength: status.queueLength,
       runningTask: status.runningTask?.name || null,
     };
+  }
+
+  /**
+   * Undoes the last operation.
+   */
+  async undoLast(): Promise<void> {
+    await this.enhancedRecovery.undoLast();
+    this.statusReporter.report({
+      level: StatusLevel.INFO,
+      message: 'Last operation undone',
+    });
   }
 }
 

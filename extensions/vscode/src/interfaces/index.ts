@@ -310,6 +310,11 @@ export interface ICommands {
     queueLength: number;
     runningTask: string | null;
   };
+
+  /**
+   * Undoes the last operation.
+   */
+  undoLast(): Promise<void>;
 }
 
 /**

@@ -17,8 +17,11 @@ export interface CliRunHooks {
 }
 
 import { ICliRunner } from './interfaces';
+import { EnhancedCliRunner, EnhancedCliOptions } from './cli/enhancedRunner';
+import { ProgressUpdate } from './cli/progress';
 
 export class CliRunner implements ICliRunner {
+  private enhancedRunner?: EnhancedCliRunner;
   private outputChannel: vscode.OutputChannel;
   private runningProcesses: Map<string, ChildProcess> = new Map();
 
@@ -85,9 +88,60 @@ export class CliRunner implements ICliRunner {
   }
 
   /**
+   * Gets the enhanced runner instance.
+   */
+  private getEnhancedRunner(): EnhancedCliRunner {
+    if (!this.enhancedRunner) {
+      this.enhancedRunner = new EnhancedCliRunner(this.outputChannel);
+    }
+    return this.enhancedRunner;
+  }
+
+  /**
    * Execute a CLI command
    */
   async executeCliCommand(
+    command: 'scan' | 'migrate' | 'init',
+    options: Record<string, any> = {},
+    cancelToken?: vscode.CancellationToken,
+    hooks?: CliRunHooks
+  ): Promise<CliCommandResult> {
+    // Use enhanced runner for better performance
+    const enhancedOptions: EnhancedCliOptions = {
+      streamOutput: true,
+      processIncrementally: true,
+      cancelToken,
+      onProgress: (progress: ProgressUpdate) => {
+        // Convert progress to hooks if needed
+      },
+      onChunk: (chunk: string) => {
+        hooks?.onStdout?.(chunk);
+      },
+    };
+
+    try {
+      const result = await this.getEnhancedRunner().executeEnhanced(
+        command,
+        options,
+        enhancedOptions
+      );
+
+      return {
+        success: result.success,
+        output: result.output,
+        error: result.error,
+        exitCode: result.exitCode,
+      };
+    } catch (error) {
+      // Fallback to original implementation if enhanced fails
+      return this.executeCommandFallback(command, options, cancelToken, hooks);
+    }
+  }
+
+  /**
+   * Fallback to original command execution.
+   */
+  private async executeCommandFallback(
     command: 'scan' | 'migrate' | 'init',
     options: Record<string, any> = {},
     cancelToken?: vscode.CancellationToken,

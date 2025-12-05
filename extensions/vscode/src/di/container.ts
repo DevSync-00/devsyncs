@@ -167,6 +167,10 @@ export class DIContainer {
       const configManager = this.getConfigurationManager();
       const stateStore = this.getStateStore();
       const pluginRegistry = this.getPluginRegistry();
+      // Get security manager if available (optional)
+      const securityManager = this.has('securityManager')
+        ? this.get<import('../security/integration').SecurityManager>('securityManager')
+        : undefined;
       const commands = new DevSyncCommands(
         scanService,
         migrationService,
@@ -174,7 +178,8 @@ export class DIContainer {
         errorLogger,
         configManager,
         stateStore,
-        pluginRegistry
+        pluginRegistry,
+        securityManager
       );
       this.register(key, commands);
     }
@@ -356,11 +361,42 @@ export class DIContainer {
   }
 
   /**
+   * Get or create Security Manager
+   * Note: This requires authManager to be initialized first
+   */
+  getSecurityManager(): import('../security/integration').SecurityManager {
+    const key = 'securityManager';
+    if (!this.has(key)) {
+      throw new Error('SecurityManager not initialized. Call initializeSecurityManager() first.');
+    }
+    return this.get<import('../security/integration').SecurityManager>(key);
+  }
+
+  /**
+   * Initialize Security Manager (must be called after authManager is created)
+   */
+  async initializeSecurityManager(): Promise<void> {
+    const key = 'securityManager';
+    if (this.has(key)) {
+      return; // Already initialized
+    }
+
+    const authManager = this.getAuthManager();
+    const { createSecurityManager } = await import('../security/integration');
+    const securityManager = await createSecurityManager(this.context, authManager);
+    this.register(key, securityManager);
+  }
+
+  /**
    * Dispose all services
    */
   async dispose(): Promise<void> {
     if (this.pluginRegistry) {
       await this.pluginRegistry.dispose();
+    }
+    if (this.has('securityManager')) {
+      const securityManager = this.get<import('../security/integration').SecurityManager>('securityManager');
+      securityManager.dispose();
     }
     this.services.clear();
   }

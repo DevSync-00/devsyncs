@@ -1,27 +1,13 @@
 import * as vscode from 'vscode';
+import { StartupOptimizer, InitPriority } from './performance';
 import { DevSyncCodeActions, applyFix } from './codeActions';
 import { DevSyncSidebarProvider } from './sidebarProvider';
 import { SidebarCommands } from './sidebarCommands';
 import { ChatPanelManager } from './chatPanelManager';
 import { ChatViewProvider } from './chatViewProvider';
 import { ContainerFactory } from './di/factory';
-import {
-  EnhancedCodeActions,
-  BatchApplyManager,
-  DiffViewManager,
-  MigrationPreviewManager,
-  SchemaComparisonManager,
-  SchemaAnnotationManager,
-  MigrationHistoryManager,
-} from './editor';
 import { EditorService } from './ui/editor';
 import { Mismatch } from './api';
-import {
-  OnboardingWizard,
-  PrismaSchemaDetector,
-  DatabaseConnectionTester,
-  QuickStartManager,
-} from './onboarding';
 
 /**
  * Activates the DevSync VS Code extension.
@@ -40,10 +26,13 @@ import {
  * 
  * @see https://code.visualstudio.com/api/references/vscode-api#ExtensionContext
  */
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   console.log('DevSync extension is now active!');
 
-  // Initialize dependency injection container
+  // Initialize startup optimizer first
+  StartupOptimizer.initialize(context);
+
+  // CRITICAL: Initialize dependency injection container (must be immediate)
   const container = ContainerFactory.create(context);
   context.subscriptions.push({ 
     dispose: async () => {
@@ -63,17 +52,66 @@ export function activate(context: vscode.ExtensionContext) {
   const commands = container.getCommands();
   const codeActions = container.getCodeActions();
   const config = container.getConfig();
+
+  // Initialize security manager through DI container
+  await container.initializeSecurityManager();
+  const securityManager = container.getSecurityManager();
+  context.subscriptions.push(securityManager);
   
-  // Initialize enhanced editor features
+  // HIGH PRIORITY: Initialize basic editor service (needed for code actions)
   const editorService = new EditorService();
-  const enhancedCodeActions = new EnhancedCodeActions(
-    apiClient,
-    diagnostics
+  
+  // Register enhanced editor features as progressive (load on demand)
+  StartupOptimizer.registerFeature({
+    name: 'enhancedCodeActions',
+    load: async () => {
+      const { EnhancedCodeActions } = await import('./editor');
+      return new EnhancedCodeActions(apiClient, diagnostics);
+    },
+    activateOn: ['onCommand:devsync.previewFix', 'onCommand:devsync.showDiff'],
+  });
+
+  StartupOptimizer.registerFeature({
+    name: 'migrationPreview',
+    load: async () => {
+      const { MigrationPreviewManager } = await import('./editor');
+      return new MigrationPreviewManager(editorService);
+    },
+    activateOn: ['onCommand:devsync.previewMigrationImpact'],
+  });
+
+  StartupOptimizer.registerFeature({
+    name: 'schemaComparison',
+    load: async () => {
+      const { SchemaComparisonManager } = await import('./editor');
+      return new SchemaComparisonManager(editorService);
+    },
+    activateOn: ['onCommand:devsync.showSchemaComparison'],
+  });
+
+  // NORMAL PRIORITY: Schema annotations (deferred)
+  StartupOptimizer.registerDeferredTask(
+    'schemaAnnotations',
+    InitPriority.NORMAL,
+    async () => {
+      const { SchemaAnnotationManager } = await import('./editor');
+      const schemaAnnotations = new SchemaAnnotationManager();
+      schemaAnnotations.registerHoverProvider(context);
+    }
   );
-  const migrationPreview = new MigrationPreviewManager(editorService);
-  const schemaComparison = new SchemaComparisonManager(editorService);
-  const schemaAnnotations = new SchemaAnnotationManager();
-  const migrationHistory = new MigrationHistoryManager(editorService);
+
+  // NORMAL PRIORITY: Migration history (deferred)
+  StartupOptimizer.registerDeferredTask(
+    'migrationHistory',
+    InitPriority.NORMAL,
+    async () => {
+      const { MigrationHistoryManager } = await import('./editor');
+      new MigrationHistoryManager(editorService);
+    }
+  );
+
+  // Create basic code actions (critical for diagnostics)
+  const enhancedCodeActions = new DevSyncCodeActions(apiClient, diagnostics);
 
   // Initialize sidebar with enhanced features
   const sidebarProvider = new DevSyncSidebarProvider(cliRunner, context);
@@ -99,7 +137,7 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // Register code action provider (enhanced)
+  // Register code action provider (basic - critical for diagnostics)
   const codeActionProvider = vscode.languages.registerCodeActionsProvider(
     [
       { scheme: 'file', language: 'prisma' },
@@ -114,9 +152,6 @@ export function activate(context: vscode.ExtensionContext) {
       ],
     }
   );
-  
-  // Register schema annotations hover provider
-  schemaAnnotations.registerHoverProvider(context);
 
   // Register plugin command handlers (before built-in commands)
   const pluginCommands = pluginRegistry.getAllCommandHandlers();
@@ -141,6 +176,44 @@ export function activate(context: vscode.ExtensionContext) {
     'devsync.queue.resume',
     () => commands.resumeQueue()
   );
+  const undoLastCommand = vscode.commands.registerCommand(
+    'devsync.undoLast',
+    () => commands.undoLast()
+  );
+
+  // NORMAL PRIORITY: Help system (deferred until idle)
+  StartupOptimizer.registerDeferredTask(
+    'helpSystem',
+    InitPriority.NORMAL,
+    async () => {
+      const { initializeHelpSystem } = await import('./help');
+      initializeHelpSystem(context);
+    }
+  );
+
+  // Register help commands (lazy load help modules)
+  const showFAQCommand = vscode.commands.registerCommand(
+    'devsync.help.showFAQ',
+    async () => {
+      const { FAQManager } = await import('./help');
+      await FAQManager.showFAQ(context);
+    }
+  );
+  const startTutorialCommand = vscode.commands.registerCommand(
+    'devsync.help.startTutorial',
+    async () => {
+      const { TutorialManager } = await import('./help');
+      await TutorialManager.startTutorial(context, 'getting-started');
+    }
+  );
+  const communityCommand = vscode.commands.registerCommand(
+    'devsync.help.community',
+    async () => {
+      const { CommunityManager } = await import('./help');
+      await CommunityManager.showCommunityPanel(context);
+    }
+  );
+
   const viewReportCommand = vscode.commands.registerCommand(
     'devsync.viewReport',
     commands.viewReport.bind(commands)
@@ -213,15 +286,20 @@ export function activate(context: vscode.ExtensionContext) {
   const chatLoginCommand = vscode.commands.registerCommand('devsync.chat.login', () => chatManager.showLoginFlow());
   const chatLogoutCommand = vscode.commands.registerCommand('devsync.chat.logout', () => chatManager.logout());
   
-  // Enhanced editor commands
+  // Enhanced editor commands (load on demand)
   const previewFixCommand = vscode.commands.registerCommand(
     'devsync.previewFix',
     async (document: vscode.TextDocument, diagnostic: vscode.Diagnostic, suggestedFix: string) => {
+      // Load enhanced code actions on demand
+      await StartupOptimizer.getProgressiveEnhancement().loadFeature('enhancedCodeActions');
+      const { EnhancedCodeActions } = await import('./editor');
+      const enhancedActions = new EnhancedCodeActions(apiClient, container.getDiagnostics());
+      
       const editor = vscode.window.activeTextEditor;
       if (editor && editor.document === document) {
         // Extract mismatch info from diagnostic (simplified - would need full mismatch object)
         const mismatch: Mismatch = { type: 'missing_field', model: 'Unknown', field: 'unknown', severity: 'error' };
-        enhancedCodeActions.getPreviewManager().showInlinePreview(
+        enhancedActions.getPreviewManager().showInlinePreview(
           editor,
           diagnostic.range,
           mismatch,
@@ -234,7 +312,12 @@ export function activate(context: vscode.ExtensionContext) {
   const showDiffCommand = vscode.commands.registerCommand(
     'devsync.showDiff',
     async (document: vscode.TextDocument, diagnostic: vscode.Diagnostic, suggestedFix: string) => {
-      await enhancedCodeActions.getDiffViewManager().showRangeDiff(
+      // Load enhanced code actions on demand
+      await StartupOptimizer.getProgressiveEnhancement().loadFeature('enhancedCodeActions');
+      const { EnhancedCodeActions } = await import('./editor');
+      const enhancedActions = new EnhancedCodeActions(apiClient, container.getDiagnostics());
+      
+      await enhancedActions.getDiffViewManager().showRangeDiff(
         document,
         diagnostic.range,
         suggestedFix
@@ -245,6 +328,11 @@ export function activate(context: vscode.ExtensionContext) {
   const batchApplyFixesCommand = vscode.commands.registerCommand(
     'devsync.batchApplyFixes',
     async (document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]) => {
+      // Load enhanced code actions on demand
+      await StartupOptimizer.getProgressiveEnhancement().loadFeature('enhancedCodeActions');
+      const { EnhancedCodeActions } = await import('./editor');
+      const enhancedActions = new EnhancedCodeActions(apiClient, container.getDiagnostics());
+      
       const fixes = diagnostics.map((diagnostic) => {
         const suggestedFix = extractSuggestedFix(diagnostic.message) || '';
         const mismatch: Mismatch = { type: 'missing_field', model: 'Unknown', field: 'unknown', severity: 'error' };
@@ -255,7 +343,7 @@ export function activate(context: vscode.ExtensionContext) {
         };
       });
       
-      await enhancedCodeActions.getBatchApplyManager().applyBatchFixes(
+      await enhancedActions.getBatchApplyManager().applyBatchFixes(
         document,
         fixes,
         true // preview
@@ -266,6 +354,11 @@ export function activate(context: vscode.ExtensionContext) {
   const previewMigrationImpactCommand = vscode.commands.registerCommand(
     'devsync.previewMigrationImpact',
     async () => {
+      // Load migration preview on demand
+      await StartupOptimizer.getProgressiveEnhancement().loadFeature('migrationPreview');
+      const { MigrationPreviewManager } = await import('./editor');
+      const migrationPreview = new MigrationPreviewManager(editorService);
+      
       const scanReport = await apiClient.getLatestScanReport();
       if (!scanReport) {
         vscode.window.showWarningMessage('No scan report found. Run a scan first.');
@@ -285,6 +378,11 @@ export function activate(context: vscode.ExtensionContext) {
   const showSchemaComparisonCommand = vscode.commands.registerCommand(
     'devsync.showSchemaComparison',
     async () => {
+      // Load schema comparison on demand
+      await StartupOptimizer.getProgressiveEnhancement().loadFeature('schemaComparison');
+      const { SchemaComparisonManager } = await import('./editor');
+      const schemaComparison = new SchemaComparisonManager(editorService);
+      
       const scanReport = await apiClient.getLatestScanReport();
       if (!scanReport) {
         vscode.window.showWarningMessage('No scan report found. Run a scan first.');
@@ -298,6 +396,9 @@ export function activate(context: vscode.ExtensionContext) {
   const showMigrationHistoryCommand = vscode.commands.registerCommand(
     'devsync.showMigrationHistory',
     async (modelName?: string, fieldName?: string) => {
+      // Load migration history on demand
+      const { MigrationHistoryManager } = await import('./editor');
+      const migrationHistory = new MigrationHistoryManager(editorService);
       await migrationHistory.showMigrationHistory(modelName, fieldName);
     }
   );
@@ -331,30 +432,40 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(watcher);
   }
 
-  // Initial diagnostics check
+  // Initial diagnostics check (deferred - background)
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (workspaceFolders && workspaceFolders.length > 0) {
-    diagnostics.checkWorkspace(workspaceFolders[0]).then(() => {
-      // Annotate schema with database state after diagnostics are loaded
-      const editor = vscode.window.activeTextEditor;
-      if (editor && editor.document.languageId === 'prisma') {
-        apiClient.getLatestScanReport().then(scanReport => {
+    // Defer diagnostics check to background
+    StartupOptimizer.registerDeferredTask(
+      'initialDiagnostics',
+      InitPriority.NORMAL,
+      async () => {
+        await diagnostics.checkWorkspace(workspaceFolders[0]);
+        // Annotate schema with database state after diagnostics are loaded
+        const editor = vscode.window.activeTextEditor;
+        if (editor && editor.document.languageId === 'prisma') {
+          const scanReport = await apiClient.getLatestScanReport();
           if (scanReport) {
+            // Load schema annotations on demand
+            const { SchemaAnnotationManager } = await import('./editor');
+            const schemaAnnotations = new SchemaAnnotationManager();
             schemaAnnotations.annotateSchema(editor, scanReport);
           }
-        });
+        }
       }
-    });
+    );
   }
   
-  // Update annotations when editor changes
-  const editorChangeListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
+  // Update annotations when editor changes (load on demand)
+  const editorChangeListener = vscode.window.onDidChangeActiveTextEditor(async (editor) => {
     if (editor && editor.document.languageId === 'prisma') {
-      apiClient.getLatestScanReport().then(scanReport => {
-        if (scanReport) {
-          schemaAnnotations.annotateSchema(editor, scanReport);
-        }
-      });
+      // Load schema annotations on demand
+      const { SchemaAnnotationManager } = await import('./editor');
+      const schemaAnnotations = new SchemaAnnotationManager();
+      const scanReport = await apiClient.getLatestScanReport();
+      if (scanReport) {
+        schemaAnnotations.annotateSchema(editor, scanReport);
+      }
     }
   });
   context.subscriptions.push(editorChangeListener);
@@ -372,16 +483,20 @@ export function activate(context: vscode.ExtensionContext) {
   });
   context.subscriptions.push(configChangeListener);
 
-  // Initialize onboarding system
-  const schemaDetector = new PrismaSchemaDetector();
-  const connectionTester = new DatabaseConnectionTester();
-  const onboardingWizard = new OnboardingWizard(
-    context,
-    configManager,
-    schemaDetector,
-    connectionTester
-  );
-  const quickStartManager = new QuickStartManager();
+  // Lazy load onboarding components
+  const getOnboardingComponents = async () => {
+    const { PrismaSchemaDetector, DatabaseConnectionTester, OnboardingWizard, QuickStartManager } = await import('./onboarding');
+    const schemaDetector = new PrismaSchemaDetector();
+    const connectionTester = new DatabaseConnectionTester();
+    const onboardingWizard = new OnboardingWizard(
+      context,
+      configManager,
+      schemaDetector,
+      connectionTester
+    );
+    const quickStartManager = new QuickStartManager();
+    return { schemaDetector, connectionTester, onboardingWizard, quickStartManager };
+  };
 
   // Check if onboarding is needed
   const onboardingCompleted = context.globalState.get<boolean>('devsync.onboarding.completed', false);
@@ -394,6 +509,7 @@ export function activate(context: vscode.ExtensionContext) {
         'Skip'
       );
       if (shouldStart === 'Start Setup') {
+        const { onboardingWizard } = await getOnboardingComponents();
         await onboardingWizard.start();
       }
     }, 2000);
@@ -406,18 +522,23 @@ export function activate(context: vscode.ExtensionContext) {
   // Register onboarding commands
   const startOnboardingCommand = vscode.commands.registerCommand(
     'devsync.onboarding.start',
-    () => onboardingWizard.start()
+    async () => {
+      const { onboardingWizard } = await getOnboardingComponents();
+      await onboardingWizard.start();
+    }
   );
   const restartOnboardingCommand = vscode.commands.registerCommand(
     'devsync.onboarding.restart',
     async () => {
       await context.globalState.update('devsync.onboarding.completed', false);
+      const { onboardingWizard } = await getOnboardingComponents();
       await onboardingWizard.start();
     }
   );
   const quickStartCommand = vscode.commands.registerCommand(
     'devsync.onboarding.quickStart',
     async () => {
+      const { quickStartManager } = await getOnboardingComponents();
       const template = await quickStartManager.showTemplateSelection();
       if (template) {
         await quickStartManager.applyTemplate(template);
@@ -430,8 +551,19 @@ export function activate(context: vscode.ExtensionContext) {
     restartOnboardingCommand,
     quickStartCommand,
     pauseQueueCommand,
-    resumeQueueCommand
+    resumeQueueCommand,
+    undoLastCommand,
+    showFAQCommand,
+    startTutorialCommand,
+    communityCommand
   );
+
+  // Execute critical initialization tasks
+  await StartupOptimizer.executeCritical();
+
+  // High priority tasks execute automatically after a short delay
+  // Normal priority tasks execute after 2 seconds (idle)
+  // Low priority tasks execute when features are accessed
 }
 
 /**

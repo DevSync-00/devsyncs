@@ -220,28 +220,27 @@ export class ErrorRecovery {
 
   /**
    * Retry operation with exponential backoff
+   * 
+   * @deprecated Use RetryManager.retry instead
    */
   static async retryWithBackoff<T>(
     operation: () => Promise<T>,
     maxRetries: number = 3,
     initialDelay: number = 1000
   ): Promise<T> {
-    let lastError: Error | undefined;
+    const { RetryManager } = await import('./retry');
+    const result = await RetryManager.retry(operation, {
+      maxRetries,
+      initialDelay,
+      multiplier: 2,
+      jitter: true,
+    });
 
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        return await operation();
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-
-        if (attempt < maxRetries - 1) {
-          const delay = initialDelay * Math.pow(2, attempt);
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
-      }
+    if (result.success && result.value !== undefined) {
+      return result.value;
     }
 
-    throw lastError || new Error('Operation failed after retries');
+    throw result.error || new Error('Operation failed after retries');
   }
 }
 

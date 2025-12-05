@@ -211,6 +211,12 @@
         "title": "Resume Task Queue",
         "category": "DevSync",
         "icon": "$(play)"
+      },
+      {
+        "command": "devsync.undoLast",
+        "title": "Undo Last Operation",
+        "category": "DevSync",
+        "icon": "$(discard)"
       }
     ],
     "configuration": {
@@ -354,6 +360,11 @@
     "compile-tests": "tsc -p ./tsconfig.test.json",
     "test": "node ./out/test/runTest.js",
     "test-watch": "npm run compile && npm run test",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "quality": "npm run lint && npm run format:check && npm run compile",
     "docs": "typedoc",
     "docs:watch": "typedoc --watch",
     "package": "vsce package",

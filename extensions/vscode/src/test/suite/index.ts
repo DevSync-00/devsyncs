@@ -7,14 +7,24 @@ export function run(): Promise<void> {
   const mocha = new Mocha({
     ui: 'tdd',
     color: true,
+    timeout: 10000, // 10 second timeout
   });
 
   const testsRoot = path.resolve(__dirname, '..');
 
   return new Promise((c, e) => {
     glob('**/**.test.js', { cwd: testsRoot }).then((files) => {
+      // Sort files: unit tests first, then integration tests
+      const sortedFiles = files.sort((a, b) => {
+        const aIsIntegration = a.includes('integration');
+        const bIsIntegration = b.includes('integration');
+        if (aIsIntegration && !bIsIntegration) return 1;
+        if (!aIsIntegration && bIsIntegration) return -1;
+        return a.localeCompare(b);
+      });
+
       // Add files to the test suite
-      files.forEach((f) => mocha.addFile(path.resolve(testsRoot, f)));
+      sortedFiles.forEach((f) => mocha.addFile(path.resolve(testsRoot, f)));
 
       try {
         // Run the mocha test
