@@ -15,8 +15,6 @@
 import { IDatabaseParser } from '../parser';
 import { DatabaseType, DatabaseConnection, DatabaseCapabilities } from '../types';
 import { DatabaseSchema, Table, Column, ColumnType, TypeCategory, Index, ForeignKey, Trigger, View, Enum, Function } from '../../schema/types';
-// Optional dependency - install with: npm install pg
-// @ts-ignore - Optional dependency
 import * as pg from 'pg';
 
 /**

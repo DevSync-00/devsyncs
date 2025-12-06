@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Users, Settings, Crown, Shield, User, Plus, Mail } from 'lucide-react';
+import { ArrowLeft, Users, Settings, Crown, Shield, User, Plus, Mail, Activity } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import MemberActions from '@/components/teams/MemberActions';
 
@@ -103,14 +103,22 @@ export default async function TeamDetailPage({
             Created {formatDistanceToNow(new Date(team.created_at), { addSuffix: true })}
           </p>
         </div>
-        {isAdmin && (
-          <Link href={`/dashboard/teams/${params.id}/settings`}>
+        <div className="flex gap-2">
+          <Link href={`/dashboard/teams/${params.id}/collaboration`}>
             <Button variant="outline">
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
+              <Activity className="w-4 h-4 mr-2" />
+              Collaboration
             </Button>
           </Link>
-        )}
+          {isAdmin && (
+            <Link href={`/dashboard/teams/${params.id}/settings`}>
+              <Button variant="outline">
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Stats */}

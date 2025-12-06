@@ -70,6 +70,14 @@ export interface IApiClient {
   getMigrations(scanReportId?: string): Promise<Migration[]>;
   
   /**
+   * Gets a single migration by ID.
+   * 
+   * @param migrationId - The ID of the migration to retrieve
+   * @returns Promise resolving to the migration, or null if not found
+   */
+  getMigration(migrationId: string): Promise<Migration | null>;
+  
+  /**
    * Gets the dashboard URL for the current configuration.
    * 
    * @returns The dashboard URL, or empty string if not configured

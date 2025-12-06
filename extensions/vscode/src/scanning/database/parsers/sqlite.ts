@@ -5,8 +5,6 @@
 import { IDatabaseParser } from '../parser';
 import { DatabaseType, DatabaseConnection } from '../types';
 import { DatabaseSchema, Table, Column, ColumnType, TypeCategory } from '../../schema/types';
-// Optional dependency - install with: npm install sqlite3
-// @ts-ignore - Optional dependency
 import * as sqlite3 from 'sqlite3';
 import { promisify } from 'util';
 import * as path from 'path';

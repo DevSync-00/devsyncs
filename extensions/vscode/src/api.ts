@@ -249,6 +249,21 @@ export class DevSyncApiClient implements IApiClient {
     return (response.migrations || []).map((migration) => validateMigration(migration));
   }
 
+  async getMigration(migrationId: string): Promise<Migration | null> {
+    const response = await this.get<{ migration?: unknown }>(
+      `/api/migrations/${migrationId}`,
+      { projectId: this.projectId }
+    );
+    
+    if (!response.migration) {
+      return null;
+    }
+    
+    // Validate migration
+    const { validateMigration } = await import('./types/validation');
+    return validateMigration(response.migration);
+  }
+
   getDashboardUrl(): string {
     return `${this.apiUrl}/dashboard/projects/${this.projectId}`;
   }

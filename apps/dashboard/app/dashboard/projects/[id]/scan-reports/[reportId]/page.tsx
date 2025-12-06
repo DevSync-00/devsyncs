@@ -8,6 +8,7 @@ import GenerateMigrationButton from '@/components/GenerateMigrationButton';
 import AIExplanation from '@/components/AIExplanation';
 import AIQuery from '@/components/AIQuery';
 import MigrationHistory from '@/components/MigrationHistory';
+import { MessageSquare } from 'lucide-react';
 
 export default async function ScanReportDetailPage({
   params,

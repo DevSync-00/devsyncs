@@ -46,6 +46,12 @@ export default async function DashboardLayout({
                   Teams
                 </Link>
                 <Link
+                  href="/dashboard/analytics"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Analytics
+                </Link>
+                <Link
                   href="/docs"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >

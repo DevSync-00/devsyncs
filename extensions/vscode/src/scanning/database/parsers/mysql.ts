@@ -5,8 +5,6 @@
 import { IDatabaseParser } from '../parser';
 import { DatabaseType, DatabaseConnection, DatabaseCapabilities } from '../types';
 import { DatabaseSchema, Table, Column, ColumnType, TypeCategory } from '../../schema/types';
-// Optional dependency - install with: npm install mysql2
-// @ts-ignore - Optional dependency
 import * as mysql from 'mysql2/promise';
 
 export class MySQLParser implements IDatabaseParser {
