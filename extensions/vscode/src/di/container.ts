@@ -93,7 +93,8 @@ export class DIContainer {
       const client = new DevSyncApiClient(
         config.apiUrl,
         config.apiKey,
-        config.projectId
+        config.projectId,
+        this.configManager // Pass config manager for dynamic config reading
       );
       this.register(key, client);
     }
@@ -390,6 +391,15 @@ export class DIContainer {
   /**
    * Dispose all services
    */
+  /**
+   * Dispose all services.
+   * 
+   * Called when VS Code window is closed or extension is deactivated.
+   * 
+   * Session lifecycle: Sessions are lifecycle-based. Tokens are preserved
+   * in secure storage and will be restored on next activation (reload).
+   * Sessions only end on explicit logout or window close.
+   */
   async dispose(): Promise<void> {
     if (this.pluginRegistry) {
       await this.pluginRegistry.dispose();
@@ -399,6 +409,8 @@ export class DIContainer {
       securityManager.dispose();
     }
     this.services.clear();
+    // Note: Auth tokens are NOT cleared here - they persist across reloads
+    // Sessions only end on explicit logout (authManager.logout()) or window close
   }
 }
 

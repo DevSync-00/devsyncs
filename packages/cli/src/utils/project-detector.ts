@@ -193,8 +193,8 @@ export function detectProjectInfo(basePath: string): ProjectInfo {
   return {
     name: detectProjectName(absolutePath),
     schemaType: detectSchemaType(absolutePath),
-    gitRemote: getGitRemote(absolutePath),
-    gitBranch: getGitBranch(absolutePath),
+    gitRemote: getGitRemote(absolutePath) || undefined,
+    gitBranch: getGitBranch(absolutePath) || undefined,
     packageManager: detectPackageManager(absolutePath),
     description: getProjectDescription(absolutePath),
     path: absolutePath,
@@ -269,6 +269,7 @@ function findFileRecursive(dir: string, pattern: string, maxDepth: number = 5, c
 
 /**
  * Match project info with existing projects (fuzzy matching)
+ * Improved matching algorithm for better accuracy
  */
 export function matchProject(
   projectInfo: ProjectInfo,
@@ -276,28 +277,54 @@ export function matchProject(
 ): Array<{ project: typeof existingProjects[0]; score: number }> {
   const matches: Array<{ project: typeof existingProjects[0]; score: number }> = [];
   
+  const projectNameLower = projectInfo.name.toLowerCase().trim();
+  const projectNameNormalized = projectNameLower.replace(/[^a-z0-9]/g, '');
+  
   for (const existing of existingProjects) {
     let score = 0;
     const existingSchemaType = existing.schemaType || existing.schema_type;
+    const existingNameLower = existing.name.toLowerCase().trim();
+    const existingNameNormalized = existingNameLower.replace(/[^a-z0-9]/g, '');
     
-    // Exact name match
-    if (existing.name.toLowerCase() === projectInfo.name.toLowerCase()) {
+    // Exact name match (highest priority)
+    if (existingNameLower === projectNameLower) {
       score += 100;
     }
-    // Partial name match
-    else if (existing.name.toLowerCase().includes(projectInfo.name.toLowerCase()) ||
-             projectInfo.name.toLowerCase().includes(existing.name.toLowerCase())) {
-      score += 50;
+    // Normalized name match (handles special characters, spaces, etc.)
+    else if (existingNameNormalized === projectNameNormalized && existingNameNormalized.length > 0) {
+      score += 95;
+    }
+    // Slug match (if available) - very reliable
+    else if (existing.slug && existing.slug.toLowerCase() === projectNameLower) {
+      score += 90;
+    }
+    // Partial name match (one contains the other)
+    else if (existingNameLower.includes(projectNameLower) || projectNameLower.includes(existingNameLower)) {
+      // Calculate similarity based on overlap
+      const longer = existingNameLower.length > projectNameLower.length ? existingNameLower : projectNameLower;
+      const shorter = existingNameLower.length > projectNameLower.length ? projectNameLower : existingNameLower;
+      const overlap = shorter.length / longer.length;
+      score += Math.floor(50 * overlap);
+    }
+    // Levenshtein-like similarity for close matches
+    else {
+      const similarity = calculateStringSimilarity(projectNameLower, existingNameLower);
+      if (similarity > 0.7) {
+        score += Math.floor(40 * similarity);
+      }
     }
     
-    // Slug match (if available)
-    if (existing.slug && projectInfo.name.toLowerCase() === existing.slug.toLowerCase()) {
-      score += 80;
-    }
-    
-    // Schema type match
-    if (projectInfo.schemaType && existingSchemaType === projectInfo.schemaType) {
+    // Schema type match (bonus points)
+    if (projectInfo.schemaType && existingSchemaType && existingSchemaType === projectInfo.schemaType) {
       score += 30;
+    }
+    
+    // Git remote match (if available) - very reliable
+    if (projectInfo.gitRemote && existing.slug) {
+      const gitRepoName = extractRepoNameFromRemote(projectInfo.gitRemote);
+      if (gitRepoName && (gitRepoName.toLowerCase() === existingNameLower || gitRepoName.toLowerCase() === existing.slug.toLowerCase())) {
+        score += 85;
+      }
     }
     
     if (score > 0) {
@@ -307,5 +334,61 @@ export function matchProject(
   
   // Sort by score descending
   return matches.sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Calculate string similarity (simple Levenshtein-like)
+ */
+function calculateStringSimilarity(str1: string, str2: string): number {
+  const longer = str1.length > str2.length ? str1 : str2;
+  const shorter = str1.length > str2.length ? str2 : str1;
+  
+  if (longer.length === 0) return 1.0;
+  
+  const distance = levenshteinDistance(longer, shorter);
+  return (longer.length - distance) / longer.length;
+}
+
+/**
+ * Calculate Levenshtein distance between two strings
+ */
+function levenshteinDistance(str1: string, str2: string): number {
+  const matrix: number[][] = [];
+  
+  for (let i = 0; i <= str2.length; i++) {
+    matrix[i] = [i];
+  }
+  
+  for (let j = 0; j <= str1.length; j++) {
+    matrix[0][j] = j;
+  }
+  
+  for (let i = 1; i <= str2.length; i++) {
+    for (let j = 1; j <= str1.length; j++) {
+      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  
+  return matrix[str2.length][str1.length];
+}
+
+/**
+ * Extract repository name from git remote URL
+ */
+function extractRepoNameFromRemote(remote: string): string | null {
+  try {
+    const match = remote.match(/(?:.*\/)?([^\/]+?)(?:\.git)?$/);
+    return match && match[1] ? match[1] : null;
+  } catch {
+    return null;
+  }
 }
 

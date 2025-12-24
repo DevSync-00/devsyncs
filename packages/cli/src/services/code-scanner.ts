@@ -5,24 +5,23 @@ import type { CodeSchema, Model, Field } from '../types/index.js';
 import { analyzeCodebaseWithAI } from './ai-code-analyzer.js';
 import { Cache } from '../utils/cache.js';
 import { ProgressIndicator } from '../utils/progress.js';
+import chalk from 'chalk';
 
 export interface ScanCodebaseOptions {
   useAI?: boolean;
-  openaiApiKey?: string;
   useOllama?: boolean;
   ollamaModel?: string;
   ollamaUrl?: string;
-  useDeepSeek?: boolean;
-  deepseekApiKey?: string;
-  deepseekModel?: string;
-  deepseekUrl?: string;
+  serviceApiUrl?: string; // Service API URL for AI analysis (uses service-configured API keys)
+  serviceApiKey?: string; // Service API key for authentication
+  aiProvider?: 'puter' | 'openai' | 'deepseek'; // AI provider to use (default: puter)
   useCache?: boolean;
   showProgress?: boolean;
   excludePatterns?: string[];
 }
 
-// Global cache instance
-const cache = new Cache({ ttl: 3600000 }); // 1 hour TTL
+// Global cache instance (disabled by default - scans are always fresh)
+const cache = new Cache({ ttl: 3600000 }); // 1 hour TTL (not used when cache is disabled)
 
 export async function scanCodebase(
   basePath: string, 
@@ -30,59 +29,57 @@ export async function scanCodebase(
 ): Promise<CodeSchema> {
   const {
     useAI = false,
-    openaiApiKey,
     useOllama = false,
     ollamaModel,
     ollamaUrl,
-    useCache = true,
+    serviceApiUrl,
+    serviceApiKey,
+    aiProvider = 'puter',
+    useCache = false, // DISABLED BY DEFAULT - every scan is fresh
     showProgress = true,
     excludePatterns = []
   } = options;
 
-  // Generate cache key from path and options
+  // Clear cache before each scan to ensure fresh results
+  // This ensures that code changes are immediately reflected
+  if (cache) {
+    cache.clear();
+  }
+
+  // Generate cache key from path and options (for potential future use)
   // Include all options that affect the analysis result
   const cacheKey = useCache 
     ? (() => {
-        // Hash sensitive values (API keys) to avoid storing them in plain text
-        const openaiKeyHash = openaiApiKey 
-          ? createHash('sha256').update(openaiApiKey).digest('hex').substring(0, 8)
+        // Hash sensitive values (service API URL) to avoid storing them in plain text
+        const serviceUrlHash = serviceApiUrl 
+          ? createHash('sha256').update(serviceApiUrl).digest('hex').substring(0, 8)
+          : 'none';
+        const serviceKeyHash = serviceApiKey
+          ? createHash('sha256').update(serviceApiKey).digest('hex').substring(0, 8)
           : 'none';
         const ollamaUrlHash = ollamaUrl && ollamaUrl !== 'http://localhost:11434'
           ? createHash('sha256').update(ollamaUrl).digest('hex').substring(0, 8)
           : 'default';
-        const deepseekKeyHash = options.deepseekApiKey
-          ? createHash('sha256').update(options.deepseekApiKey).digest('hex').substring(0, 8)
-          : 'none';
-        const deepseekUrlHash = options.deepseekUrl && options.deepseekUrl !== 'https://api.deepseek.com/v1'
-          ? createHash('sha256').update(options.deepseekUrl).digest('hex').substring(0, 8)
-          : 'default';
         
-        return `code-schema:${basePath}:${useAI}:${useOllama}:${options.useDeepSeek || false}:${ollamaModel || ''}:${options.deepseekModel || ''}:${openaiKeyHash}:${ollamaUrlHash}:${deepseekKeyHash}:${deepseekUrlHash}`;
+        return `code-schema:${basePath}:${useAI}:${useOllama}:${ollamaModel || ''}:${serviceUrlHash}:${serviceKeyHash}:${ollamaUrlHash}`;
       })()
     : null;
 
-  // Try to get from cache
-  if (useCache && cacheKey) {
-    const cached = cache.get<CodeSchema>(cacheKey);
-    if (cached) {
-      return cached;
-    }
-  }
+  // Cache is disabled by default - always perform fresh scan
+  // This ensures that code changes are immediately reflected in scan results
 
   const progress = showProgress ? new ProgressIndicator({ message: 'Scanning codebase...' }) : null;
-  // Try AI-powered code analysis first if enabled
+  // Try AI-powered code analysis first if enabled (default behavior)
   if (useAI) {
     try {
       progress?.update(0, 'Running AI analysis...');
       const aiResult = await analyzeCodebaseWithAI(basePath, {
-        openaiApiKey,
         useOllama,
         ollamaModel,
         ollamaUrl,
-        useDeepSeek: options.useDeepSeek,
-        deepseekApiKey: options.deepseekApiKey,
-        deepseekModel: options.deepseekModel,
-        deepseekUrl: options.deepseekUrl
+        serviceApiUrl: options.serviceApiUrl,
+        serviceApiKey: options.serviceApiKey,
+        aiProvider: options.aiProvider || 'puter'
       });
       
       if (aiResult && aiResult.models.length > 0) {
@@ -96,30 +93,23 @@ export async function scanCodebase(
         return aiResult;
       }
       
-      // If AI analysis returns empty but was explicitly requested, throw error instead of falling back
-      if (useAI) {
-        progress?.complete();
-        throw new Error(
-          'AI analysis completed but no schema could be inferred from codebase.\n' +
-          'This might mean:\n' +
-          '  - No database queries found in code\n' +
-          '  - Code files not accessible\n' +
-          '  - AI couldn\'t understand code patterns\n\n' +
-          'Consider:\n' +
-          '  - Adding migration files (supabase/migrations/*.sql)\n' +
-          '  - Or using a Prisma schema (prisma/schema.prisma)\n' +
-          '  - Or checking that code contains database queries'
-        );
+      // If AI analysis returns empty, fall back to traditional scanners
+      if (showProgress) {
+        progress?.update(0, 'AI analysis found no schema, trying SQL/database files...');
+        console.log(chalk.yellow('⚠️  AI analysis found no schema, falling back to traditional scanners...'));
       }
     } catch (error) {
-      // If AI was explicitly requested, don't fall back - rethrow the error
-      if (useAI) {
-        progress?.complete();
-        throw error;
-      }
-      // Otherwise fall back to traditional scanners
+      // Always fall back to traditional scanners if AI fails
       if (showProgress) {
-        console.warn('⚠️  AI analysis failed, falling back to traditional scanners');
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        progress?.update(0, 'AI analysis failed, trying SQL/database files...');
+        console.log(chalk.yellow(`⚠️  AI analysis failed: ${errorMsg}`));
+        if (errorMsg.includes('Unauthorized') || errorMsg.includes('401')) {
+          console.log(chalk.gray('   💡 Connect to service with: devsync login'));
+        } else if (errorMsg.includes('Service API')) {
+          console.log(chalk.gray('   💡 Use local AI with: --use-ollama'));
+        }
+        console.log(chalk.gray('   Falling back to traditional schema file scanning...'));
       }
     }
   }
@@ -251,7 +241,24 @@ export async function scanCodebase(
     return sqlResult;
   }
 
-  // No schema found
+  // No schema files found - perform comprehensive codebase scan
+  // Extract table names from all code patterns (SQL, ORM, query builders, etc.)
+  progress?.update(9, 'No schema files found, scanning entire codebase for table references...');
+  
+  try {
+    const comprehensiveResult = await scanCodebaseForTables(basePath, excludePatterns);
+    if (comprehensiveResult && comprehensiveResult.models.length > 0) {
+      progress?.complete(`Found ${comprehensiveResult.models.length} tables from codebase analysis`);
+      
+      // Don't cache - always fresh
+      return comprehensiveResult;
+    }
+  } catch (error) {
+    // If comprehensive scan fails, continue with error message
+    console.warn(chalk.yellow(`⚠️  Comprehensive codebase scan failed: ${error instanceof Error ? error.message : String(error)}`));
+  }
+
+  // No schema found and comprehensive scan found nothing
   progress?.complete();
   throw new Error(
     `No schema file found. Looking for:\n` +
@@ -265,7 +272,10 @@ export async function scanCodebase(
     `  - SQLAlchemy models (*.py)\n` +
     `  - SQL migrations (*.sql)\n` +
     `\nCurrently supported: Prisma, Supabase, TypeORM, Kysely, Sequelize, Drizzle, Django, SQLAlchemy, Raw SQL\n` +
-    `\nTip: Use --ai-analysis to infer schema from code patterns`
+    `\n💡 AI analysis was attempted but found no schema. To use AI analysis:\n` +
+    `   - Connect to service: devsync login\n` +
+    `   - Or use local AI: --use-ollama\n` +
+    `   - Or disable AI: --no-ai-analysis`
   );
 }
 
@@ -1820,5 +1830,473 @@ function normalizeSQLType(type: string): string {
   // Remove size specification: VARCHAR(255) -> varchar
   const baseType = type.toLowerCase().split('(')[0].trim();
   return typeMap[baseType] || baseType;
+}
+
+// ============================================================================
+// Comprehensive Codebase Scanner (Schema-less scanning)
+// ============================================================================
+
+/**
+ * Comprehensive codebase scanner that extracts table names from all code patterns
+ * Used when no schema files or database connection is available
+ */
+async function scanCodebaseForTables(
+  basePath: string,
+  excludePatterns: string[] = []
+): Promise<CodeSchema> {
+  const files = collectAllCodeFiles(basePath, excludePatterns);
+  
+  if (files.length === 0) {
+    return { models: [], type: 'raw-sql' };
+  }
+
+  // Read file contents
+  const fileContents = files.map(file => ({
+    path: file,
+    content: readFileSync(file, 'utf-8')
+  }));
+
+  // Use pattern matching to extract tables from all code patterns
+  return extractTablesFromAllPatterns(fileContents);
+}
+
+/**
+ * Extract table names and fields from code content
+ */
+function extractTablesFromCode(
+  content: string,
+  filePath: string,
+  tableNames: Set<string>,
+  tableFields: Map<string, Set<string>>,
+  falsePositives: Set<string>
+): void {
+  // Comprehensive patterns for table extraction
+  
+  // 1. Supabase queries: .from('table_name')
+  const supabasePattern = /\.from\(["']([a-z_][a-z0-9_]{2,})["']\)/gi;
+  let match;
+  while ((match = supabasePattern.exec(content)) !== null) {
+    const tableName = match[1].toLowerCase();
+    if (!falsePositives.has(tableName) && tableName.length >= 3) {
+      tableNames.add(tableName);
+      if (!tableFields.has(tableName)) {
+        tableFields.set(tableName, new Set());
+      }
+    }
+  }
+  
+  // 2. SQL queries: FROM table_name, INSERT INTO table_name, UPDATE table_name
+  const sqlPatterns = [
+    /FROM\s+["']?([a-z_][a-z0-9_]{2,})["']?/gi,
+    /INSERT\s+INTO\s+["']?([a-z_][a-z0-9_]{2,})["']?/gi,
+    /UPDATE\s+["']?([a-z_][a-z0-9_]{2,})["']?/gi,
+    /DELETE\s+FROM\s+["']?([a-z_][a-z0-9_]{2,})["']?/gi,
+    /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["']?([a-z_][a-z0-9_]{2,})["']?/gi,
+    /ALTER\s+TABLE\s+["']?([a-z_][a-z0-9_]{2,})["']?/gi,
+    /DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?["']?([a-z_][a-z0-9_]{2,})["']?/gi,
+    /TRUNCATE\s+TABLE\s+["']?([a-z_][a-z0-9_]{2,})["']?/gi
+  ];
+  
+  for (const pattern of sqlPatterns) {
+    pattern.lastIndex = 0;
+    while ((match = pattern.exec(content)) !== null) {
+      const tableName = match[1].toLowerCase();
+      if (!falsePositives.has(tableName) && tableName.length >= 3) {
+        tableNames.add(tableName);
+        if (!tableFields.has(tableName)) {
+          tableFields.set(tableName, new Set());
+        }
+      }
+    }
+  }
+  
+  // 3. TypeORM: @Entity('table_name') or @Entity() with class name
+  const typeormEntityPattern = /@Entity\(["']?([a-z_][a-z0-9_]{2,})["']?\)/gi;
+  typeormEntityPattern.lastIndex = 0;
+  while ((match = typeormEntityPattern.exec(content)) !== null) {
+    const tableName = match[1].toLowerCase();
+    if (!falsePositives.has(tableName) && tableName.length >= 3) {
+      tableNames.add(tableName);
+      if (!tableFields.has(tableName)) {
+        tableFields.set(tableName, new Set());
+      }
+    }
+  }
+  
+  // 4. Prisma: model TableName { ... }
+  const prismaModelPattern = /model\s+([A-Z][a-zA-Z0-9]{2,})\s*\{/g;
+  prismaModelPattern.lastIndex = 0;
+  while ((match = prismaModelPattern.exec(content)) !== null) {
+    const modelName = match[1];
+    // Convert PascalCase to snake_case
+    const tableName = modelName.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+    if (!falsePositives.has(tableName) && tableName.length >= 3) {
+      tableNames.add(tableName);
+      if (!tableFields.has(tableName)) {
+        tableFields.set(tableName, new Set());
+      }
+    }
+  }
+  
+  // 5. Sequelize: sequelize.define('table_name', ...)
+  const sequelizePattern = /sequelize\.define\(["']([a-z_][a-z0-9_]{2,})["']/gi;
+  sequelizePattern.lastIndex = 0;
+  while ((match = sequelizePattern.exec(content)) !== null) {
+    const tableName = match[1].toLowerCase();
+    if (!falsePositives.has(tableName) && tableName.length >= 3) {
+      tableNames.add(tableName);
+      if (!tableFields.has(tableName)) {
+        tableFields.set(tableName, new Set());
+      }
+    }
+  }
+  
+  // 6. Drizzle/Kysely: table('table_name', ...) or pgTable('table_name', ...)
+  const tableFunctionPattern = /(?:pgTable|mysqlTable|sqliteTable|table)\(["']([a-z_][a-z0-9_]{2,})["']/gi;
+  tableFunctionPattern.lastIndex = 0;
+  while ((match = tableFunctionPattern.exec(content)) !== null) {
+    const tableName = match[1].toLowerCase();
+    if (!falsePositives.has(tableName) && tableName.length >= 3) {
+      tableNames.add(tableName);
+      if (!tableFields.has(tableName)) {
+        tableFields.set(tableName, new Set());
+      }
+    }
+  }
+  
+  // 7. Django: class ModelName(models.Model): with db_table
+  const djangoModelPattern = /class\s+(\w+)\s*\([^)]*models\.Model[^)]*\)/g;
+  djangoModelPattern.lastIndex = 0;
+  while ((match = djangoModelPattern.exec(content)) !== null) {
+    const className = match[1];
+    // Look for db_table in Meta class
+    const metaMatch = content.slice(match.index).match(/class\s+Meta\s*:[\s\S]*?db_table\s*=\s*["']([^"']+)["']/);
+    const tableName = metaMatch 
+      ? metaMatch[1].toLowerCase()
+      : className.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+    if (!falsePositives.has(tableName) && tableName.length >= 3) {
+      tableNames.add(tableName);
+      if (!tableFields.has(tableName)) {
+        tableFields.set(tableName, new Set());
+      }
+    }
+  }
+  
+  // 8. SQLAlchemy: __tablename__ = 'table_name'
+  const sqlalchemyPattern = /__tablename__\s*=\s*["']([a-z_][a-z0-9_]{2,})["']/gi;
+  sqlalchemyPattern.lastIndex = 0;
+  while ((match = sqlalchemyPattern.exec(content)) !== null) {
+    const tableName = match[1].toLowerCase();
+    if (!falsePositives.has(tableName) && tableName.length >= 3) {
+      tableNames.add(tableName);
+      if (!tableFields.has(tableName)) {
+        tableFields.set(tableName, new Set());
+      }
+    }
+  }
+  
+  // 9. Extract field names from context around table references
+  // Look for .select(), .eq(), .insert(), .update() calls
+  const fieldPatterns = [
+    /\.select\(["']([a-z_][a-z0-9_]{1,})["']\)/gi,
+    /\.eq\(["']([a-z_][a-z0-9_]{1,})["']/gi,
+    /\.insert\([^)]*["']([a-z_][a-z0-9_]{1,})["']/gi,
+    /\.update\([^)]*["']([a-z_][a-z0-9_]{1,})["']/gi,
+    /SELECT\s+([a-z_][a-z0-9_]{1,})\s+FROM/gi,
+    /INSERT\s+INTO\s+\w+\s*\(([^)]+)\)/gi
+  ];
+  
+  for (const pattern of fieldPatterns) {
+    pattern.lastIndex = 0;
+    while ((match = pattern.exec(content)) !== null) {
+      const fieldName = match[1].toLowerCase();
+      if (!falsePositives.has(fieldName) && fieldName.length >= 2) {
+        // Try to associate field with nearby table
+        const context = content.slice(Math.max(0, match.index - 500), Math.min(content.length, match.index + 500));
+        for (const tableName of tableNames) {
+          if (context.includes(tableName)) {
+            if (!tableFields.has(tableName)) {
+              tableFields.set(tableName, new Set());
+            }
+            tableFields.get(tableName)!.add(fieldName);
+          }
+        }
+      }
+    }
+  }
+}
+
+// ============================================================================
+// Comprehensive Codebase Scanner (Schema-less scanning)
+// ============================================================================
+
+/**
+ * Collect all code files for comprehensive scanning
+ */
+function collectAllCodeFiles(basePath: string, excludePatterns: string[] = []): string[] {
+  const files: string[] = [];
+  const extensions = ['.ts', '.tsx', '.js', '.jsx', '.py', '.sql', '.prisma'];
+  const excludeDirs = [
+    'node_modules',
+    '.next',
+    'dist',
+    'build',
+    '.git',
+    'coverage',
+    'test',
+    'tests',
+    '__tests__',
+    '.devsync',
+    'cache',
+    '.cache'
+  ];
+
+  function walkDir(dir: string, depth: number = 0, maxDepth: number = 10): void {
+    if (depth > maxDepth) return;
+
+    try {
+      const entries = readdirSync(dir);
+
+      for (const entry of entries) {
+        // Skip excluded directories
+        if (excludeDirs.includes(entry)) {
+          continue;
+        }
+
+        // Check exclude patterns
+        if (excludePatterns.some(pattern => entry.includes(pattern))) {
+          continue;
+        }
+
+        const fullPath = join(dir, entry);
+        const stat = statSync(fullPath);
+
+        if (stat.isDirectory()) {
+          walkDir(fullPath, depth + 1, maxDepth);
+        } else if (stat.isFile()) {
+          const ext = extname(entry);
+          if (extensions.includes(ext)) {
+            files.push(fullPath);
+          }
+        }
+      }
+    } catch {
+      // Ignore errors
+    }
+  }
+
+  walkDir(basePath);
+  return files;
+}
+
+/**
+ * Extract table names from all code patterns (SQL, ORM, query builders, etc.)
+ */
+function extractTablesFromAllPatterns(
+  files: Array<{ path: string; content: string }>
+): CodeSchema {
+  const tableMap = new Map<string, Set<string>>(); // table name -> set of field names
+  const falsePositives = new Set([
+    'react', 'typescript', 'javascript', 'types', 'type', 'import', 'export', 'from',
+    'return', 'const', 'let', 'var', 'function', 'class', 'interface', 'enum',
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
+    'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'id', 'key', 'value', 'data',
+    'item', 'obj', 'arr', 'str', 'num', 'props', 'state', 'ref', 'ctx', 'req', 'res',
+    'chalk', 'clsx', 'commander', 'next', 'path', 'tailwindcss', 'lucide', 'fs', 'os',
+    'window', 'document', 'console', 'process', 'global', 'name', 'table', 'schema',
+    'information_schema', 'pg_catalog', 'pg_toast'
+  ]);
+
+  // Comprehensive patterns for table extraction
+  const patterns = [
+    // Supabase/PostgREST queries
+    /\.from\(["']([a-z_][a-z0-9_]{2,})["']\)/gi,
+    /\.from\([`"]([a-z_][a-z0-9_]{2,})[`"]\)/gi,
+    
+    // SQL queries in strings
+    /(?:SELECT|INSERT|UPDATE|DELETE|FROM|INTO|JOIN)\s+(?:["`]?([a-z_][a-z0-9_]{2,})["`]?|([a-z_][a-z0-9_]{2,}))/gi,
+    /FROM\s+["`]?([a-z_][a-z0-9_]{2,})["`]?/gi,
+    /INTO\s+["`]?([a-z_][a-z0-9_]{2,})["`]?/gi,
+    /JOIN\s+["`]?([a-z_][a-z0-9_]{2,})["`]?/gi,
+    /UPDATE\s+["`]?([a-z_][a-z0-9_]{2,})["`]?/gi,
+    
+    // CREATE TABLE statements
+    /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:["`]?(\w+)["`]?\.)?["`]?([a-z_][a-z0-9_]{2,})["`]?/gi,
+    
+    // TypeORM
+    /@Entity\(["']([a-z_][a-z0-9_]{2,})["']\)/gi,
+    /repository\.(?:find|save|create|update|delete)\(/gi,
+    
+    // Prisma
+    /prisma\.(\w+)\.(?:find|create|update|delete|upsert)/gi,
+    /model\s+([A-Z][a-zA-Z0-9]{2,})\s*\{/g,
+    
+    // Sequelize
+    /sequelize\.define\(["']([a-z_][a-z0-9_]{2,})["']/gi,
+    /\.findAll\(\)|\.findOne\(\)|\.create\(\)|\.update\(\)|\.destroy\(\)/gi,
+    
+    // Kysely/Drizzle
+    /table\(["']([a-z_][a-z0-9_]{2,})["']/gi,
+    /pgTable\(["']([a-z_][a-z0-9_]{2,})["']/gi,
+    /mysqlTable\(["']([a-z_][a-z0-9_]{2,})["']/gi,
+    
+    // Django ORM
+    /\.objects\.(?:all|filter|get|create|update)\(/gi,
+    /class\s+(\w+)\s*\([^)]*models\.Model/gi,
+    
+    // SQLAlchemy
+    /__tablename__\s*=\s*["']([a-z_][a-z0-9_]{2,})["']/gi,
+    /\.query\(\)|\.filter\(\)|\.get\(\)/gi,
+    
+    // Raw SQL in template literals
+    /sql`[\s\S]*?FROM\s+["`]?([a-z_][a-z0-9_]{2,})["`]?/gi,
+    /sql`[\s\S]*?INTO\s+["`]?([a-z_][a-z0-9_]{2,})["`]?/gi,
+    
+    // Query builder patterns
+    /\.table\(["']([a-z_][a-z0-9_]{2,})["']\)/gi,
+    /\.select\(\)\.from\(["']([a-z_][a-z0-9_]{2,})["']\)/gi,
+    
+    // Common ORM patterns
+    /db\.(\w+)\./gi,
+    /database\.(\w+)\./gi,
+    /db\[["']([a-z_][a-z0-9_]{2,})["']\]/gi,
+  ];
+
+  // Extract tables from all files
+  for (const file of files) {
+    for (const pattern of patterns) {
+      let match;
+      pattern.lastIndex = 0;
+      while ((match = pattern.exec(file.content)) !== null) {
+        // Extract table name from match (could be in different capture groups)
+        let tableName: string | null = null;
+        for (let i = 1; i < match.length; i++) {
+          if (match[i] && match[i].length >= 3) {
+            tableName = match[i].toLowerCase();
+            break;
+          }
+        }
+        
+        if (!tableName || falsePositives.has(tableName) || tableName.length < 3) {
+          continue;
+        }
+        
+        if (!tableMap.has(tableName)) {
+          tableMap.set(tableName, new Set());
+        }
+        
+        // Try to extract fields from context
+        const context = file.content.slice(
+          Math.max(0, match.index - 500),
+          Math.min(file.content.length, match.index + 1000)
+        );
+        
+        // Extract field names from various patterns
+        const fieldPatterns = [
+          /\.select\(["']([a-z_][a-z0-9_]{1,})["']\)/gi,
+          /\.eq\(["']([a-z_][a-z0-9_]{1,})["']/gi,
+          /\.insert\([^)]*["']([a-z_][a-z0-9_]{1,})["']/gi,
+          /\.update\([^)]*["']([a-z_][a-z0-9_]{1,})["']/gi,
+          /(\w+)\s*[:=]\s*[^,;\)]+/g, // Field assignments
+        ];
+        
+        for (const fieldPattern of fieldPatterns) {
+          let fieldMatch;
+          fieldPattern.lastIndex = 0;
+          while ((fieldMatch = fieldPattern.exec(context)) !== null) {
+            const fieldName = fieldMatch[1]?.toLowerCase();
+            if (fieldName && fieldName.length >= 2 && !falsePositives.has(fieldName)) {
+              tableMap.get(tableName)?.add(fieldName);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Convert to models
+  const models: Model[] = [];
+  for (const [tableName, fields] of tableMap.entries()) {
+    const fieldArray = Array.from(fields)
+      .filter(f => f.length >= 2 && !falsePositives.has(f))
+      .slice(0, 50); // Limit fields per table
+    
+    const modelFields: Field[] = fieldArray.length > 0
+      ? fieldArray.map(fieldName => {
+          const field: Field = {
+            name: fieldName,
+            type: inferFieldType(fieldName),
+            nullable: true
+          };
+          // Add PRIMARY KEY constraint for id fields
+          if (fieldName === 'id' || fieldName.endsWith('_id')) {
+            field.constraints = ['PRIMARY KEY'];
+          }
+          return field;
+        })
+      : [
+          { name: 'id', type: 'uuid', nullable: false, constraints: ['PRIMARY KEY'] },
+          { name: 'created_at', type: 'timestamp', nullable: true }
+        ];
+    
+    models.push({
+      name: tableName,
+      fields: modelFields
+    });
+  }
+
+  // Deduplicate and sort
+  const uniqueModels = new Map<string, Model>();
+  for (const model of models) {
+    if (!uniqueModels.has(model.name)) {
+      uniqueModels.set(model.name, model);
+    } else {
+      // Merge fields from duplicate models
+      const existing = uniqueModels.get(model.name)!;
+      const existingFields = new Map(existing.fields.map(f => [f.name, f]));
+      for (const field of model.fields) {
+        if (!existingFields.has(field.name)) {
+          existingFields.set(field.name, field);
+        }
+      }
+      existing.fields = Array.from(existingFields.values());
+    }
+  }
+
+  return {
+    models: Array.from(uniqueModels.values()).sort((a, b) => a.name.localeCompare(b.name)),
+    type: 'raw-sql'
+  };
+}
+
+/**
+ * Infer field type from field name
+ */
+function inferFieldType(fieldName: string): string {
+  const lower = fieldName.toLowerCase();
+  
+  if (lower.includes('id') && (lower.endsWith('_id') || lower === 'id')) {
+    return 'uuid';
+  }
+  if (lower.includes('email')) {
+    return 'text';
+  }
+  if (lower.includes('created') || lower.includes('updated') || lower.includes('_at')) {
+    return 'timestamp';
+  }
+  if (lower.includes('count') || lower.includes('num') || lower.includes('quantity')) {
+    return 'integer';
+  }
+  if (lower.includes('price') || lower.includes('amount') || lower.includes('cost')) {
+    return 'numeric';
+  }
+  if (lower.includes('is_') || lower.includes('has_') || lower.startsWith('is') || lower.startsWith('has')) {
+    return 'boolean';
+  }
+  if (lower.includes('json') || lower.includes('data') || lower.includes('meta')) {
+    return 'jsonb';
+  }
+  
+  return 'text'; // Default
 }
 

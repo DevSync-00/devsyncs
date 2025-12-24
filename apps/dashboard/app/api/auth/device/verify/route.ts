@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deviceCodes } from '../start/route';
+import { deviceCodes } from '@/lib/device-codes-store';
 import { createClient } from '@/lib/supabase/server';
 
 interface DeviceVerifyRequest {
@@ -137,9 +137,13 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Approve the device
-    deviceData.approved = true;
-    deviceData.userId = user.id;
+    // Approve the device - update the store
+    deviceCodes.set(deviceCode, {
+      ...deviceData,
+      approved: true,
+      userId: user.id,
+    });
+    deviceData = deviceCodes.get(deviceCode)!;
 
     console.log('[Device Verify] Approved device:', {
       userCode: deviceData.userCode,

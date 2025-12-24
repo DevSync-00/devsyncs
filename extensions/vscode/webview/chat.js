@@ -133,6 +133,92 @@ function ChatApp() {
     return () => root.removeEventListener('click', handler);
   }, [messages]);
 
+  // Convert ANSI codes to HTML spans for colored output
+  // This handles chalk's ANSI color codes and converts them to HTML
+  const ansiToHtml = (text) => {
+    if (!text) return '';
+    
+    // Escape HTML first
+    let html = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+    
+    // Process ANSI codes - handle both reset codes and color codes
+    // Match ANSI escape sequences: \u001b[ or \x1b[ followed by codes and 'm'
+    const ansiRegex = /\u001b\[([0-9;]*)m/g;
+    let result = '';
+    let lastIndex = 0;
+    let match;
+    let currentStyles = [];
+    
+    while ((match = ansiRegex.exec(html)) !== null) {
+      // Add text before the ANSI code
+      if (match.index > lastIndex) {
+        const textBefore = html.substring(lastIndex, match.index);
+        if (textBefore) {
+          if (currentStyles.length > 0) {
+            result += `<span style="${currentStyles.join('; ')}">${textBefore}</span>`;
+          } else {
+            result += textBefore;
+          }
+        }
+      }
+      
+      const codes = match[1].split(';').map(c => parseInt(c, 10));
+      
+      // Handle reset (0) or clear all styles
+      if (codes.includes(0) || codes.length === 0) {
+        currentStyles = [];
+      } else {
+        // Process color codes
+        for (const code of codes) {
+          if (code === 1) {
+            currentStyles.push('font-weight: bold');
+          } else if (code === 31) {
+            currentStyles.push('color: #ef4444'); // red
+          } else if (code === 32) {
+            currentStyles.push('color: #22c55e'); // green
+          } else if (code === 33) {
+            currentStyles.push('color: #eab308'); // yellow
+          } else if (code === 34) {
+            currentStyles.push('color: #3b82f6'); // blue
+          } else if (code === 35) {
+            currentStyles.push('color: #a855f7'); // magenta
+          } else if (code === 36) {
+            currentStyles.push('color: #06b6d4'); // cyan
+          } else if (code === 90) {
+            currentStyles.push('color: #6b7280'); // gray
+          }
+        }
+      }
+      
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Add remaining text
+    if (lastIndex < html.length) {
+      const remaining = html.substring(lastIndex);
+      if (remaining) {
+        if (currentStyles.length > 0) {
+          result += `<span style="${currentStyles.join('; ')}">${remaining}</span>`;
+        } else {
+          result += remaining;
+        }
+      }
+    }
+    
+    // If no ANSI codes were found, return escaped text
+    if (result === '') {
+      return html;
+    }
+    
+    // Convert newlines to <br> for proper display
+    return result.replace(/\n/g, '<br>');
+  };
+
   const renderMarkdown = useMemo(
     () => (text) => ({
       __html: DOMPurify.sanitize(marked.parse(text || '')),
@@ -202,7 +288,12 @@ function ChatApp() {
               React.createElement('span', { className: 'badge' }, message.role === 'user' ? 'You' : message.role === 'assistant' ? 'DevSync' : 'System'),
               message.metadata?.command && ` · devsync ${message.metadata.command}`
             ),
-            React.createElement('div', { className: 'content', dangerouslySetInnerHTML: renderMarkdown(message.content || '') }),
+            React.createElement('div', { 
+              className: 'content cli-output', 
+              dangerouslySetInnerHTML: message.role === 'system' && message.metadata?.command
+                ? { __html: DOMPurify.sanitize(ansiToHtml(message.content || '')) } // Use ANSI-to-HTML for CLI output
+                : renderMarkdown(message.content || '') // Use markdown for other messages
+            }),
             React.createElement('div', { className: `status ${message.status}` },
               message.status === 'error' ? message.error : message.status === 'streaming' ? 'Streaming…' : ''
             ),

@@ -9,14 +9,12 @@ import type { CodeSchema, Model, Field } from '../types/index.js';
 export async function analyzeCodebaseWithAI(
   basePath: string,
   options?: { 
-    openaiApiKey?: string; 
     useOllama?: boolean; 
     ollamaModel?: string; 
     ollamaUrl?: string;
-    useDeepSeek?: boolean;
-    deepseekApiKey?: string;
-    deepseekModel?: string;
-    deepseekUrl?: string;
+    serviceApiUrl?: string; // Service API URL for AI analysis (uses service-configured API keys)
+    serviceApiKey?: string; // Service API key for authentication
+    aiProvider?: 'puter' | 'openai' | 'deepseek'; // AI provider to use (default: puter)
   }
 ): Promise<CodeSchema | null> {
   // Collect all relevant code files
@@ -41,23 +39,29 @@ export async function analyzeCodebaseWithAI(
     return schemaAnalysis;
   }
 
-  // Use DeepSeek if enabled
-  if (options?.useDeepSeek && options?.deepseekApiKey) {
-    const deepseekUrl = options.deepseekUrl || 'https://api.deepseek.com/v1';
-    const model = options.deepseekModel || 'deepseek-chat';
-    console.log(`🤖 Using DeepSeek: ${model}`);
-    const schemaAnalysis = await analyzeWithDeepSeek(options.deepseekApiKey, deepseekUrl, model, fileContents, basePath);
+  // Try service API for AI analysis (uses service-configured API keys)
+  if (options?.serviceApiUrl && options?.serviceApiKey) {
+    try {
+      const schemaAnalysis = await analyzeWithServiceAPI(
+        options.serviceApiUrl, 
+        options.serviceApiKey, 
+        fileContents, 
+        basePath,
+        options.aiProvider || 'puter'
+      );
     return schemaAnalysis;
-  }
-
-  // Fallback to OpenAI if API key provided
-  if (options?.openaiApiKey) {
-    const schemaAnalysis = await analyzeWithAI(options.openaiApiKey, fileContents, basePath);
-    return schemaAnalysis;
+    } catch (error) {
+      // If service API fails, fall back to pattern matching
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.warn(`⚠️  Service API analysis failed: ${errorMsg}`);
+      console.warn('⚠️  Falling back to pattern matching');
+      return analyzeWithPatterns(fileContents);
+    }
   }
 
   // If neither provided, use pattern matching
-  console.warn('⚠️  No AI service configured, using pattern matching');
+  console.warn('⚠️  No AI service available, using pattern matching');
+  console.warn('💡 Tip: Connect to service with "devsync login" or use local AI with "--use-ollama"');
   return analyzeWithPatterns(fileContents);
 }
 
@@ -156,6 +160,74 @@ async function analyzeWithAI(
     console.warn(`⚠️  AI analysis failed: ${errorMessage}`);
     console.warn('⚠️  Using pattern matching fallback');
     // Fallback: use pattern matching if AI fails
+    return analyzeWithPatterns(files);
+  }
+}
+
+/**
+ * Analyze code using service API (uses service-configured API keys)
+ */
+async function analyzeWithServiceAPI(
+  serviceApiUrl: string,
+  serviceApiKey: string,
+  files: Array<{ path: string; content: string }>,
+  basePath: string,
+  provider: 'puter' | 'openai' | 'deepseek' = 'puter'
+): Promise<CodeSchema> {
+  const prompt = buildAnalysisPrompt(files, basePath);
+
+  try {
+    // Call service API for AI analysis
+    const response = await fetch(`${serviceApiUrl}/api/ai/analyze-codebase`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceApiKey}`,
+      },
+      body: JSON.stringify({
+        files: files.map(f => ({
+          path: f.path.replace(basePath, '').replace(/^[\/\\]/, ''),
+          content: f.content.slice(0, 2000) // Limit content size
+        })),
+        basePath,
+        provider // Pass AI provider to service API
+      })
+    });
+
+    if (!response.ok) {
+      const errorData: any = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
+      throw new Error(`Service API error: ${errorData?.error?.message || response.statusText}`);
+    }
+
+    const data: any = await response.json();
+    // API returns { schema: { models: [...], type: 'raw-sql' } }
+    let inferredSchema: CodeSchema;
+    
+    if (data.schema && data.schema.models) {
+      // Direct schema object from API
+      inferredSchema = {
+        models: data.schema.models.map((m: any) => ({
+          name: m.name,
+          fields: m.fields || []
+        })),
+        type: data.schema.type || 'raw-sql'
+      };
+    } else {
+      // Fallback: try to parse as JSON string
+      inferredSchema = parseAISchemaResponse(JSON.stringify(data));
+    }
+
+    // Check if we got valid results
+    if (!inferredSchema || inferredSchema.models.length === 0) {
+      console.warn('⚠️  Service API analysis returned no results, using pattern matching fallback');
+      return analyzeWithPatterns(files);
+    }
+
+    return inferredSchema;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.warn(`⚠️  Service API analysis failed: ${errorMessage}`);
+    console.warn('⚠️  Using pattern matching fallback');
     return analyzeWithPatterns(files);
   }
 }

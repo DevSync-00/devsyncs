@@ -336,6 +336,25 @@ export class ChatPanelManager {
         this.aiProvider = this.pluginRegistry.getDefaultAiProvider();
       }
 
+      // Show AI model info in chat
+      const config = vscode.workspace.getConfiguration('devsync');
+      const provider = (config.get<string>('ai.provider', 'puter') || 'puter') as any;
+      const { getModelInfo } = await import('./utils/aiModelInfo');
+      const modelInfo = getModelInfo(provider);
+      
+      // Log model info to output channel (only show once per session)
+      if (!this.view?.visible) {
+        const outputChannel = vscode.window.createOutputChannel('DevSync Chat');
+        outputChannel.appendLine(`🤖 AI Model: ${modelInfo.displayName} (${modelInfo.provider})`);
+      }
+      
+      // Add model info to assistant message metadata
+      assistantMessage.metadata = {
+        ...assistantMessage.metadata,
+        aiModel: modelInfo.displayName,
+        aiProvider: modelInfo.provider
+      };
+      
       let result: AiQueryResult;
       if (this.aiProvider) {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -352,6 +371,13 @@ export class ChatPanelManager {
         // Fallback to direct API call
         result = await this.api.queryAI(query, scan.id, controller.signal);
       }
+      
+      // Add model info to result metadata
+      if (!result.metadata) {
+        result.metadata = {};
+      }
+      result.metadata.aiModel = modelInfo.displayName;
+      result.metadata.aiProvider = modelInfo.provider;
       await this.streamAssistantAnswer(assistantMessage.id, result);
       this.finalizeAssistantMessage(assistantMessage.id, 'complete');
     } catch (error) {
@@ -421,7 +447,7 @@ export class ChatPanelManager {
     const systemMessage: ChatMessage = {
       id: requestId,
       role: 'system',
-      content: `Running devsync ${command}...\n`,
+      content: `🔍 Running devsync ${command}...\n\n`,
       createdAt: Date.now(),
       status: 'streaming',
       metadata: { command },
@@ -434,8 +460,14 @@ export class ChatPanelManager {
     this.activeTask = { type: 'cli', messageId: systemMessage.id };
 
     const hooks: CliRunHooks = {
-      onStdout: (chunk) => this.appendChunk(systemMessage.id, chunk, 'messageUpdate'),
-      onStderr: (chunk) => this.appendChunk(systemMessage.id, chunk, 'messageUpdate'),
+      onStdout: (chunk) => {
+        // Append chunk immediately for real-time display
+        this.appendChunk(systemMessage.id, chunk, 'messageUpdate');
+      },
+      onStderr: (chunk) => {
+        // Append stderr chunks as well for complete output
+        this.appendChunk(systemMessage.id, chunk, 'messageUpdate');
+      },
       onClose: (code) => {
         const status: ChatMessageStatus = code === 0 ? 'complete' : 'error';
         const error = code === 0 ? undefined : `Command exited with code ${code ?? -1}`;
@@ -680,7 +712,7 @@ export class ChatPanelManager {
 
       if (config.get<boolean>('aiAnalysis', false)) {
         options.aiAnalysis = true;
-        const aiProvider = config.get<string>('ai.provider', 'openai');
+        const aiProvider = config.get<string>('ai.provider', 'puter');
         const useOllama = config.get<boolean>('useOllama', false);
         const useDeepSeek = config.get<boolean>('useDeepSeek', false) || aiProvider === 'deepseek';
         

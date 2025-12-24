@@ -72,13 +72,34 @@ export class AuthManager implements IAuthManager {
     this.analyzerUrl = this.normalizeUrl(url);
   }
 
+  /**
+   * Ensure access token is valid and refresh if needed.
+   * 
+   * Sessions are lifecycle-based: tokens are automatically refreshed to keep
+   * the session alive indefinitely while the user is working.
+   */
   async ensureAccessToken(): Promise<string> {
     if (!this.tokens) {
       throw new Error('You must sign in to DevSync before using chat.');
     }
 
+    // Automatically refresh token if it's about to expire
+    // This keeps the session alive indefinitely - no time-based expiration
     if (Date.now() >= this.tokens.expiresAt - TOKEN_REFRESH_BUFFER_MS) {
-      await this.refreshToken();
+      try {
+        await this.refreshToken();
+      } catch (error) {
+        // If refresh fails, only throw if refresh token is invalid
+        // Network errors should not invalidate the session
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        if (errorMessage.includes('refresh') || errorMessage.includes('invalid') || errorMessage.includes('401')) {
+          // Refresh token is invalid - clear session
+          await this.logout();
+          throw new Error('Session expired. Please sign in again.');
+        }
+        // For network errors, use the existing token (it may still be valid)
+        // The refresh will retry on the next call
+      }
     }
 
     return this.tokens.accessToken;
@@ -152,12 +173,28 @@ export class AuthManager implements IAuthManager {
     }
   }
 
+  /**
+   * Logout and invalidate session.
+   * 
+   * This is the only way to explicitly end a session (other than window close).
+   * Sessions are lifecycle-based and don't expire based on time.
+   */
   async logout(): Promise<void> {
+    // Clear tokens from memory
     this.tokens = undefined;
+    // Delete tokens from secure storage
     await this.context.secrets.delete(TOKENS_KEY);
+    // Update session state to unauthenticated
     this.updateSession({ status: 'unauthenticated' });
+    // Session is now terminated - user must log in again
   }
 
+  /**
+   * Refresh access token using refresh token.
+   * 
+   * This keeps the session alive indefinitely by automatically refreshing
+   * tokens before they expire. Sessions are lifecycle-based, not time-based.
+   */
   private async refreshToken(): Promise<void> {
     if (!this.tokens?.refreshToken) {
       throw new Error('No refresh token available.');
@@ -169,6 +206,7 @@ export class AuthManager implements IAuthManager {
     );
 
     await this.storeTokens(response);
+    // Token refreshed - session continues indefinitely
   }
 
   private async storeTokens(tokens: DeviceTokenResponse): Promise<void> {
@@ -196,13 +234,20 @@ export class AuthManager implements IAuthManager {
         expiresAt: stored.expiresAt,
       });
       
-      console.log('[Auth] Tokens stored successfully for user:', tokens.user_id);
+      // Use debug level for successful token storage to reduce console noise
+      console.debug('[Auth] Tokens stored successfully for user:', tokens.user_id);
     } catch (error) {
       console.error('[Auth] Error storing tokens:', error);
       throw error;
     }
   }
 
+  /**
+   * Restore tokens from storage on extension activation.
+   * 
+   * Sessions are lifecycle-based: if tokens exist and are valid (or can be refreshed),
+   * the session is restored. This allows sessions to persist across VS Code reloads.
+   */
   private async restoreTokens(): Promise<void> {
     const raw = await this.context.secrets.get(TOKENS_KEY);
     if (!raw) {
@@ -213,17 +258,30 @@ export class AuthManager implements IAuthManager {
       const stored = JSON.parse(raw) as StoredTokens;
       this.tokens = stored;
 
+      // If token is expired or about to expire, try to refresh it
+      // This keeps the session alive across reloads and during use
       if (Date.now() >= stored.expiresAt - TOKEN_REFRESH_BUFFER_MS) {
         try {
           await this.refreshToken();
+          // Token refreshed successfully - session continues
           return;
-        } catch {
-          await this.context.secrets.delete(TOKENS_KEY);
-          this.tokens = undefined;
-          return;
+        } catch (error) {
+          // Only clear tokens if refresh token is invalid
+          // Network errors should not invalidate the session
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          if (errorMessage.includes('refresh') || errorMessage.includes('invalid') || errorMessage.includes('401')) {
+            // Refresh token is invalid - clear session
+            await this.context.secrets.delete(TOKENS_KEY);
+            this.tokens = undefined;
+            return;
+          }
+          // For network errors, keep the stored tokens and try again later
+          // The session will remain active and token refresh will retry
         }
       }
 
+      // Restore session with existing tokens
+      // Session remains active indefinitely until explicit logout or window close
       this.updateSession({
         status: 'authenticated',
         userId: stored.userId,
@@ -231,6 +289,7 @@ export class AuthManager implements IAuthManager {
         expiresAt: stored.expiresAt,
       });
     } catch {
+      // If tokens are corrupted, clear them
       await this.context.secrets.delete(TOKENS_KEY);
       this.tokens = undefined;
     }
@@ -274,7 +333,7 @@ export class AuthManager implements IAuthManager {
   private async postWithTimeout<T>(
     path: string,
     payload: unknown,
-    timeoutMs: number = 15_000
+    timeoutMs: number = 60_000 // Increased to 1 minute for better reliability
   ): Promise<T> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -295,8 +354,8 @@ export class AuthManager implements IAuthManager {
           error.message ||
           'Network request failed';
         throw new Error(
-          `Unable to reach the DevSync analyzer at ${this.analyzerUrl}. ${details}. ` +
-            `Check the "devsync.analyzerUrl" setting and ensure the analyzer service is running.`
+          `Unable to reach the DevSync dashboard at ${this.analyzerUrl}. ${details}. ` +
+            `Check the "devsync.analyzerUrl" setting and ensure the dashboard is running.`
         );
       }
       throw error;

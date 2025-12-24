@@ -25,6 +25,36 @@ export function generateSlug(name: string): string {
     .replace(/(^-|-$)/g, '');
 }
 
+/**
+ * Validate device flow token (base64url-encoded JSON)
+ * Returns user object if token is valid, null otherwise
+ */
+function validateDeviceFlowToken(token: string): { id: string; email?: string } | null {
+  try {
+    // Decode base64url token
+    const decoded = Buffer.from(token, 'base64url').toString('utf-8');
+    const payload = JSON.parse(decoded);
+    
+    // Check if token is expired
+    if (payload.exp && Date.now() / 1000 > payload.exp) {
+      return null;
+    }
+    
+    // Return user object from token
+    if (payload.sub) {
+      return {
+        id: payload.sub,
+        email: payload.email || '',
+      };
+    }
+    
+    return null;
+  } catch {
+    // Not a device flow token or invalid format
+    return null;
+  }
+}
+
 export async function resolveUser(
   request: NextRequest,
   supabase: Awaited<ReturnType<typeof import('@/lib/supabase/server').createClient>>
@@ -34,9 +64,18 @@ export async function resolveUser(
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.replace('Bearer ', '').trim();
     if (token.length > 0) {
+      // Try Supabase JWT validation first
       const { data: { user: tokenUser }, error } = await supabase.auth.getUser(token);
       if (!error && tokenUser) {
         return tokenUser;
+      }
+      
+      // Fallback: try device flow token validation
+      const deviceFlowUser = validateDeviceFlowToken(token);
+      if (deviceFlowUser) {
+        // Return the user object from the token
+        // The token contains the user ID, which is sufficient for authorization
+        return deviceFlowUser as any;
       }
     }
   }

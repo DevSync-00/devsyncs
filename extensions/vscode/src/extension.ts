@@ -7,7 +7,10 @@ import { ChatPanelManager } from './chatPanelManager';
 import { ChatViewProvider } from './chatViewProvider';
 import { ContainerFactory } from './di/factory';
 import { EditorService } from './ui/editor';
+import { SchemaStatusBarManager } from './ui/schemaStatusBar';
+import { FixPreviewManager } from './editor/fixPreview';
 import { Mismatch } from './api';
+import { getModelInfoFromConfig } from './utils/aiModelInfo';
 
 /**
  * Activates the DevSync VS Code extension.
@@ -60,6 +63,13 @@ export async function activate(context: vscode.ExtensionContext) {
   
   // HIGH PRIORITY: Initialize basic editor service (needed for code actions)
   const editorService = new EditorService();
+  
+  // HIGH PRIORITY: Initialize schema status bar manager
+  const schemaStatusBar = new SchemaStatusBarManager(context);
+  
+  // HIGH PRIORITY: Initialize fix preview manager
+  const fixPreviewManager = new FixPreviewManager(editorService);
+  context.subscriptions.push(fixPreviewManager);
   
   // Register enhanced editor features as progressive (load on demand)
   StartupOptimizer.registerFeature({
@@ -160,8 +170,7 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable);
   });
 
-  // Register commands
-  const scanCommand = vscode.commands.registerCommand('devsync.scan', commands.scan.bind(commands));
+  // Register commands (scan command will be registered separately to update status bar)
   const generateMigrationCommand = vscode.commands.registerCommand(
     'devsync.generateMigration',
     commands.generateMigration.bind(commands)
@@ -375,6 +384,137 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   );
   
+  // Note: devsync.showStatus command is registered by SchemaStatusBarManager
+  // No need to register it here to avoid duplicate command error
+
+  const fixCommand = vscode.commands.registerCommand(
+    'devsync.fix',
+    async () => {
+      try {
+        // Show AI model info
+        const modelInfo = getModelInfoFromConfig(vscode);
+        const outputChannel = vscode.window.createOutputChannel('DevSync');
+        outputChannel.appendLine(`🤖 Using AI Model: ${modelInfo.displayName}`);
+        outputChannel.appendLine(`   Provider: ${modelInfo.provider} | Model: ${modelInfo.model}`);
+        outputChannel.show(true);
+        
+        // Show scanning state
+        schemaStatusBar.showScanning();
+        
+        // Run fix command via CLI
+        const result = await cliRunner.executeCliCommand('fix', {
+          json: true
+        });
+
+        if (result.success && result.output) {
+          try {
+            const fixData = JSON.parse(result.output);
+            
+            // Update status bar
+            if (fixData.fixes && fixData.fixes.length > 0) {
+              const mismatches: Mismatch[] = fixData.fixes.map((f: any) => {
+                const base: any = {
+                  type: f.type,
+                  model: f.model,
+                  severity: f.severity
+                };
+                if (f.field) {
+                  base.field = f.field;
+                }
+                if (f.codeValue) {
+                  base.codeValue = f.codeValue;
+                }
+                if (f.dbValue) {
+                  base.dbValue = f.dbValue;
+                }
+                return base as Mismatch;
+              });
+              
+              schemaStatusBar.updateFromMismatches(mismatches);
+              
+              // Show fix preview
+              const preview = {
+                fixes: fixData.fixes.map((f: any) => ({
+                  mismatch: {
+                    type: f.type,
+                    model: f.model,
+                    field: f.field,
+                    severity: f.severity
+                  } as Mismatch,
+                  explanation: f.explanation,
+                  sql: f.sql,
+                  safety: f.safety
+                })),
+                migration: fixData.migration,
+                summary: {
+                  total: fixData.fixes.length,
+                  safe: fixData.fixes.filter((f: any) => f.safety === 'safe').length,
+                  caution: fixData.fixes.filter((f: any) => f.safety === 'caution').length,
+                  risky: fixData.fixes.filter((f: any) => f.safety === 'risky').length
+                }
+              };
+              
+              await fixPreviewManager.showFixPreview(preview);
+            } else {
+              schemaStatusBar.updateStatus({
+                inSync: true,
+                totalMismatches: 0,
+                errors: 0,
+                warnings: 0,
+                infos: 0
+              });
+              vscode.window.showInformationMessage('✅ No conflicts detected - schemas are in sync!');
+            }
+          } catch (parseError) {
+            vscode.window.showErrorMessage('Failed to parse fix results');
+            schemaStatusBar.showError('Failed to parse fix results');
+          }
+        } else {
+          vscode.window.showErrorMessage(result.error || 'Failed to generate fixes');
+          schemaStatusBar.showError(result.error || 'Failed to generate fixes');
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        vscode.window.showErrorMessage(`Failed to generate fixes: ${errorMessage}`);
+        schemaStatusBar.showError(errorMessage);
+      }
+    }
+  );
+
+  // Update status bar when scan completes
+  const originalScan = commands.scan.bind(commands);
+  commands.scan = async function() {
+    try {
+      // Show AI model info if AI analysis is enabled
+      const config = vscode.workspace.getConfiguration('devsync');
+      if (config.get<boolean>('aiAnalysis', false)) {
+        const modelInfo = getModelInfoFromConfig(vscode);
+        const outputChannel = vscode.window.createOutputChannel('DevSync');
+        outputChannel.appendLine(`🤖 Using AI Model: ${modelInfo.displayName}`);
+        outputChannel.appendLine(`   Provider: ${modelInfo.provider} | Model: ${modelInfo.model}`);
+        outputChannel.show(true);
+      }
+      
+      schemaStatusBar.showScanning();
+      const result = await originalScan();
+      
+      // Get latest scan report to update status bar
+      try {
+        const scanReport = await apiClient.getLatestScanReport();
+        if (scanReport) {
+          schemaStatusBar.updateFromMismatches(scanReport.mismatches, new Date(scanReport.completed_at || scanReport.created_at));
+        }
+      } catch (error) {
+        // Ignore errors getting scan report
+      }
+      
+      return result;
+    } catch (error) {
+      schemaStatusBar.showError(error instanceof Error ? error.message : 'Scan failed');
+      throw error;
+    }
+  };
+
   const showSchemaComparisonCommand = vscode.commands.registerCommand(
     'devsync.showSchemaComparison',
     async () => {
@@ -418,7 +558,9 @@ export async function activate(context: vscode.ExtensionContext) {
     batchApplyFixesCommand,
     previewMigrationImpactCommand,
     showSchemaComparisonCommand,
-    showMigrationHistoryCommand
+    showMigrationHistoryCommand,
+    // showStatusCommand is registered by SchemaStatusBarManager, don't add it here
+    fixCommand
   );
 
   // Auto-scan on file save (if enabled)
@@ -569,19 +711,24 @@ export async function activate(context: vscode.ExtensionContext) {
 /**
  * Deactivates the DevSync VS Code extension.
  * 
- * Called by VS Code when the extension is being deactivated. All cleanup
- * is handled automatically through VS Code's subscription system, so this
- * function primarily logs the deactivation.
+ * Called by VS Code when the extension is being deactivated. 
+ * 
+ * Session lifecycle: Sessions are lifecycle-based and persist across reloads.
+ * Sessions only terminate on explicit logout or when VS Code window is closed.
  * 
  * @example
  * This function is called automatically when:
- * - VS Code is shutting down
- * - The extension is disabled
- * - The extension is being reloaded
+ * - VS Code window is closed (session ends)
+ * - The extension is disabled (session ends)
+ * - The extension is being reloaded (session persists - tokens are restored)
  */
 export function deactivate() {
   console.log('DevSync extension is now deactivated!');
   // Cleanup is handled automatically through VS Code's subscription system
   // All disposables registered with context.subscriptions are automatically disposed
+  // 
+  // Note: Session tokens are preserved in VS Code's secure storage.
+  // On reload, tokens are restored and session continues.
+  // Sessions only end on explicit logout or window close.
 }
 

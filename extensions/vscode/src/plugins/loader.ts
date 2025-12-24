@@ -75,6 +75,21 @@ export class PluginLoader {
       const pluginsDir = vscode.Uri.joinPath(folder.uri, '.devsync', 'plugins');
       
       try {
+        // Check if directory exists before trying to read it
+        try {
+          const stat = await vscode.workspace.fs.stat(pluginsDir);
+          if (stat.type !== vscode.FileType.Directory) {
+            continue; // Not a directory, skip
+          }
+        } catch (statError: any) {
+          // Directory doesn't exist (ENOENT) or other error - this is expected and fine
+          if (statError.code !== 'FileNotFound' && statError.code !== 'ENOENT') {
+            // Only log unexpected errors
+            console.warn(`Failed to check plugins directory: ${statError.message}`);
+          }
+          continue; // Skip this workspace folder
+        }
+        
         const files = await vscode.workspace.fs.readDirectory(pluginsDir);
         
         for (const [file, type] of files) {
@@ -82,8 +97,12 @@ export class PluginLoader {
             await this.loadPluginFromFile(registry, vscode.Uri.joinPath(pluginsDir, file));
           }
         }
-      } catch {
-        // Plugins directory doesn't exist, skip
+      } catch (error: any) {
+        // Plugins directory doesn't exist or other error - skip silently
+        // This is expected behavior when the directory hasn't been created yet
+        if (error.code !== 'FileNotFound' && error.code !== 'ENOENT') {
+          console.warn(`Failed to load workspace plugins from ${pluginsDir.fsPath}:`, error.message);
+        }
       }
     }
   }

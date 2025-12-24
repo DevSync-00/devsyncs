@@ -63,3 +63,4 @@ export {
 export { NotificationService } from './notifications';
 export { StatusBarService } from './statusBar';
 export { EditorService } from './editor';
+export { SchemaStatusBarManager } from './schemaStatusBar';

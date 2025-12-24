@@ -53,8 +53,18 @@ export class DevSyncDiagnostics implements IDiagnostics {
       }
 
       this.updateDiagnostics(scanReport.mismatches, workspaceFolder);
-    } catch (error) {
+    } catch (error: any) {
+      // Silently handle authentication errors - user may not be logged in yet
+      if (error?.status === 401 || error?.message?.includes('Unauthorized')) {
+        // User is not authenticated - this is expected and fine
+        // Diagnostics will work once user logs in
+        return;
+      }
+      
+      // Only log unexpected errors
+      if (error?.code !== 'ENOENT' && error?.code !== 'FileNotFound') {
       console.error('DevSync: Failed to check workspace', error);
+      }
     }
   }
 

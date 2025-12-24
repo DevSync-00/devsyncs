@@ -24,7 +24,7 @@ export async function GET(
     // Fetch project
     const { data: project, error: projectError } = await supabase
       .from('projects')
-      .select('id, config, user_id')
+      .select('id, config, user_id, team_id')
       .eq('id', params.id)
       .single();
 
@@ -35,8 +35,17 @@ export async function GET(
       );
     }
 
-    // Check access
-    if (project.user_id !== user.id) {
+    // Check access (owner or team member)
+    const isOwner = project.user_id === user.id;
+    let hasTeamAccess = false;
+
+    if (project.team_id) {
+      const { data: isMember } = await supabase
+        .rpc('check_team_membership', { team_uuid: project.team_id });
+      hasTeamAccess = !!isMember;
+    }
+
+    if (!isOwner && !hasTeamAccess) {
       return NextResponse.json(
         { error: 'Access denied' },
         { status: 403 }

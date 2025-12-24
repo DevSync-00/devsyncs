@@ -58,24 +58,72 @@ export default async function TeamDetailPage({
   const isAdmin = userRole === 'admin' || isOwner;
 
   // Get team members
-  const { data: members, error: membersError } = await supabase
-    .from('team_members')
-    .select(`
-      *,
-      users:user_id (
-        id,
-        email
-      )
-    `)
-    .eq('team_id', params.id)
-    .order('created_at', { ascending: false });
+  // Use admin client to bypass RLS (prevents infinite recursion)
+  // First verify access using RPC function
+  const { data: hasAccess } = await supabase
+    .rpc('check_team_membership', { team_uuid: params.id });
+  
+  let members: any[] = [];
+  let membersError: any = null;
+  
+  if (hasAccess) {
+    try {
+      // Use admin client to bypass RLS and get all team members
+      const { getAdminClient } = await import('@/lib/supabase/admin');
+      const adminClient = getAdminClient();
+      
+      const { data, error } = await adminClient
+        .from('team_members')
+        .select(`
+          *,
+          users:user_id (
+            id,
+            email
+          )
+        `)
+        .eq('team_id', params.id)
+        .order('created_at', { ascending: false });
+      
+      members = data || [];
+      membersError = error;
+    } catch (error: any) {
+      // Fallback: if admin client not available, just get own membership
+      // This happens if SUPABASE_SERVICE_ROLE_KEY is not set
+      console.warn('Admin client not available, falling back to own membership only:', error.message);
+      const { data: ownMembership } = await supabase
+        .from('team_members')
+        .select(`
+          *,
+          users:user_id (
+            id,
+            email
+          )
+        `)
+        .eq('team_id', params.id)
+        .eq('user_id', user.id)
+        .single();
+      
+      members = ownMembership ? [ownMembership] : [];
+    }
+  }
 
   // Get team projects
-  const { data: projects } = await supabase
+  const { data: projects, error: projectsError } = await supabase
     .from('projects')
     .select('*')
     .eq('team_id', params.id)
     .order('created_at', { ascending: false });
+
+  if (projectsError) {
+    console.error('[TeamDetail] Error fetching team projects:', projectsError);
+    console.error('[TeamDetail] Projects error details:', {
+      code: projectsError.code,
+      message: projectsError.message,
+      hint: projectsError.hint,
+      details: projectsError.details
+    });
+    // Don't throw - just log and continue with empty projects array
+  }
 
   const roleIcons = {
     owner: Crown,
@@ -248,7 +296,19 @@ export default async function TeamDetailPage({
           </Link>
         </div>
 
-        {!projects || projects.length === 0 ? (
+        {projectsError ? (
+          <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <p className="text-destructive text-sm mb-2">
+              Error loading projects: {projectsError.message}
+            </p>
+            {(projectsError.message?.toLowerCase().includes('recursion') || 
+              projectsError.message?.toLowerCase().includes('fetch failed')) && (
+              <p className="text-xs text-muted-foreground mt-2">
+                This may be caused by RLS policy recursion. Please run fix_team_members_rls.sql in Supabase SQL Editor.
+              </p>
+            )}
+          </div>
+        ) : !projects || projects.length === 0 ? (
           <div className="p-8 text-center border border-border rounded-lg bg-card">
             <Settings className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground mb-4">No projects yet</p>

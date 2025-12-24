@@ -27,10 +27,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Decode the refresh token to get user info
-    // In a real implementation, you'd verify and decode a proper JWT
+    // Device flow tokens use base64url encoding
     try {
       const tokenData = JSON.parse(
-        Buffer.from(refresh_token, 'base64').toString('utf-8')
+        Buffer.from(refresh_token, 'base64url').toString('utf-8')
       );
 
       if (Date.now() / 1000 > tokenData.exp) {
@@ -42,20 +42,29 @@ export async function POST(request: NextRequest) {
 
       const userId = tokenData.sub;
 
-      // Generate new tokens
-      const accessToken = Buffer.from(
-        JSON.stringify({
+      // Generate new tokens (using base64url to match device flow)
+      const now = Math.floor(Date.now() / 1000);
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+      
+      const accessTokenPayload = {
           sub: userId,
-          exp: Math.floor(Date.now() / 1000) + 3600,
-        })
-      ).toString('base64');
+        email: '', // Email not available in refresh flow
+        role: 'authenticated',
+        exp: now + 3600, // 1 hour
+        iat: now,
+        aud: 'authenticated',
+        iss: supabaseUrl,
+      };
 
-      const newRefreshToken = Buffer.from(
-        JSON.stringify({
+      const refreshTokenPayload = {
           sub: userId,
-          exp: Math.floor(Date.now() / 1000) + 2592000,
-        })
-      ).toString('base64');
+        exp: now + 2592000, // 30 days
+        iat: now,
+        type: 'refresh',
+      };
+      
+      const accessToken = Buffer.from(JSON.stringify(accessTokenPayload)).toString('base64url');
+      const newRefreshToken = Buffer.from(JSON.stringify(refreshTokenPayload)).toString('base64url');
 
       const response: TokenRefreshResponse = {
         token_type: 'Bearer',

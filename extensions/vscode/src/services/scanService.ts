@@ -9,6 +9,7 @@ import { IScanService, ScanResult } from './interfaces';
 import { IApiClient } from '../interfaces';
 import { IConfigurationManager } from '../interfaces';
 import { ScanReport } from '../api';
+import { detectProjectInfo, matchProject } from '../utils/project-detector';
 
 /**
  * Service for scan operations.
@@ -33,7 +34,7 @@ export class ScanService implements IScanService {
    * Checks that required configuration is present:
    * - API URL
    * - API Key
-   * - Project ID
+   * - Project ID (optional - will try to auto-detect if missing)
    * 
    * @param workspacePath - Path to the workspace
    * @returns Validation result with missing fields if invalid
@@ -52,9 +53,8 @@ export class ScanService implements IScanService {
     if (!config.apiKey) {
       missingFields.push('devsync.apiKey');
     }
-    if (!config.projectId) {
-      missingFields.push('devsync.projectId');
-    }
+    // Project ID is optional - we'll try to auto-detect it
+    // Only require it if we can't auto-detect (handled in executeScan)
 
     if (missingFields.length > 0) {
       return { valid: false, missingFields };
@@ -67,6 +67,7 @@ export class ScanService implements IScanService {
    * Executes a scan operation.
    * 
    * Performs the actual scan via the API client and returns the result.
+   * Auto-detects project if projectId is not configured.
    * Does not handle UI feedback or state updates - those are handled
    * by the command layer.
    * 
@@ -98,8 +99,119 @@ export class ScanService implements IScanService {
         };
       }
 
+      const config = this.configManager.getAll();
+      
+      // Auto-detect project if projectId is not set
+      let projectId = config.projectId;
+      
+      if (!projectId && config.apiUrl && config.apiKey) {
+        try {
+          // Detect project info from workspace
+          const projectInfo = detectProjectInfo(workspacePath);
+          
+          // Try to list projects and match (with increased timeout)
+          // This can take time if there are many projects or slow network
+          const existingProjects = await Promise.race([
+            this.apiClient.listProjects(),
+            new Promise<Array<{ id: string; name: string; slug?: string; schemaType?: string; schema_type?: string }>>((_, reject) => 
+              setTimeout(() => reject(new Error('Project detection timed out. Please set devsync.projectId manually.')), 60000)
+            )
+          ]);
+          const matches = matchProject(projectInfo, existingProjects);
+          
+          if (matches.length > 0 && matches[0].score >= 50) {
+            // Found a good match - use it
+            projectId = matches[0].project.id;
+            
+            // Update config with detected project ID (optional - for future use)
+            // For now, we'll use it for this scan only
+          } else {
+            // No matching project found
+            return {
+              success: false,
+              error: `No matching project found in DevSync. Please save your project to DevSync first.\n\n` +
+                     `Detected project: ${projectInfo.name}${projectInfo.schemaType ? ` (${projectInfo.schemaType})` : ''}\n` +
+                     `Go to the DevSync dashboard to create a project, or set devsync.projectId in your settings.`,
+              report: {} as ScanReport,
+            };
+          }
+        } catch (error) {
+          // Check if it's an authentication error
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const isAuthError = errorMessage.includes('Unauthorized') || 
+                             errorMessage.includes('401') ||
+                             errorMessage.includes('authentication') ||
+                             errorMessage.includes('not authenticated') ||
+                             errorMessage.includes('API key may be missing');
+          
+          if (isAuthError) {
+            return {
+              success: false,
+              error: `Authentication failed. Please sign in to DevSync first.\n\n` +
+                     `Use the command palette (Ctrl+Shift+P) and run "DevSync: Sign In" or configure devsync.apiKey in your settings.\n\n` +
+                     `If you're using the CLI, run "devsync login" and the extension will use those credentials.`,
+              report: {} as ScanReport,
+            };
+          }
+          
+          // Check if it's a network error
+          const isNetworkError = errorMessage.includes('fetch failed') ||
+                                errorMessage.includes('ECONNREFUSED') ||
+                                errorMessage.includes('network') ||
+                                errorMessage.includes('timeout');
+          
+          if (isNetworkError) {
+            return {
+              success: false,
+              error: `Network error while trying to auto-detect project. Please check your connection and devsync.apiUrl setting.\n\n` +
+                     `Original error: ${errorMessage}`,
+              report: {} as ScanReport,
+            };
+          }
+          
+          // If auto-detection fails for other reasons, return helpful error
+          return {
+            success: false,
+            error: `Failed to auto-detect project. Please set devsync.projectId in your settings.\n\n` +
+                   `Original error: ${errorMessage}`,
+            report: {} as ScanReport,
+          };
+        }
+      }
+      
+      if (!projectId) {
+        return {
+          success: false,
+          error: `Project ID is required. Please set devsync.projectId in your settings, or save your project to DevSync first.`,
+          report: {} as ScanReport,
+        };
+      }
+
+      // Update API client with detected project ID if needed
+      const apiClient = this.apiClient as any;
+      if (apiClient.setProjectId && apiClient.getProjectId() !== projectId) {
+        apiClient.setProjectId(projectId);
+      }
+
       // Execute scan via API
-      const report = await this.apiClient.scan(workspacePath, databaseConnection);
+      let report: ScanReport;
+      try {
+        report = await this.apiClient.scan(workspacePath, databaseConnection);
+      } catch (error) {
+        // Catch and handle authentication errors from scan
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('Unauthorized') || errorMessage.includes('401') || errorMessage.includes('API key')) {
+          return {
+            success: false,
+            error: `Authentication failed during scan. Please sign in to DevSync first.\n\n` +
+                   `Use the command palette (Ctrl+Shift+P) and run "DevSync: Sign In" or configure devsync.apiKey in your settings.\n\n` +
+                   `If you're using the CLI, run "devsync login" and the extension will use those credentials.`,
+            report: {} as ScanReport,
+          };
+        }
+        // Re-throw other errors
+        throw error;
+      }
 
       return {
         success: true,

@@ -31,7 +31,7 @@ export function middleware(request: NextRequest) {
     "style-src 'self' 'unsafe-inline'", // Tailwind requires unsafe-inline
     "img-src 'self' data: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https://*.supabase.co https://*.openai.com",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.openai.com", // wss:// for WebSocket connections (Supabase Realtime)
     "frame-ancestors 'self'",
   ].join('; ');
 

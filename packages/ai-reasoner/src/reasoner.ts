@@ -29,14 +29,14 @@ export interface RiskAssessment {
   recommendations: string[];
 }
 
-export type AIProvider = 'openai' | 'deepseek';
+export type AIProvider = 'puter' | 'openai' | 'deepseek';
 
 export class AIReasoner {
   private apiKey: string;
   private baseUrl: string;
   private provider: AIProvider;
 
-  constructor(apiKey: string, baseUrl?: string, provider: AIProvider = 'openai') {
+  constructor(apiKey: string = '', baseUrl?: string, provider: AIProvider = 'puter') {
     this.apiKey = apiKey;
     this.provider = provider;
     
@@ -44,9 +44,19 @@ export class AIReasoner {
     if (baseUrl) {
       this.baseUrl = baseUrl;
     } else {
-      this.baseUrl = provider === 'deepseek' 
-        ? 'https://api.deepseek.com/v1'
-        : 'https://api.openai.com/v1';
+      switch (provider) {
+        case 'puter':
+          // Puter.js uses OpenRouter API
+          this.baseUrl = 'https://openrouter.ai/api/v1';
+          break;
+        case 'deepseek':
+          this.baseUrl = 'https://api.deepseek.com/v1';
+          break;
+        case 'openai':
+        default:
+          this.baseUrl = 'https://api.openai.com/v1';
+          break;
+      }
     }
   }
 
@@ -58,7 +68,8 @@ export class AIReasoner {
     codeSchema?: any,
     dbSchema?: any
   ): Promise<MigrationExplanation> {
-    if (!this.apiKey || this.apiKey === '') {
+    // Puter.js doesn't require API key (user-pays model)
+    if (this.provider !== 'puter' && (!this.apiKey || this.apiKey === '')) {
       // Fallback to template-based explanation if no API key
       return this.generateTemplateExplanation(mismatches);
     }
@@ -82,7 +93,8 @@ export class AIReasoner {
     codeSchema?: any,
     dbSchema?: any
   ): Promise<RiskAssessment> {
-    if (!this.apiKey || this.apiKey === '') {
+    // Puter.js doesn't require API key (user-pays model)
+    if (this.provider !== 'puter' && (!this.apiKey || this.apiKey === '')) {
       return this.generateTemplateRiskAssessment(mismatches);
     }
 
@@ -106,8 +118,9 @@ export class AIReasoner {
     codeSchema?: any,
     dbSchema?: any
   ): Promise<string> {
-    if (!this.apiKey || this.apiKey === '') {
-      return 'AI queries require an API key. Please configure OPENAI_API_KEY.';
+    // Puter.js doesn't require API key (user-pays model)
+    if (this.provider !== 'puter' && (!this.apiKey || this.apiKey === '')) {
+      return `AI queries require an API key. Please configure ${this.provider === 'deepseek' ? 'DEEPSEEK' : 'OPENAI'}_API_KEY, or use Puter.js (no API key required).`;
     }
 
     try {
@@ -199,18 +212,42 @@ Provide a clear, helpful answer.`;
   }
 
   /**
-   * Call AI API (OpenAI or DeepSeek compatible)
+   * Call AI API (Puter.js/OpenRouter, OpenAI, or DeepSeek compatible)
    */
   private async callAI(prompt: string): Promise<any> {
     // Determine model based on provider
-    const model = this.provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini';
+    let model: string;
+    let headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    switch (this.provider) {
+      case 'puter':
+        // Puter.js uses OpenRouter with Codex models
+        model = 'openai/gpt-5.1-codex-max';
+        // No API key needed for Puter.js (user-pays model)
+        headers['HTTP-Referer'] = 'https://devsync.ai';
+        headers['X-Title'] = 'DevSync';
+        break;
+      case 'deepseek':
+        model = 'deepseek-chat';
+        headers['Authorization'] = `Bearer ${this.apiKey}`;
+        break;
+      case 'openai':
+      default:
+        model = 'gpt-4o-mini';
+        headers['Authorization'] = `Bearer ${this.apiKey}`;
+        break;
+    }
+
+    // For Puter.js, prepend openrouter: prefix if not already present
+    if (this.provider === 'puter' && !model.startsWith('openrouter:')) {
+      model = `openrouter:${model}`;
+    }
     
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-      },
+      headers,
       body: JSON.stringify({
         model: model,
         messages: [
@@ -236,7 +273,11 @@ Provide a clear, helpful answer.`;
       } catch {
         errorMessage = response.statusText;
       }
-      const providerName = this.provider === 'deepseek' ? 'DeepSeek' : 'OpenAI';
+      const providerName = this.provider === 'puter' 
+        ? 'Puter.js/OpenRouter' 
+        : this.provider === 'deepseek' 
+        ? 'DeepSeek' 
+        : 'OpenAI';
       throw new Error(`${providerName} API error: ${errorMessage}`);
     }
 

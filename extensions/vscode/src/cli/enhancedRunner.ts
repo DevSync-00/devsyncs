@@ -83,7 +83,7 @@ export class EnhancedCliRunner {
    * Executes a CLI command with enhanced features.
    */
   async executeEnhanced(
-    command: 'scan' | 'migrate' | 'init',
+    command: 'scan' | 'migrate' | 'init' | 'fix' | 'status',
     options: Record<string, any> = {},
     cliOptions: EnhancedCliOptions = {}
   ): Promise<EnhancedCliResult> {
@@ -218,7 +218,14 @@ export class EnhancedCliRunner {
       const childProcess = spawn(command, args, {
         cwd: options.cwd || process.cwd(),
         shell: true,
-        env: { ...process.env },
+        env: { 
+          ...process.env,
+          // Force unbuffered output for real-time streaming
+          PYTHONUNBUFFERED: '1',
+          NODE_NO_WARNINGS: '1',
+        },
+        // Ensure stdout/stderr are not buffered
+        stdio: ['inherit', 'pipe', 'pipe'],
       });
 
       const commandId = `${command}-${Date.now()}`;
@@ -255,6 +262,12 @@ export class EnhancedCliRunner {
           errorOutput += text;
           this.streamer.processData(data, 'stderr');
           this.outputChannel.append(text);
+          // Also send stderr to onChunk callback for chat panel display
+          if (options.processIncrementally) {
+            options.onChunk?.(text);
+          } else {
+            options.onChunk?.(text);
+          }
         });
       } else {
         // Non-streaming mode (collect all output)

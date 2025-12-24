@@ -83,6 +83,13 @@ export interface IApiClient {
    * @returns The dashboard URL, or empty string if not configured
    */
   getDashboardUrl(): string;
+  
+  /**
+   * Lists all projects accessible to the current user.
+   * 
+   * @returns Promise resolving to array of project items
+   */
+  listProjects(): Promise<Array<{ id: string; name: string; slug?: string; schemaType?: string; schema_type?: string }>>;
 }
 
 /**
@@ -136,7 +143,7 @@ export interface ICliRunner {
    * ```
    */
   executeCliCommand(
-    command: 'scan' | 'migrate' | 'init',
+    command: 'scan' | 'migrate' | 'init' | 'fix' | 'status',
     options?: Record<string, any>,
     cancelToken?: vscode.CancellationToken,
     hooks?: CliRunHooks

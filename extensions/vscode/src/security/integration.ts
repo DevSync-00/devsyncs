@@ -56,13 +56,16 @@ export class SecurityManager {
   }
 
   /**
-   * Start all security monitoring
+   * Start all security monitoring.
+   * 
+   * Sessions are lifecycle-based: they remain active indefinitely while the user is working.
+   * Token rotation keeps tokens fresh, but sessions don't expire based on time.
    */
   start(): void {
-    // Start token rotation
+    // Start token rotation (keeps tokens fresh)
     this.tokenRotation.start();
 
-    // Start session timeout monitoring
+    // Start session lifecycle monitoring (checks for token refresh, no time-based expiration)
     this.sessionTimeout.start();
 
     // Listen for authentication events and log them

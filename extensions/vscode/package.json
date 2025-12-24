@@ -116,6 +116,16 @@
         "category": "DevSync"
       },
       {
+        "command": "devsync.showStatus",
+        "title": "Show Schema Status",
+        "category": "DevSync"
+      },
+      {
+        "command": "devsync.fix",
+        "title": "Generate Fixes",
+        "category": "DevSync"
+      },
+      {
         "command": "devsync.sidebar.scan",
         "title": "Scan Schema",
         "icon": "$(search)"
@@ -272,45 +282,21 @@
           "default": "http://localhost:11434",
           "description": "Ollama API URL"
         },
-        "devsync.openaiApiKey": {
-          "type": "string",
-          "default": "",
-          "description": "OpenAI API key for AI analysis (or set OPENAI_API_KEY env var)"
-        },
-        "devsync.useDeepSeek": {
-          "type": "boolean",
-          "default": false,
-          "description": "Use DeepSeek instead of OpenAI for AI analysis"
-        },
-        "devsync.deepseekApiKey": {
-          "type": "string",
-          "default": "",
-          "description": "DeepSeek API key for AI analysis (or set DEEPSEEK_API_KEY env var)"
-        },
-        "devsync.deepseekModel": {
-          "type": "string",
-          "default": "deepseek-chat",
-          "description": "DeepSeek model name"
-        },
-        "devsync.deepseekUrl": {
-          "type": "string",
-          "default": "https://api.deepseek.com/v1",
-          "description": "DeepSeek API URL"
-        },
         "devsync.ai.provider": {
           "type": "string",
           "enum": [
+            "puter",
             "openai",
             "ollama",
             "deepseek"
           ],
-          "default": "openai",
+          "default": "puter",
           "description": "AI provider to use for chat and analysis"
         },
         "devsync.analyzerUrl": {
           "type": "string",
-          "default": "http://localhost:4000",
-          "description": "DevSync analyzer service URL for device authentication"
+          "default": "http://localhost:3000",
+          "description": "DevSync dashboard URL for device authentication (authentication endpoints are in the dashboard, not a separate analyzer service)"
         }
       }
     },
@@ -356,15 +342,15 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run compile-tests",
+    "pretest": "npm run compile; npm run compile-tests",
     "compile-tests": "tsc -p ./tsconfig.test.json",
     "test": "node ./out/test/runTest.js",
-    "test-watch": "npm run compile && npm run test",
+    "test-watch": "npm run compile; npm run test",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
-    "quality": "npm run lint && npm run format:check && npm run compile",
+    "quality": "npm run lint; npm run format:check; npm run compile",
     "docs": "typedoc",
     "docs:watch": "typedoc --watch",
     "package": "vsce package",

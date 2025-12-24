@@ -20,6 +20,7 @@ This document lists **all** environment variables needed for DevSync.AI deployme
 | `NEXT_PUBLIC_SENTRY_DSN` | ❌ Optional | Public | Client & Server (Error tracking) |
 | `SENTRY_DSN` | ❌ Optional | Secret | Server (Error tracking) |
 | `PROJECTS_CLONE_DIR` | ❌ Optional | Secret | Server (Project cloning) |
+| `SUPABASE_SERVICE_ROLE_KEY` | ❌ Optional | Secret | Server (Admin operations, bypasses RLS) |
 
 ---
 
@@ -394,6 +395,10 @@ NEXT_PUBLIC_SENTRY_DSN=https://abc123@o123456.ingest.sentry.io/123456
 
 # Project Clone Directory (optional, has default)
 PROJECTS_CLONE_DIR=/tmp/devsync-projects
+
+# Supabase Service Role Key (optional, for admin operations that bypass RLS)
+# Get this from Supabase Dashboard > Settings > API > service_role key
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 ---

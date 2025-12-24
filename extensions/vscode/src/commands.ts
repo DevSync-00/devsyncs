@@ -162,32 +162,79 @@ export class DevSyncCommands implements ICommands {
 
       try {
         // Step 1: Validate scan
-        progressTracker.start(4, 'Validating configuration...');
+        progressTracker.start(5, 'Validating configuration...');
+        this.statusReporter.report({ level: StatusLevel.INFO, message: 'Preparing to scan...' });
         const validation = this.scanService.validateScan(workspaceFolder.uri.fsPath);
         if (!validation.valid) {
-          this.stateStore.dispatch(scanActions.fail('Invalid configuration'));
-          throw ScanError.invalidConfig(validation.missingFields || []);
+          const missingFields = validation.missingFields || [];
+          const errorMsg = missingFields.length > 0 
+            ? `Missing required configuration: ${missingFields.join(', ')}. Please configure these settings in VS Code settings.`
+            : 'Invalid configuration. Please check your DevSync settings.';
+          this.stateStore.dispatch(scanActions.fail(errorMsg));
+          await this.notifications.showError(errorMsg, 'Open Settings', 'Dismiss').then(action => {
+            if (action === 'Open Settings') {
+              vscode.commands.executeCommand('workbench.action.openSettings', 'devsync');
+            }
+          });
+          throw ScanError.invalidConfig(missingFields);
         }
-        progressTracker.nextStep('Configuration validated');
+        progressTracker.nextStep('Configuration validated ✓');
 
-        // Step 2: Dispatch scan start action
+        // Step 2: Auto-detect project if needed
+        progressTracker.update(20, 'Detecting project...');
+        this.statusReporter.report({ level: StatusLevel.INFO, message: 'Detecting project...' });
+        
+        // Step 3: Dispatch scan start action
         this.stateStore.dispatch(scanActions.start());
-        progressTracker.nextStep('Starting scan...');
+        progressTracker.update(30, 'Starting scan...');
+        this.statusReporter.report({ level: StatusLevel.INFO, message: 'Starting scan...' });
 
-        // Step 3: Execute scan via service
-        progressTracker.update(50, 'Scanning schema...');
+        // Step 4: Execute scan via service
+        progressTracker.update(50, 'Scanning codebase and database...');
+        this.statusReporter.report({ level: StatusLevel.INFO, message: 'Scanning codebase and database... This may take a minute.' });
         const result = await this.scanService.executeScan(workspaceFolder.uri.fsPath, databaseConnection);
 
         if (!result.success) {
-          this.stateStore.dispatch(scanActions.fail(result.error || 'Scan failed'));
-          throw ScanError.fromError(new Error(result.error || 'Scan failed'), {
+          const errorMsg = result.error || 'Scan failed';
+          this.stateStore.dispatch(scanActions.fail(errorMsg));
+          
+          // Provide helpful error message with actionable steps
+          const isAuthError = errorMsg.includes('Authentication') || errorMsg.includes('Unauthorized') || errorMsg.includes('sign in');
+          const isNetworkError = errorMsg.includes('network') || errorMsg.includes('connection') || errorMsg.includes('timeout');
+          
+          if (isAuthError) {
+            await this.notifications.showError(
+              'Authentication required. Please sign in to continue.',
+              'Sign In',
+              'Dismiss'
+            ).then(action => {
+              if (action === 'Sign In') {
+                vscode.commands.executeCommand('devsync.chat.login');
+              }
+            });
+          } else if (isNetworkError) {
+            await this.notifications.showError(
+              'Network error. Please check your connection and try again.',
+              'Retry',
+              'Dismiss'
+            ).then(action => {
+              if (action === 'Retry') {
+                this.scan();
+              }
+            });
+          } else {
+            await this.notifications.showError(errorMsg, 'View Details', 'Dismiss');
+          }
+          
+          throw ScanError.fromError(new Error(errorMsg), {
             workspacePath: workspaceFolder.uri.fsPath,
           });
         }
-        progressTracker.nextStep('Scan completed');
+        progressTracker.nextStep('Scan completed ✓');
 
-        // Step 4: Process results
+        // Step 5: Process results
         progressTracker.update(90, 'Processing results...');
+        this.statusReporter.report({ level: StatusLevel.INFO, message: 'Processing scan results...' });
         this.stateStore.dispatch(scanActions.complete(result.report));
 
         // Execute extension point for scan completion
@@ -199,18 +246,52 @@ export class DevSyncCommands implements ICommands {
         await this.diagnostics.checkWorkspace(workspaceFolder);
 
         const duration = Date.now() - startTime;
-        progressTracker.complete('Scan complete');
-        this.statusReporter.reportCompletion(
-          `Scan complete! Found ${result.report.mismatches.length} mismatch(es)`,
-          duration
-        );
+        progressTracker.complete('Scan complete ✓');
+        
+        // Show user-friendly success message
+        const mismatchCount = result.report.mismatches.length;
+        const successMessage = mismatchCount === 0
+          ? '✅ Scan complete! No mismatches found. Your schema is in sync!'
+          : `✅ Scan complete! Found ${mismatchCount} mismatch${mismatchCount === 1 ? '' : 'es'}.`;
+        
+        this.statusReporter.reportCompletion(successMessage, duration);
+        
+        // Show notification with actionable options
+        if (mismatchCount > 0) {
+          await this.notifications.showInfo(
+            successMessage,
+            'View Report',
+            'Generate Migration',
+            'Dismiss'
+          ).then(action => {
+            if (action === 'View Report') {
+              this.viewReport();
+            } else if (action === 'Generate Migration') {
+              this.generateMigration();
+            }
+          });
+        } else {
+          await this.notifications.showInfo(successMessage);
+        }
       } catch (error) {
-        progressTracker.complete('Scan failed');
-        this.stateStore.dispatch(scanActions.fail(error instanceof Error ? error.message : String(error)));
+        progressTracker.complete('Scan failed ✗');
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.stateStore.dispatch(scanActions.fail(errorMessage));
+        
+        // Provide user-friendly error message
+        let userMessage = 'Scan failed. ';
+        if (errorMessage.includes('timeout')) {
+          userMessage += 'The scan took too long. Try scanning a smaller portion of your codebase or check your network connection.';
+        } else if (errorMessage.includes('Authentication') || errorMessage.includes('Unauthorized')) {
+          userMessage += 'Please sign in to DevSync to continue.';
+        } else {
+          userMessage += errorMessage;
+        }
+        
         this.statusReporter.reportError(
-          'Scan failed',
+          userMessage,
           error instanceof Error ? error : new Error(String(error)),
-          ['Retry', 'Dismiss']
+          ['Retry', 'View Details', 'Dismiss']
         );
         throw ScanError.fromError(error instanceof Error ? error : new Error(String(error)), {
           workspacePath: workspaceFolder.uri.fsPath,

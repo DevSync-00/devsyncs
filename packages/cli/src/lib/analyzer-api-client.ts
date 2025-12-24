@@ -49,7 +49,7 @@ export class AnalyzerApiClient {
 
   constructor(baseUrl: string, options: AnalyzerApiClientOptions = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
-    this.timeoutMs = options.timeoutMs || 30000;
+    this.timeoutMs = options.timeoutMs || 120000; // Increased to 2 minutes for better reliability
     this.retryAttempts = options.retryAttempts || 3;
     this.retryDelay = options.retryDelay || 1000;
   }
@@ -85,15 +85,15 @@ export class AnalyzerApiClient {
           // Provide actionable error messages
           if (response.status === 503 || response.status === 502) {
             throw new Error(
-              `${errorMessage}. Ensure the DevSync analyzer service is running at ${this.baseUrl}. ` +
-              'Check that the service is started and accessible.'
+              `${errorMessage}. Ensure the DevSync dashboard is running at ${this.baseUrl}. ` +
+              'Check that the dashboard is started and accessible.'
             );
           }
 
           if (response.status === 404) {
             throw new Error(
               `${errorMessage}. The authentication endpoint was not found. ` +
-              `Verify that ${this.baseUrl} is the correct analyzer service URL.`
+              `Verify that ${this.baseUrl} is the correct dashboard URL.`
             );
           }
 
@@ -268,7 +268,7 @@ export class AnalyzerApiClient {
 
           if (response.status === 503 || response.status === 502) {
             throw new Error(
-              `${errorMessage}. Ensure the DevSync analyzer service is running at ${this.baseUrl}.`
+              `${errorMessage}. Ensure the DevSync dashboard is running at ${this.baseUrl}.`
             );
           }
 

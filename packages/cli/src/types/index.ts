@@ -52,15 +52,11 @@ export interface ScanOptions {
   output?: string; // Output JSON results file path
   failOnWarnings?: boolean; // Exit with error code on warnings
   json?: boolean; // Output JSON instead of human-readable format
-  aiAnalysis?: boolean; // Use AI to analyze codebase and infer schema
-  openaiApiKey?: string; // OpenAI API key for AI analysis
-  useOllama?: boolean; // Use Ollama (local, free) instead of OpenAI
+  aiAnalysis?: boolean; // Use AI to analyze codebase and infer schema (enabled by default, uses service-configured API keys)
+  aiProvider?: 'puter' | 'openai' | 'deepseek'; // AI provider to use (default: puter, uses service-configured API keys)
+  useOllama?: boolean; // Use Ollama (local, free) instead of service AI (requires local Ollama installation)
   ollamaModel?: string; // Ollama model name (default: llama3.2:3b)
   ollamaUrl?: string; // Ollama API URL (default: http://localhost:11434)
-  useDeepSeek?: boolean; // Use DeepSeek instead of OpenAI
-  deepseekApiKey?: string; // DeepSeek API key for AI analysis
-  deepseekModel?: string; // DeepSeek model name (default: deepseek-chat)
-  deepseekUrl?: string; // DeepSeek API URL (default: https://api.deepseek.com/v1)
 }
 
 export interface InitOptions {
@@ -86,6 +82,12 @@ export interface Config {
     url?: string; // Dashboard API URL (e.g., http://localhost:3000)
     key?: string; // API key / JWT token
     enabled?: boolean; // Whether to send reports to cloud
+  };
+  ai?: {
+    useOllama?: boolean; // Use Ollama (local, free) instead of service AI
+    ollamaUrl?: string; // Ollama API URL (default: http://localhost:11434)
+    ollamaModel?: string; // Ollama model name (default: llama3.2:3b)
+    enabled?: boolean; // Whether AI analysis is enabled (default: true)
   };
 }
 

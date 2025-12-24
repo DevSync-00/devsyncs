@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync, readdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { createHash } from 'crypto';
 
@@ -91,7 +91,23 @@ export class Cache {
    */
   clear(): void {
     // Cache is file-based, so clearing means deleting files
-    // This is a simple implementation - could be improved
+    try {
+      if (existsSync(this.cacheDir)) {
+        const files = readdirSync(this.cacheDir);
+        for (const file of files) {
+          if (file.endsWith('.json')) {
+            try {
+              const { unlinkSync } = require('fs');
+              unlinkSync(join(this.cacheDir, file));
+            } catch {
+              // Ignore errors when deleting cache files
+            }
+          }
+        }
+      }
+    } catch {
+      // Ignore errors when clearing cache
+    }
   }
 
   /**

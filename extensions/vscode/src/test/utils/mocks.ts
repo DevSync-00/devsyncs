@@ -143,6 +143,22 @@ export class MockApiClient implements IApiClient {
     );
   }
 
+  async getMigration(migrationId: string): Promise<any | null> {
+    const migration = this.migrationResults.find((m) => m.id === migrationId);
+    return migration || null;
+  }
+
+  async listProjects(): Promise<Array<{ id: string; name: string; slug?: string; schemaType?: string; schema_type?: string }>> {
+    return [
+      {
+        id: this.projectId,
+        name: 'Test Project',
+        slug: 'test-project',
+        schemaType: 'prisma',
+      },
+    ];
+  }
+
   getDashboardUrl(): string {
     return `${this.apiUrl}/dashboard/projects/${this.projectId}`;
   }

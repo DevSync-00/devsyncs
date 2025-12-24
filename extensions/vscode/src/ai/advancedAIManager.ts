@@ -500,8 +500,9 @@ export class AdvancedAIManager {
   private loadConfig(): AIFeaturesConfig {
     const config = this.context.globalState.get<AIFeaturesConfig>('ai.config');
     return config || {
-      defaultProvider: 'openai',
+      defaultProvider: 'puter',
       defaultModels: {
+        puter: 'openai/gpt-5.1-codex-max',
         openai: 'gpt-4o-mini',
         deepseek: 'deepseek-chat',
         anthropic: 'claude-3-haiku',
@@ -529,7 +530,7 @@ export class AdvancedAIManager {
     // OpenAI models
     this.models.set('gpt-4o-mini', {
       id: 'gpt-4o-mini',
-      provider: 'openai',
+      provider: 'puter',
       name: 'GPT-4o Mini',
       description: 'Fast and efficient model',
       maxTokens: 128000,

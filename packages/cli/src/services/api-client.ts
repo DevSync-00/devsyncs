@@ -84,7 +84,7 @@ export class ApiClient {
   constructor(options: ApiClientOptions) {
     this.apiUrl = options.apiUrl.replace(/\/$/, ''); // Remove trailing slash
     this.apiKey = options.apiKey;
-    this.timeout = options.timeout || 30000;
+    this.timeout = options.timeout || 120000; // Increased to 2 minutes for better reliability
     this.maxRetries = options.maxRetries || 3;
   }
 

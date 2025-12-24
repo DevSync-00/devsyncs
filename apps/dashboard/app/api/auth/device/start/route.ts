@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { randomBytes } from 'crypto';
+import { deviceCodes } from '@/lib/device-codes-store';
 
 interface DeviceStartRequest {
   client_id: string;
@@ -13,29 +14,6 @@ interface DeviceStartResponse {
   expires_in: number;
   interval: number;
 }
-
-// Store device codes in memory (in production, use Redis or database)
-const deviceCodes = new Map<
-  string,
-  {
-    deviceCode: string;
-    userCode: string;
-    clientId: string;
-    expiresAt: number;
-    approved: boolean;
-    userId?: string;
-  }
->();
-
-// Clean up expired codes every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of deviceCodes.entries()) {
-    if (value.expiresAt < now) {
-      deviceCodes.delete(key);
-    }
-  }
-}, 5 * 60 * 1000);
 
 export async function POST(request: NextRequest) {
   try {
@@ -99,7 +77,4 @@ function generateUserCode(): string {
   ).join('');
   return `${part1}-${part2}`;
 }
-
-// Export deviceCodes map for use in token endpoint
-export { deviceCodes };
 

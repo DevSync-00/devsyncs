@@ -41,22 +41,43 @@ async function triggerGitClone(projectId: string, gitUrl: string, supabase: any)
     
     // Determine clone directory
     // In production, use a proper storage location (e.g., /tmp/projects or cloud storage)
-    const cloneDir = process.env.PROJECTS_CLONE_DIR || `/tmp/devsync-projects/${projectId}`;
+    const baseDir = process.env.PROJECTS_CLONE_DIR || `/tmp/devsync-projects`;
+    const cloneDir = `${baseDir}/${projectId}`;
     
-    // Ensure directory exists (in production, use proper file system utilities)
+    // Import file system utilities
     const fs = await import('fs/promises');
+    const path = await import('path');
+    
+    // Check if directory exists and clean it up if needed
     try {
-      await fs.mkdir(cloneDir, { recursive: true });
+      const stats = await fs.stat(cloneDir);
+      if (stats.isDirectory()) {
+        // Directory exists - check if it's empty
+        const contents = await fs.readdir(cloneDir);
+        if (contents.length > 0) {
+          // Directory is not empty - remove it to allow fresh clone
+          logger.info(`Removing existing non-empty directory: ${cloneDir}`, {
+            projectId,
+            contentsCount: contents.length,
+          });
+          await fs.rm(cloneDir, { recursive: true, force: true });
+        }
+      }
     } catch (err: any) {
-      if (err.code !== 'EEXIST') {
+      // Directory doesn't exist - that's fine, we'll create it
+      if (err.code !== 'ENOENT') {
         throw err;
       }
     }
+    
+    // Ensure parent directory exists
+    await fs.mkdir(baseDir, { recursive: true });
     
     // Clone the repository
     logger.info(`Cloning Git repository for project ${projectId}`, {
       projectId,
       gitUrl,
+      cloneDir,
     });
     const git = simpleGit();
     

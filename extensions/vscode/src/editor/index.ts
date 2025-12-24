@@ -10,4 +10,6 @@ export { SchemaComparisonManager } from './schemaComparison';
 export { SchemaAnnotationManager } from './schemaAnnotations';
 export { MigrationHistoryManager } from './migrationHistory';
 export { EnhancedCodeActions } from './enhancedCodeActions';
+export { FixPreviewManager } from './fixPreview';
+export type { EnhancedFix, FixPreview } from './fixPreview';
 

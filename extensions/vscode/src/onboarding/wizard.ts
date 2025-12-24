@@ -237,24 +237,33 @@ export class OnboardingWizard {
     );
 
     return new Promise((resolve) => {
+      let resolved = false; // Track if promise has been resolved
+      
+      const safeResolve = (value: { cancelled: boolean; data?: Partial<WizardData> }) => {
+        if (!resolved) {
+          resolved = true;
+          resolve(value);
+        }
+      };
+
       panel.webview.html = this.getStepHtml(step, panel.webview);
 
       panel.webview.onDidReceiveMessage(async (message) => {
         switch (message.command) {
           case 'next':
+            safeResolve({ cancelled: false, data: message.data });
             panel.dispose();
-            resolve({ cancelled: false, data: message.data });
             break;
           case 'back':
             if (this.currentStepIndex > 0) {
               this.currentStepIndex--;
             }
+            safeResolve({ cancelled: false });
             panel.dispose();
-            resolve({ cancelled: false });
             break;
           case 'cancel':
+            safeResolve({ cancelled: true });
             panel.dispose();
-            resolve({ cancelled: true });
             break;
           case 'validate':
             if (step.validate) {
@@ -268,8 +277,12 @@ export class OnboardingWizard {
         }
       });
 
+      // Only resolve as cancelled if panel is disposed without a command being handled
+      // This prevents race condition where dispose() is called after 'next' command
       panel.onDidDispose(() => {
-        resolve({ cancelled: true });
+        if (!resolved) {
+          safeResolve({ cancelled: true });
+        }
       });
     });
   }

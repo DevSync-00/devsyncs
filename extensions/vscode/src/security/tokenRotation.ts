@@ -52,7 +52,7 @@ export interface TokenRotationEvent {
  */
 export class TokenRotationManager {
   private rotationTimer: NodeJS.Timeout | null = null;
-  private lastRotationTime: number = 0;
+  private lastRotationTime: number = Date.now(); // Initialize to current time to avoid false warnings
   private rotationEmitter = new vscode.EventEmitter<TokenRotationEvent>();
   public readonly onTokenRotation = this.rotationEmitter.event;
 
@@ -131,7 +131,9 @@ export class TokenRotationManager {
       }
 
       // Check if refresh token needs rotation (less frequent)
-      if (force || timeSinceLastRotation >= this.config.maxRefreshTokenAge) {
+      // Only check if lastRotationTime has been set (not initial state)
+      // and enough time has passed since last rotation
+      if (force || (this.lastRotationTime > 0 && timeSinceLastRotation >= this.config.maxRefreshTokenAge)) {
         await this.rotateRefreshToken();
       }
     } catch (error) {
@@ -184,8 +186,13 @@ export class TokenRotationManager {
       tokenType: 'refresh',
     });
 
+    // Update last rotation time to prevent repeated warnings
+    this.lastRotationTime = Date.now();
+
     // In a production system, you might trigger a re-authentication flow here
-    console.warn('[TokenRotation] Refresh token rotation required - user may need to re-authenticate');
+    // Only log as debug/info level, not warning, since this is expected behavior
+    // and doesn't indicate an error
+    console.debug('[TokenRotation] Refresh token rotation recommended - user may need to re-authenticate in the future');
   }
 
   /**

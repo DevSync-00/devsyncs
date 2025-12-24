@@ -137,20 +137,25 @@ export async function deleteAuthConfig(): Promise<void> {
  */
 export function isTokenExpired(expiresAt: number, bufferSeconds: number = 60): boolean {
   // Add buffer to refresh before actual expiration
-  return Date.now() / 1000 >= (expiresAt - bufferSeconds);
+  // Check if token is expired (with buffer to refresh proactively)
+  const now = Date.now() / 1000;
+  const expiryWithBuffer = expiresAt - bufferSeconds;
+  
+  // Only consider expired if we're past the buffer time
+  // This ensures fresh tokens aren't incorrectly marked as expired
+  return now >= expiryWithBuffer;
 }
 
 /**
- * Derive expiry timestamp from JWT token
+ * Derive expiry timestamp from token (JWT or device flow token)
  * Returns expiry in seconds (Unix timestamp)
  */
 export function deriveExpiryFromToken(token: string): number {
   try {
+    // Try JWT format first (3 parts separated by dots)
     const parts = token.split('.');
-    if (parts.length !== 3) {
-      throw new Error('Invalid JWT format');
-    }
-
+    if (parts.length === 3) {
+      // Standard JWT format
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
     
     if (!payload.exp) {
@@ -158,6 +163,16 @@ export function deriveExpiryFromToken(token: string): number {
     }
 
     return payload.exp;
+    } else {
+      // Device flow token format (base64url-encoded JSON)
+      const payload = JSON.parse(Buffer.from(token, 'base64url').toString('utf-8'));
+      
+      if (!payload.exp) {
+        throw new Error('Token missing expiration claim');
+      }
+
+      return payload.exp;
+    }
   } catch (error) {
     throw new Error(
       `Failed to parse token expiry: ${error instanceof Error ? error.message : 'Unknown error'}`

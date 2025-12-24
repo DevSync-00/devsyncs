@@ -9,20 +9,14 @@ import { saveAuthConfig, deriveExpiryFromToken, deleteAuthConfig } from '../lib/
 import { open } from '../utils/open-browser.js';
 
 /**
- * Get analyzer URL from environment or default
- */
-function getAnalyzerUrl(): string {
-  return process.env.ANALYZER_URL || 
-         process.env.NEXT_PUBLIC_ANALYZER_URL || 
-         'http://localhost:4000';
-}
-
-/**
  * Get dashboard URL from environment or default
+ * Authentication endpoints are in the dashboard, not a separate analyzer service
  */
 function getDashboardUrl(): string {
   return process.env.DASHBOARD_URL || 
          process.env.NEXT_PUBLIC_DASHBOARD_URL || 
+         process.env.ANALYZER_URL ||  // Fallback: some setups might use ANALYZER_URL for dashboard
+         process.env.NEXT_PUBLIC_ANALYZER_URL ||
          'http://localhost:3000';
 }
 
@@ -91,11 +85,10 @@ export async function loginCommand(): Promise<void> {
   try {
     log(chalk.blue('🔐 Starting DevSync CLI authentication...\n'));
 
-    const analyzerUrl = getAnalyzerUrl();
     const dashboardUrl = getDashboardUrl();
 
-    // Create analyzer client
-    const client = new AnalyzerApiClient(analyzerUrl, {
+    // Create analyzer client (uses dashboard URL for authentication)
+    const client = new AnalyzerApiClient(dashboardUrl, {
       timeoutMs: 30000,
       retryAttempts: 3,
     });
@@ -114,10 +107,11 @@ export async function loginCommand(): Promise<void> {
       if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('fetch failed')) {
         log(chalk.red('\n❌ Failed to connect to authentication service.'));
         log(chalk.yellow('\n💡 Troubleshooting:'));
-        log(chalk.gray('   1. Ensure the DevSync analyzer service is running'));
-        log(chalk.gray(`   2. Check that ${analyzerUrl} is accessible`));
-        log(chalk.gray('   3. Verify ANALYZER_URL environment variable if using custom URL'));
-        log(chalk.gray('   4. Check your network connection\n'));
+        log(chalk.gray('   1. Ensure the DevSync dashboard is running'));
+        log(chalk.gray(`   2. Check that ${dashboardUrl} is accessible`));
+        log(chalk.gray('   3. Start the dashboard: cd apps/dashboard && npm run dev'));
+        log(chalk.gray('   4. Verify DASHBOARD_URL environment variable if using custom URL'));
+        log(chalk.gray('   5. Check your network connection\n'));
         process.exit(1);
       }
       
@@ -183,9 +177,24 @@ export async function loginCommand(): Promise<void> {
     let expiresAt: number;
     try {
       expiresAt = deriveExpiryFromToken(tokenData.access_token);
+      // Validate that the expiry is in the future
+      const now = Math.floor(Date.now() / 1000);
+      if (expiresAt <= now) {
+        // Token expiry is in the past - this shouldn't happen for a fresh token
+        // Fall back to calculating from expires_in
+        log(chalk.yellow('⚠️  Token expiry appears invalid, calculating from expires_in'));
+        expiresAt = now + tokenData.expires_in;
+      }
     } catch (error) {
-      log(chalk.yellow('⚠️  Could not parse token expiry, using default (1 hour)'));
+      log(chalk.yellow('⚠️  Could not parse token expiry, calculating from expires_in'));
       expiresAt = Math.floor(Date.now() / 1000) + tokenData.expires_in;
+    }
+    
+    // Ensure expiresAt is in seconds (not milliseconds)
+    // Some tokens might have expiry in milliseconds
+    if (expiresAt > 10000000000) {
+      // If expiry is > year 2286, it's likely in milliseconds, convert to seconds
+      expiresAt = Math.floor(expiresAt / 1000);
     }
 
     // Calculate refresh token expiry
@@ -222,10 +231,11 @@ export async function loginCommand(): Promise<void> {
     if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('fetch failed')) {
       log(chalk.red('\n❌ Failed to connect to authentication service.'));
       log(chalk.yellow('\n💡 Troubleshooting:'));
-      log(chalk.gray('   1. Ensure the DevSync analyzer service is running'));
-      log(chalk.gray(`   2. Check that ${getAnalyzerUrl()} is accessible`));
-      log(chalk.gray('   3. Verify ANALYZER_URL environment variable if using custom URL'));
-      log(chalk.gray('   4. Check your network connection\n'));
+      log(chalk.gray('   1. Ensure the DevSync dashboard is running'));
+      log(chalk.gray(`   2. Check that ${getDashboardUrl()} is accessible`));
+      log(chalk.gray('   3. Start the dashboard: cd apps/dashboard && npm run dev'));
+      log(chalk.gray('   4. Verify DASHBOARD_URL environment variable if using custom URL'));
+      log(chalk.gray('   5. Check your network connection\n'));
     } else if (errorMessage.includes('timeout')) {
       log(chalk.red('\n❌ Request timed out.'));
       log(chalk.yellow('\n💡 Troubleshooting:'));

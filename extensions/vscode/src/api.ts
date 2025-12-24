@@ -1,5 +1,6 @@
 import { requestJson } from './lib/http';
 import { PrismaModel, DatabaseTable, SchemaValue } from './types/schema';
+import type { IConfigurationManager } from './interfaces';
 
 /**
  * Represents a scan report containing schema comparison results.
@@ -155,18 +156,60 @@ import { IApiClient } from './interfaces';
  * ```
  */
 export class DevSyncApiClient implements IApiClient {
+  private configManager?: IConfigurationManager;
+  
   /**
    * Creates a new API client instance.
    * 
    * @param apiUrl - Base URL of the DevSync API
    * @param apiKey - API key for authentication
-   * @param projectId - Project identifier
+   * @param projectId - Project identifier (optional, can be set later)
+   * @param configManager - Optional configuration manager for dynamic config reading
    */
   constructor(
     private readonly apiUrl: string,
     private readonly apiKey: string,
-    private readonly projectId: string
-  ) {}
+    private projectId: string = '',
+    configManager?: IConfigurationManager
+  ) {
+    this.configManager = configManager;
+  }
+  
+  /**
+   * Sets the project ID for this client instance.
+   */
+  setProjectId(projectId: string): void {
+    this.projectId = projectId;
+  }
+  
+  /**
+   * Gets the current project ID.
+   */
+  getProjectId(): string {
+    return this.projectId;
+  }
+  
+  /**
+   * Gets the current API key, reading from config manager if available.
+   */
+  private getApiKey(): string {
+    if (this.configManager) {
+      const config = this.configManager.getAll();
+      return config.apiKey || this.apiKey;
+    }
+    return this.apiKey;
+  }
+  
+  /**
+   * Gets the current API URL, reading from config manager if available.
+   */
+  private getApiUrl(): string {
+    if (this.configManager) {
+      const config = this.configManager.getAll();
+      return config.apiUrl || this.apiUrl;
+    }
+    return this.apiUrl;
+  }
 
   /**
    * Scans a project for schema mismatches between code and database.
@@ -190,6 +233,23 @@ export class DevSyncApiClient implements IApiClient {
    * ```
    */
   async scan(projectPath: string, databaseConnection?: string): Promise<ScanReport> {
+    if (!this.projectId) {
+      throw new Error('Project ID is required. Please set devsync.projectId or save your project to DevSync first.');
+    }
+    
+    // Check API key before making request
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error('API key is required. Please sign in to DevSync or configure devsync.apiKey in your settings.');
+    }
+    
+    // Check API URL
+    const apiUrl = this.getApiUrl();
+    if (!apiUrl) {
+      throw new Error('API URL is required. Please configure devsync.apiUrl in your settings.');
+    }
+    
+    try {
     // For now, we'll trigger a scan via API
     // In the future, this could use the CLI directly
     const response = await this.post<ScanReport>('/api/scans', {
@@ -201,6 +261,17 @@ export class DevSyncApiClient implements IApiClient {
     // Validate response with runtime validation
     const { validateScanReport } = await import('./types/validation');
     return validateScanReport(response);
+    } catch (error: any) {
+      // Provide better error messages for authentication failures
+      if (error instanceof Error) {
+        if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+          throw new Error('Unauthorized: Please sign in to DevSync. Your API key may be missing, invalid, or expired. Run "devsync login" or use "DevSync: Sign In" command.');
+        }
+        // Re-throw with original message
+        throw error;
+      }
+      throw error;
+    }
   }
 
   async getScanReports(limit: number = 10): Promise<ScanReport[]> {
@@ -265,11 +336,28 @@ export class DevSyncApiClient implements IApiClient {
   }
 
   getDashboardUrl(): string {
-    return `${this.apiUrl}/dashboard/projects/${this.projectId}`;
+    return `${this.getApiUrl()}/dashboard/projects/${this.projectId}`;
+  }
+
+  /**
+   * Lists all projects accessible to the current user.
+   * 
+   * @returns Promise resolving to array of project items
+   */
+  async listProjects(): Promise<Array<{ id: string; name: string; slug?: string; schemaType?: string; schema_type?: string }>> {
+    const response = await this.get<{ projects?: unknown[] }>('/api/projects');
+    
+    // Return projects with normalized schemaType field
+    return (response.projects || []).map((project: any) => ({
+      id: project.id,
+      name: project.name,
+      slug: project.slug,
+      schemaType: project.schemaType || project.schema_type,
+    }));
   }
 
   private buildUrl(path: string, params?: Record<string, string>): string {
-    const url = new URL(path, this.apiUrl);
+    const url = new URL(path, this.getApiUrl());
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         url.searchParams.append(key, value);
@@ -279,25 +367,45 @@ export class DevSyncApiClient implements IApiClient {
   }
 
   private get authHeaders(): Record<string, string> {
-    return this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {};
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error('API key is required. Please sign in to DevSync or configure devsync.apiKey in your settings.');
+    }
+    return { Authorization: `Bearer ${apiKey}` };
   }
 
   private async post<T>(path: string, payload: unknown): Promise<T> {
-    return requestJson<T>(this.buildUrl(path), {
+    try {
+      return await requestJson<T>(this.buildUrl(path), {
       method: 'POST',
       headers: this.authHeaders,
       json: payload,
     });
+    } catch (error: any) {
+      // Re-throw with more context for authentication errors
+      if (error instanceof Error && (error.message.includes('401') || error.message.includes('Unauthorized'))) {
+        throw new Error(`Unauthorized: Please sign in to DevSync. The API key may be missing or invalid.`);
+      }
+      throw error;
+    }
   }
 
   private async get<T>(
     path: string,
     params?: Record<string, string>
   ): Promise<T> {
-    return requestJson<T>(this.buildUrl(path, params), {
+    try {
+      return await requestJson<T>(this.buildUrl(path, params), {
       method: 'GET',
       headers: this.authHeaders,
     });
+    } catch (error: any) {
+      // Re-throw with more context for authentication errors
+      if (error instanceof Error && (error.message.includes('401') || error.message.includes('Unauthorized'))) {
+        throw new Error(`Unauthorized: Please sign in to DevSync. The API key may be missing or invalid.`);
+      }
+      throw error;
+    }
   }
 }
 

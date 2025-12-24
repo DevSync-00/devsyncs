@@ -5,11 +5,13 @@ import { loadConfig } from '../utils/config.js';
 import { ApiClient } from '../services/api-client.js';
 import { saveScanResults, getScanExitCode } from '../utils/output.js';
 import { detectProjectInfo, matchProject } from '../utils/project-detector.js';
+import { loadAuthConfig, isTokenExpired } from '../lib/auth-config.js';
+import { requireAuthenticatedCli } from '../lib/auth-check.js';
 import chalk from 'chalk';
 import { resolve } from 'path';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
-import type { ScanOptions, CodeSchema, DbSchema, Mismatch } from '../types/index.js';
+import type { ScanOptions, CodeSchema, DbSchema, Mismatch, Config } from '../types/index.js';
 
 export async function scanCommand(options: ScanOptions) {
   try {
@@ -28,20 +30,101 @@ export async function scanCommand(options: ScanOptions) {
     // Auto-detect project information
     const projectInfo = detectProjectInfo(absolutePath);
     
-    // API settings
+    // Load and validate auth config (from devsync login)
+    // If using service API, ensure token is valid and refresh if needed
+    let authConfig = await loadAuthConfig();
+    
+    // If we need service API (for AI analysis OR project fetching), ensure token is valid
+    // ALWAYS refresh/validate token BEFORE any API calls to ensure we have a valid token
+    if (authConfig && (options.aiAnalysis !== false || !options.projectId)) {
+      try {
+        // Always call requireAuthenticatedCli - it will refresh if expired, or return existing if valid
+        // This ensures we always have a fresh, valid token
+        authConfig = await requireAuthenticatedCli();
+      } catch (error) {
+        // Check if it's a real authentication error or just a network/refresh issue
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        
+        // Debug: Log the actual error
+        if (process.env.DEVSYNC_DEBUG === '1') {
+          console.log(chalk.gray(`   Error from requireAuthenticatedCli: ${errorMessage}`));
+          if (errorStack) {
+            console.log(chalk.gray(`   Stack: ${errorStack.split('\n').slice(0, 3).join('\n')}`));
+          }
+        }
+        
+        // Re-load authConfig to check expiry (it might have been updated)
+        const currentAuthConfig = await loadAuthConfig();
+        const actuallyExpired = currentAuthConfig ? (Date.now() / 1000 >= currentAuthConfig.expiresAt) : true;
+        
+        // If it's a network error or refresh failure, try to use the existing token
+        // Sessions are lifecycle-based - network issues shouldn't invalidate the session
+        if ((errorMessage.includes('timeout') || 
+            errorMessage.includes('ECONNREFUSED') || 
+            errorMessage.includes('ENOTFOUND') ||
+            errorMessage.includes('network') ||
+            errorMessage.includes('refresh') ||
+            errorMessage.includes('fetch failed')) && !actuallyExpired && currentAuthConfig) {
+          // Network/refresh error but token is still valid - use it
+          console.log(chalk.yellow('⚠️  Could not refresh token, using existing token.'));
+          console.log(chalk.gray('   Session remains active. Token refresh will retry on next operation.\n'));
+          authConfig = currentAuthConfig; // Use the current config
+        } else if (errorMessage.includes('Refresh token expired') || 
+                   errorMessage.includes('Refresh token') && errorMessage.includes('invalid') ||
+                   (errorMessage.includes('Unauthorized') && errorMessage.includes('401')) ||
+                   actuallyExpired) {
+          // Real authentication error - token is invalid or expired
+          console.log(chalk.red('❌ Authentication failed. Please run `devsync login` again.'));
+          console.log(chalk.gray('   Your authentication token may have expired or is invalid.\n'));
+          if (process.env.DEVSYNC_DEBUG === '1') {
+            console.log(chalk.gray(`   Error details: ${errorMessage}`));
+          }
+          authConfig = null;
+        } else {
+          // Unknown error - try to use existing token if it's not expired
+          if (!actuallyExpired && currentAuthConfig) {
+            console.log(chalk.yellow('⚠️  Could not validate token, using existing token.'));
+            console.log(chalk.gray('   If authentication fails, please run `devsync login` again.\n'));
+            if (process.env.DEVSYNC_DEBUG === '1') {
+              console.log(chalk.gray(`   Error details: ${errorMessage}`));
+            }
+            authConfig = currentAuthConfig; // Use the current config
+          } else {
+            console.log(chalk.red('❌ Authentication failed. Please run `devsync login` again.'));
+            console.log(chalk.gray('   Your authentication token may have expired or is invalid.\n'));
+            if (process.env.DEVSYNC_DEBUG === '1') {
+              console.log(chalk.gray(`   Error details: ${errorMessage}`));
+            }
+            authConfig = null;
+          }
+        }
+      }
+    }
+    
+    // API settings - prioritize: command-line > config file > saved auth config
     let projectId = options.projectId || config?.project?.id;
-    const apiUrl = options.apiUrl || config?.api?.url;
-    const apiKey = options.apiKey || config?.api?.key;
+    const apiUrl = options.apiUrl || config?.api?.url || authConfig?.apiUrl;
+    // Always use authConfig token if available (it's refreshed and valid)
+    // IMPORTANT: Use authConfig.accessToken first since it's the refreshed token
+    // Create a helper function to get the current API key (always uses latest authConfig)
+    const getApiKey = () => authConfig?.accessToken || options.apiKey || config?.api?.key;
+    let apiKey = getApiKey();
 
     // Auto-match with existing projects if API is configured
     if (!projectId && apiUrl && apiKey) {
       try {
+        // Use the refreshed token from authConfig
         const apiClient = new ApiClient({
           apiUrl,
           apiKey,
-          timeout: 10000,
+          timeout: 60000, // Increased to 1 minute for better reliability
           maxRetries: 2
         });
+        
+        if (process.env.DEVSYNC_DEBUG === '1') {
+          console.log(chalk.gray(`   Attempting to list projects with API key: ${apiKey.substring(0, 20)}...`));
+        }
         
         const existingProjects = await apiClient.listProjects();
         const matches = matchProject(projectInfo, existingProjects);
@@ -64,6 +147,7 @@ export async function scanCommand(options: ScanOptions) {
                 console.log(chalk.green(`✅ Using project: ${bestMatch.name}\n`));
               } else {
                 // Let user select manually
+                // Use the refreshed token (apiKey already has the latest from authConfig)
                 const selectedProjectId = await promptForProjectSelection(apiUrl, apiKey, projectInfo);
                 projectId = selectedProjectId || undefined;
               }
@@ -87,17 +171,54 @@ export async function scanCommand(options: ScanOptions) {
             console.log(chalk.gray(`   Schema type: ${projectInfo.schemaType}`));
           }
           console.log();
-          const selectedProjectId = await promptForProjectSelection(apiUrl, apiKey, projectInfo);
+          // Get the latest API key (may have been refreshed)
+          const currentApiKey = getApiKey();
+          if (!currentApiKey) {
+            console.log(chalk.red('❌ No API key available. Please run `devsync login` first.'));
+            return;
+          }
+          const selectedProjectId = await promptForProjectSelection(apiUrl, currentApiKey, projectInfo);
           projectId = selectedProjectId || undefined;
         } else {
           console.log(chalk.yellow('⚠️  No project ID provided and interactive prompts are disabled.'));
           console.log(chalk.gray('   Use --project-id or set project.id in .devsync/config.json to sync with the dashboard.\n'));
         }
       } catch (error) {
-        // If API call fails, fall back to manual selection
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        // Debug: Log the actual error
+        if (process.env.DEVSYNC_DEBUG === '1') {
+          console.log(chalk.gray(`   Error from listProjects: ${errorMessage}`));
+        }
+        
+        // Check if it's an authentication error
+        // The error format is: "Failed to fetch projects: ${errorMessage} (${status})"
+        // So we need to check for 401 in the status part or "Unauthorized" in the message
+        const isAuthError = errorMessage.includes('Unauthorized') || 
+                           errorMessage.includes('401') ||
+                           errorMessage.match(/\(401\)/) !== null ||
+                           (errorMessage.includes('Failed to fetch projects') && errorMessage.includes('(401)'));
+        
+        if (isAuthError) {
+          console.log(chalk.red('❌ Authentication failed. Please run `devsync login` again.'));
+          console.log(chalk.gray('   Your authentication token may have expired or is invalid.\n'));
+          if (process.env.DEVSYNC_DEBUG === '1') {
+            console.log(chalk.gray(`   Error details: ${errorMessage}`));
+          }
+          // Don't try to prompt for project selection if auth failed
+          return;
+        }
+        
+        // If API call fails for other reasons, fall back to manual selection
         if (process.stdout.isTTY) {
           console.log(chalk.yellow('⚠️  Could not auto-match project. Please select manually:\n'));
-          const selectedProjectId = await promptForProjectSelection(apiUrl, apiKey, projectInfo);
+          // Use the latest API key (try to refresh if needed)
+          const currentApiKey = getApiKey();
+          if (!currentApiKey) {
+            console.log(chalk.red('❌ No API key available. Please run `devsync login` first.'));
+            return;
+          }
+          const selectedProjectId = await promptForProjectSelection(apiUrl, currentApiKey, projectInfo);
           projectId = selectedProjectId || undefined;
         } else {
           console.log(chalk.yellow('⚠️  Could not auto-match project.'));
@@ -108,54 +229,95 @@ export async function scanCommand(options: ScanOptions) {
 
     const shouldSync = options.sync !== false && projectId && apiUrl && apiKey;
 
-    // 1. Scan codebase (extract schema - Prisma, TypeORM, Sequelize, Drizzle, or Raw SQL, or AI)
+    // 1. Scan codebase (AI first by default, then fallback to Prisma, TypeORM, Sequelize, Drizzle, or Raw SQL)
     console.log(chalk.gray('📁 Scanning codebase...'));
-    // Check if AI analysis is requested
-    const useAI = options.aiAnalysis || !!process.env.OPENAI_API_KEY || !!process.env.OLLAMA_URL || !!process.env.DEEPSEEK_API_KEY;
-    const useOllama = options.useOllama || !!process.env.OLLAMA_URL;
-    const useDeepSeek = options.useDeepSeek || !!process.env.DEEPSEEK_API_KEY;
-    const openaiApiKey = options.openaiApiKey || process.env.OPENAI_API_KEY;
-    const deepseekApiKey = options.deepseekApiKey || process.env.DEEPSEEK_API_KEY;
-    const ollamaUrl = options.ollamaUrl || process.env.OLLAMA_URL || 'http://localhost:11434';
-    const ollamaModel = options.ollamaModel || process.env.OLLAMA_MODEL || 'llama3.2:3b';
-    const deepseekUrl = options.deepseekUrl || process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1';
-    const deepseekModel = options.deepseekModel || process.env.DEEPSEEK_MODEL || 'deepseek-chat';
+    
+    // AI analysis uses service-configured API keys (no user API keys needed)
+    // Users can only choose to use local Ollama if available
+    const useOllama = options.useOllama || 
+                     !!process.env.OLLAMA_URL || 
+                     config?.ai?.useOllama || 
+                     false;
+    const ollamaUrl = options.ollamaUrl || 
+                     process.env.OLLAMA_URL || 
+                     config?.ai?.ollamaUrl || 
+                     'http://localhost:11434';
+    const ollamaModel = options.ollamaModel || 
+                       process.env.OLLAMA_MODEL || 
+                       config?.ai?.ollamaModel || 
+                       'llama3.2:3b';
+    
+    // Use AI by default unless explicitly disabled with --no-ai-analysis
+    // AI will try service API first, then Ollama, then fallback to pattern matching
+    const aiEnabledInConfig = config?.ai?.enabled !== false; // Default to true if not specified
+    // AI is enabled by default - it will attempt to use service API or Ollama, and fallback gracefully
+    const useAI = options.aiAnalysis !== false && 
+                  (options.aiAnalysis === true || aiEnabledInConfig !== false);
     
     // Prefer Ollama (free, local) if enabled
     if (useAI && useOllama) {
       console.log(chalk.blue('🤖 Using Ollama (local, free) for AI analysis...'));
       console.log(chalk.gray(`   Model: ${ollamaModel}`));
-      console.log(chalk.gray(`   URL: ${ollamaUrl}\n`));
-    } else if (useAI && useDeepSeek && deepseekApiKey) {
-      console.log(chalk.blue('🤖 Using DeepSeek for AI analysis...'));
-      console.log(chalk.gray(`   Model: ${deepseekModel}`));
-      console.log(chalk.gray(`   URL: ${deepseekUrl}\n`));
-    } else if (useAI && openaiApiKey) {
-      console.log(chalk.blue('🤖 Using AI-powered code analysis (OpenAI)...'));
-    } else if (useAI && !openaiApiKey && !useOllama && !useDeepSeek) {
-      console.error(chalk.red('❌ Error: --ai-analysis requires either:'));
-      console.error(chalk.gray('   --use-ollama (local, free)'));
-      console.error(chalk.gray('   OR --use-deepseek --deepseek-api-key / DEEPSEEK_API_KEY'));
-      console.error(chalk.gray('   OR --openai-api-key flag / OPENAI_API_KEY environment variable'));
-      process.exit(1);
+      console.log(chalk.gray(`   URL: ${ollamaUrl}`));
+      console.log(chalk.gray('   (Will fallback to SQL/database files if AI fails)\n'));
+    } else if (useAI && apiUrl && apiKey) {
+      const provider = options.aiProvider || 'puter';
+      const { getModelInfo } = await import('../utils/ai-provider-resolver.js');
+      const modelInfo = getModelInfo(provider as any);
+      console.log(chalk.blue(`🤖 Using AI-powered code analysis (${modelInfo.displayName})...`));
+      console.log(chalk.gray(`   Provider: ${modelInfo.provider}`));
+      console.log(chalk.gray(`   Model: ${modelInfo.model}`));
+      console.log(chalk.gray('   API keys are managed by the service'));
+      if (authConfig) {
+        console.log(chalk.gray(`   Authenticated as: ${authConfig.userId || 'user'}`));
+      }
+      console.log(chalk.gray('   (Will fallback to SQL/database files if AI fails)\n'));
+    } else if (useAI) {
+      // AI is enabled but no service connection or Ollama - try service API anyway, it will fail gracefully
+      console.log(chalk.blue('🤖 Attempting AI-powered code analysis...'));
+      if (!apiUrl || !apiKey) {
+        console.log(chalk.yellow('⚠️  Not connected to service API.'));
+        console.log(chalk.gray('   Connect with: devsync login'));
+        console.log(chalk.gray('   Or use local AI: --use-ollama'));
+      }
+      console.log(chalk.gray('   Will try service API, then fallback to pattern matching...\n'));
+    } else if (!useAI) {
+      console.log(chalk.gray('📋 Scanning for SQL/database schema files...\n'));
     }
     
+    // DISABLED CACHE: Every scan is fresh to ensure code changes are immediately reflected
     const codeSchema = await scanCodebase(absolutePath, {
       useAI: !!useAI,
-      openaiApiKey: (useOllama || useDeepSeek) ? undefined : (openaiApiKey || undefined),
       useOllama: !!useOllama,
       ollamaModel: ollamaModel,
       ollamaUrl: ollamaUrl,
-      useDeepSeek: !!useDeepSeek,
-      deepseekApiKey: deepseekApiKey,
-      deepseekModel: deepseekModel,
-      deepseekUrl: deepseekUrl,
-      useCache: true,
+      // Service API - try to use if available, even if not fully synced
+      serviceApiUrl: apiUrl || undefined,
+      serviceApiKey: apiKey || undefined,
+      aiProvider: options.aiProvider || 'puter',
+      useCache: false, // DISABLED: Always perform fresh scan
       showProgress: !options.json
     });
     console.log(chalk.green(`✅ Code schema extracted (${codeSchema.models.length} models)\n`));
 
     // 2. Scan database (if connection provided)
+    // Check if user passed connection string as positional argument (common mistake)
+    if (!dbConnection && process.argv.length > 0) {
+      const args = process.argv.slice(process.argv.indexOf('scan') + 1);
+      const potentialDbArg = args.find(arg => 
+        (arg.startsWith('postgresql://') || 
+         arg.startsWith('postgres://') ||
+         arg.startsWith('mysql://') ||
+         arg.startsWith('mongodb://')) &&
+        !arg.startsWith('--')
+      );
+      if (potentialDbArg) {
+        console.log(chalk.yellow(`\n⚠️  Database connection string detected but --db flag is missing.`));
+        console.log(chalk.yellow(`   Use: devsync scan --ai-provider deepseek --db "${potentialDbArg}"`));
+        console.log(chalk.gray(`   (Skipping database scan for now)\n`));
+      }
+    }
+    
     if (!dbConnection) {
       console.log(chalk.yellow('⚠️  No database connection provided'));
       console.log(chalk.gray('💡 Tip: Use --db flag or set in .devsync/config.json'));
@@ -181,7 +343,7 @@ export async function scanCommand(options: ScanOptions) {
     const dbSchema = await scanDatabase({
       connectionString: dbConnection,
       showProgress: !options.json,
-      timeout: 30000,
+      timeout: 60000, // Increased to 1 minute for better reliability
       maxRetries: 3
     });
     console.log(chalk.green(`✅ Database schema extracted (${dbSchema.models.length} tables)\n`));
@@ -312,7 +474,7 @@ async function syncToCloud(
     const apiClient = new ApiClient({ 
       apiUrl, 
       apiKey,
-      timeout: 30000,
+      timeout: 60000, // Increased to 1 minute for better reliability
       maxRetries: 3
     });
     
@@ -373,10 +535,31 @@ function buildProjectLine(index: number, project: Awaited<ReturnType<ApiClient['
 }
 
 async function promptForProjectSelection(apiUrl: string, apiKey: string, projectInfo?: { name: string; schemaType?: string | null }): Promise<string | null> {
+  // Try to refresh the token before creating API client
+  let currentApiKey = apiKey;
+  try {
+    const authConfig = await loadAuthConfig();
+    if (authConfig) {
+      // Check if token is expired and refresh if needed
+      if (isTokenExpired(authConfig.expiresAt)) {
+        const refreshed = await requireAuthenticatedCli();
+        if (refreshed && refreshed.accessToken) {
+          currentApiKey = refreshed.accessToken;
+        }
+      } else if (authConfig.accessToken) {
+        // Use the latest token from config
+        currentApiKey = authConfig.accessToken;
+      }
+    }
+  } catch (error) {
+    // If refresh fails, use the provided key and let the API call fail with a better error
+    console.log(chalk.yellow('⚠️  Could not refresh authentication token. Using provided key.'));
+  }
+  
   const apiClient = new ApiClient({
     apiUrl,
-    apiKey,
-    timeout: 30000,
+    apiKey: currentApiKey,
+    timeout: 120000, // Increased to 2 minutes for better reliability
     maxRetries: 3,
   });
 
@@ -398,7 +581,27 @@ async function promptForProjectSelection(apiUrl: string, apiKey: string, project
       try {
         projects = await apiClient.listProjects(searchTerm);
       } catch (error) {
-        console.log(chalk.red(`❌ Failed to load projects: ${(error as Error).message}`));
+        const errorMessage = (error as Error).message;
+        
+        // Check if it's an authentication error
+        if (errorMessage.includes('Unauthorized') || errorMessage.includes('401')) {
+          console.log(chalk.red(`❌ Authentication failed. Please run \`devsync login\` again.`));
+          console.log(chalk.gray(`   Your authentication token may have expired or is invalid.`));
+          return null;
+        }
+        
+        // Check if it's a network error
+        if (errorMessage.includes('timeout') || errorMessage.includes('ECONNREFUSED') || errorMessage.includes('ENOTFOUND')) {
+          console.log(chalk.red(`❌ Network error: ${errorMessage}`));
+          console.log(chalk.gray(`   Please check your connection and try again.`));
+          const retry = (await rl.question(chalk.cyan('Retry? (y/n): '))).trim().toLowerCase();
+          if (retry === 'y' || retry === 'yes') {
+            continue;
+          }
+          return null;
+        }
+        
+        console.log(chalk.red(`❌ Failed to load projects: ${errorMessage}`));
         return null;
       }
 

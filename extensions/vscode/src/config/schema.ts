@@ -57,7 +57,7 @@ export interface DevSyncConfig {
   deepseekApiKey: string;
   deepseekModel: string;
   deepseekUrl: string;
-  aiProvider: 'openai' | 'ollama' | 'deepseek';
+  aiProvider: 'puter' | 'openai' | 'ollama' | 'deepseek';
 }
 
 /**
@@ -111,9 +111,9 @@ export const CONFIG_SCHEMA: Record<keyof DevSyncConfig, ConfigProperty> = {
   analyzerUrl: {
     key: 'analyzerUrl',
     type: 'string',
-    default: 'http://localhost:4000',
+    default: 'http://localhost:3000',
     required: false,
-    description: 'DevSync analyzer service URL for device authentication',
+    description: 'DevSync dashboard URL for device authentication (authentication endpoints are in the dashboard)',
     pattern: '^https?://.+',
     validator: (value: unknown) => {
       if (typeof value === 'string') {
@@ -216,10 +216,10 @@ export const CONFIG_SCHEMA: Record<keyof DevSyncConfig, ConfigProperty> = {
   aiProvider: {
     key: 'ai.provider',
     type: 'string',
-    default: 'openai',
+    default: 'puter',
     required: false,
     description: 'AI provider to use for chat and analysis',
-    enum: ['openai', 'ollama', 'deepseek'],
+    enum: ['puter', 'openai', 'ollama', 'deepseek'],
   },
 };
 

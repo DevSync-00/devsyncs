@@ -2,6 +2,7 @@ import { Client, Pool } from 'pg';
 import type { DbSchema, Model, Field } from '../types/index.js';
 import { retry, withTimeout } from '../utils/retry.js';
 import { ProgressIndicator } from '../utils/progress.js';
+import chalk from 'chalk';
 
 export interface ScanDatabaseOptions {
   connectionString: string;
@@ -38,7 +39,7 @@ export async function scanDatabase(options: ScanDatabaseOptions | string): Promi
   const {
     connectionString,
     schema = 'public',
-    timeout = 30000,
+    timeout = 60000, // Increased to 1 minute for better reliability
     maxRetries = 3,
     showProgress = true,
     excludeTables = [],
@@ -50,11 +51,50 @@ export async function scanDatabase(options: ScanDatabaseOptions | string): Promi
     throw new Error('Database connection string is required');
   }
 
+  // For Supabase, check if we need to use the connection pooler instead of direct connection
+  // Supabase direct connections use port 5432, pooler uses port 6543
+  let finalConnectionString = connectionString.trim();
+  
+  // Check if it looks like a Supabase connection on port 5432
+  const supabaseDirectMatch = finalConnectionString.match(/@([^:]+):5432(\/|$)/);
+  if (supabaseDirectMatch) {
+    // Supabase direct connections (port 5432) are often not accessible from outside
+    // Automatically suggest using the connection pooler
+    console.warn(chalk.yellow('\n⚠️  Supabase direct connection detected (port 5432).'));
+    console.warn(chalk.yellow('   Direct connections may not be accessible. Using connection pooler is recommended.'));
+    console.warn(chalk.gray('   To use pooler, change port to 6543 or add ?pgbouncer=true\n'));
+  }
+  
+  // Try to parse the connection string to validate it
+  // This will catch URL parsing errors early
+  try {
+    // The pg library uses URL parsing internally, so we validate it here
+    new URL(finalConnectionString);
+  } catch (urlError: any) {
+    // If URL parsing fails, it might be due to special characters in password
+    if (urlError.message && (urlError.message.includes('Invalid URL') || urlError.message.includes('searchParams'))) {
+      throw new Error(
+        `Invalid database connection string format. Special characters in passwords must be URL-encoded:\n` +
+        `  - # becomes %23\n` +
+        `  - / becomes %2F\n` +
+        `  - @ becomes %40\n` +
+        `  - : becomes %3A\n` +
+        `  - ? becomes %3F\n` +
+        `  - & becomes %26\n` +
+        `  - = becomes %3D\n` +
+        `\nExample: postgresql://user:password%23with%2Fspecial@host:5432/db\n` +
+        `\nOriginal error: ${urlError.message}`
+      );
+    }
+    // Re-throw if it's a different error
+    throw urlError;
+  }
+
   const progress = showProgress ? new ProgressIndicator({ message: 'Connecting to database...' }) : null;
 
   try {
     // Use connection pool for better performance
-    const pool = getPool(connectionString);
+    const pool = getPool(finalConnectionString);
     
     // Test connection with retry
     await retry(
@@ -64,7 +104,7 @@ export async function scanDatabase(options: ScanDatabaseOptions | string): Promi
       },
       {
         maxAttempts: maxRetries,
-        retryableErrors: ['ECONNREFUSED', 'ETIMEDOUT', 'timeout', 'connection']
+        retryableErrors: ['ECONNREFUSED', 'ETIMEDOUT', 'timeout', 'connection', 'ENOTFOUND']
       }
     );
 
@@ -141,10 +181,62 @@ export async function scanDatabase(options: ScanDatabaseOptions | string): Promi
     };
   } catch (error) {
     progress?.complete();
-    if (error instanceof Error) {
-      throw new Error(`Failed to scan database: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Provide helpful error messages for common issues
+    if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('getaddrinfo')) {
+      const hostMatch = connectionString.match(/@([^:/]+)/);
+      const hostname = hostMatch ? hostMatch[1] : 'unknown';
+      
+      // Check if it's a Supabase pooler hostname issue
+      const isSupabasePoolerIssue = hostname.includes('pooler.supabase.com') && 
+                                    !hostname.match(/^aws-\d+-[a-z]+-[a-z]+\d+\.pooler\.supabase\.com$/);
+      
+      if (isSupabasePoolerIssue) {
+        throw new Error(
+          `Failed to connect to database: Invalid Supabase pooler hostname "${hostname}".\n` +
+          `\n` +
+          `❌ The hostname format is incorrect. Supabase pooler hostnames are region-specific, not project-specific.\n` +
+          `\n` +
+          `✅ How to get the correct connection string:\n` +
+          `   1. Go to https://supabase.com/dashboard\n` +
+          `   2. Select your project\n` +
+          `   3. Go to Settings → Database\n` +
+          `   4. Scroll to "Connection string" section\n` +
+          `   5. Select "Transaction" or "Session" mode tab\n` +
+          `   6. Copy the connection string (it will have the correct region-based hostname)\n` +
+          `\n` +
+          `   Example correct format:\n` +
+          `   postgresql://postgres.yucmqzoxjciqbarylvsm:[PASSWORD]@aws-0-eu-north-1.pooler.supabase.com:6543/postgres\n` +
+          `\n` +
+          `   Note: The hostname will be region-specific (e.g., aws-0-eu-north-1.pooler.supabase.com),\n` +
+          `   not project-specific (e.g., db.yucmqzoxjciqbarylvsm.pooler.supabase.com)\n` +
+          `\nOriginal error: ${errorMessage}`
+        );
+      }
+      
+      throw new Error(
+        `Failed to connect to database: Cannot resolve hostname "${hostname}".\n` +
+        `This usually means:\n` +
+        `  1. The hostname is incorrect\n` +
+        `  2. For Supabase: Get the correct connection string from Settings → Database → Connection string\n` +
+        `  3. Network connectivity issues or firewall blocking the connection\n` +
+        `\nOriginal error: ${errorMessage}`
+      );
     }
-    throw error;
+    
+    // Handle connection string parsing errors
+    if (errorMessage.includes('searchParams') || errorMessage.includes('Cannot read properties')) {
+      throw new Error(
+        `Failed to parse database connection string. This may be due to:\n` +
+        `  1. Special characters in password need to be URL-encoded (e.g., # becomes %23, / becomes %2F)\n` +
+        `  2. Invalid connection string format\n` +
+        `\nExample: postgresql://user:password%23with%2Fspecial@host:5432/db\n` +
+        `\nOriginal error: ${errorMessage}`
+      );
+    }
+    
+    throw new Error(`Failed to scan database: ${errorMessage}`);
   }
 }
 

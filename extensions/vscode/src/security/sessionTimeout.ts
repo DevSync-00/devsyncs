@@ -1,41 +1,48 @@
 /**
- * Session timeout manager with warnings.
+ * Session lifecycle manager.
  * 
- * Monitors session expiration and provides warnings before timeout.
+ * Monitors session state and handles lifecycle events (login, logout, window close).
+ * Sessions remain active indefinitely while the user is working and only terminate
+ * on explicit logout or window/process close.
  */
 
 import * as vscode from 'vscode';
 import type { IAuthManager } from '../interfaces';
 
 /**
- * Session timeout configuration
+ * Session lifecycle configuration
+ * 
+ * Note: Sessions are now lifecycle-based, not time-based.
+ * Sessions remain active until explicit logout or window/process close.
  */
 export interface SessionTimeoutConfig {
   /**
-   * Warning intervals before expiration (in milliseconds)
-   * Default: [15 minutes, 5 minutes, 1 minute]
+   * @deprecated Warning intervals are no longer used - sessions don't expire based on time
+   * Kept for backward compatibility but ignored
    */
   warningIntervals: number[];
 
   /**
-   * Enable session timeout warnings
+   * Enable session lifecycle monitoring
    * Default: true
    */
   enabled: boolean;
 
   /**
-   * Check interval (in milliseconds)
-   * Default: 1 minute
+   * Check interval for token refresh (in milliseconds)
+   * Default: 5 minutes - checks if token needs refresh
    */
   checkInterval: number;
 }
 
 /**
- * Session timeout warning event
+ * Session lifecycle warning event
+ * 
+ * Only used for actual errors (e.g., refresh token invalid), not time-based expiration
  */
 export interface SessionTimeoutWarning {
   type: 'warning' | 'expired' | 'extended';
-  timeRemaining: number; // milliseconds
+  timeRemaining: number; // milliseconds (not used for expiration, kept for compatibility)
   message: string;
   severity: 'info' | 'warning' | 'error';
 }
@@ -52,13 +59,9 @@ export class SessionTimeoutManager {
   constructor(
     private authManager: IAuthManager,
     private config: SessionTimeoutConfig = {
-      warningIntervals: [
-        15 * 60 * 1000, // 15 minutes
-        5 * 60 * 1000,  // 5 minutes
-        1 * 60 * 1000,  // 1 minute
-      ],
+      warningIntervals: [], // No longer used - sessions don't expire
       enabled: true,
-      checkInterval: 60 * 1000, // 1 minute
+      checkInterval: 5 * 60 * 1000, // 5 minutes - check for token refresh
     }
   ) {
     // Listen for session changes
@@ -98,7 +101,10 @@ export class SessionTimeoutManager {
   }
 
   /**
-   * Check session and emit warnings if needed
+   * Check session and ensure token is refreshed if needed
+   * 
+   * Sessions are lifecycle-based: they remain active indefinitely while the user is working.
+   * We only check if the token needs to be refreshed to keep the session alive.
    */
   private async checkSession(): Promise<void> {
     const session = this.authManager.getSession();
@@ -109,117 +115,76 @@ export class SessionTimeoutManager {
     }
 
     if (!session.expiresAt) {
-      return; // No expiration info
+      return; // No expiration info - session is valid
     }
 
     const now = Date.now();
-    const timeRemaining = session.expiresAt - now;
+    const timeUntilExpiry = session.expiresAt - now;
 
-    if (timeRemaining <= 0) {
-      // Session expired
-      this.emitWarning({
-        type: 'expired',
-        timeRemaining: 0,
-        message: 'Your session has expired. Please sign in again.',
-        severity: 'error',
-      });
-      this.resetWarnings();
-      return;
-    }
-
-    // Check each warning interval
-    for (const interval of this.config.warningIntervals.sort((a, b) => b - a)) {
-      if (timeRemaining <= interval && !this.warnedIntervals.has(interval)) {
-        this.warnedIntervals.add(interval);
-        this.emitWarning({
-          type: 'warning',
-          timeRemaining,
-          message: this.formatWarningMessage(timeRemaining),
-          severity: this.getSeverity(timeRemaining),
-        });
+    // If token is about to expire (within 2 minutes), refresh it automatically
+    // This keeps the session alive indefinitely while the user is working
+    if (timeUntilExpiry <= 2 * 60 * 1000) {
+      try {
+        // Automatically refresh token to keep session alive
+        await this.authManager.ensureAccessToken();
+        // Token refreshed successfully - session continues
+      } catch (error) {
+        // If refresh fails, only then do we consider the session invalid
+        // This handles cases where refresh token is invalid or network is down
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        if (errorMessage.includes('refresh') || errorMessage.includes('invalid')) {
+          // Refresh token is invalid - user needs to re-authenticate
+          this.emitWarning({
+            type: 'expired',
+            timeRemaining: 0,
+            message: 'Session refresh failed. Please sign in again.',
+            severity: 'error',
+          });
+          this.resetWarnings();
+        }
+        // For network errors, don't expire session - it will retry on next check
       }
     }
+    
+    // No time-based expiration warnings - sessions don't expire based on inactivity
   }
 
   /**
-   * Format warning message based on time remaining
+   * Format warning message (no longer used for time-based warnings)
+   * @deprecated Sessions don't expire based on time
    */
   private formatWarningMessage(timeRemaining: number): string {
-    const minutes = Math.floor(timeRemaining / (60 * 1000));
-    const hours = Math.floor(minutes / 60);
-
-    if (hours > 0) {
-      return `Your session will expire in ${hours} hour${hours > 1 ? 's' : ''} and ${minutes % 60} minute${minutes % 60 !== 1 ? 's' : ''}.`;
-    } else if (minutes > 0) {
-      return `Your session will expire in ${minutes} minute${minutes !== 1 ? 's' : ''}.`;
-    } else {
-      const seconds = Math.floor(timeRemaining / 1000);
-      return `Your session will expire in ${seconds} second${seconds !== 1 ? 's' : ''}.`;
-    }
+    // Not used anymore - sessions are lifecycle-based
+    return '';
   }
 
   /**
-   * Get severity level based on time remaining
+   * Get severity level (no longer used for time-based warnings)
+   * @deprecated Sessions don't expire based on time
    */
   private getSeverity(timeRemaining: number): 'info' | 'warning' | 'error' {
-    const minutes = timeRemaining / (60 * 1000);
-
-    if (minutes <= 1) {
-      return 'error';
-    } else if (minutes <= 5) {
-      return 'warning';
-    } else {
-      return 'info';
-    }
+    // Not used anymore - sessions are lifecycle-based
+    return 'info';
   }
 
   /**
    * Emit warning event and show notification
+   * 
+   * Only used for actual errors (e.g., refresh token invalid), not time-based expiration
    */
   private emitWarning(warning: SessionTimeoutWarning): void {
     this.timeoutEmitter.fire(warning);
 
-    // Show VS Code notification
+    // Only show notifications for actual errors (refresh token invalid, etc.)
+    // Not for time-based expiration since sessions don't expire based on time
     if (warning.type === 'expired') {
       vscode.window.showErrorMessage(warning.message, 'Sign In').then((action) => {
         if (action === 'Sign In') {
           void vscode.commands.executeCommand('devsync.chat.login');
         }
       });
-    } else if (warning.severity === 'error') {
-      vscode.window.showErrorMessage(warning.message, 'Extend Session').then((action) => {
-        if (action === 'Extend Session') {
-          void this.extendSession();
-        }
-      });
-    } else if (warning.severity === 'warning') {
-      vscode.window.showWarningMessage(warning.message, 'Extend Session').then((action) => {
-        if (action === 'Extend Session') {
-          void this.extendSession();
-        }
-      });
-    } else {
-      vscode.window.showInformationMessage(warning.message);
     }
-  }
-
-  /**
-   * Extend session by refreshing token
-   */
-  private async extendSession(): Promise<void> {
-    try {
-      await this.authManager.ensureAccessToken();
-      this.emitWarning({
-        type: 'extended',
-        timeRemaining: 0,
-        message: 'Session extended successfully.',
-        severity: 'info',
-      });
-      this.resetWarnings();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to extend session';
-      vscode.window.showErrorMessage(`Failed to extend session: ${message}`);
-    }
+    // No other warnings - sessions are lifecycle-based and don't expire
   }
 
   /**

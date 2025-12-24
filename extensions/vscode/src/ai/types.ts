@@ -8,6 +8,7 @@
  * AI provider type.
  */
 export type AIProvider = 
+  | 'puter'
   | 'openai'
   | 'deepseek'
   | 'anthropic'

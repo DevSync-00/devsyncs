@@ -80,7 +80,15 @@ export function useRealtimeTable<T extends Record<string, any> = Record<string, 
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
         const { onError } = handlersRef.current;
         if (onError) {
-          onError(new Error(`Realtime subscription ${status.toLowerCase()}`));
+          // Only call onError if handler is provided, and suppress console errors for CSP-related issues
+          // The CSP fix should resolve these errors, but we still want to notify the app
+          const error = new Error(`Realtime subscription ${status.toLowerCase()}`);
+          onError(error);
+        } else {
+          // If no error handler, only log in development to avoid console spam
+          if (process.env.NODE_ENV === 'development') {
+            console.warn(`Realtime subscription ${status.toLowerCase()} for table ${table}. Add an onError handler to handle this.`);
+          }
         }
       }
     });

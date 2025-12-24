@@ -49,7 +49,7 @@ export class RequestQueue extends EventEmitter {
     super();
     this.options = {
       maxConcurrent: options.maxConcurrent ?? 5,
-      timeout: options.timeout ?? 30000,
+      timeout: options.timeout ?? 120000, // Increased to 2 minutes for better reliability
       rateLimit: options.rateLimit ?? 10,
     };
     this.rateLimiter = new RateLimiter(this.options.rateLimit);

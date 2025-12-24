@@ -101,7 +101,7 @@ export class CliRunner implements ICliRunner {
    * Execute a CLI command
    */
   async executeCliCommand(
-    command: 'scan' | 'migrate' | 'init',
+    command: 'scan' | 'migrate' | 'init' | 'fix' | 'status',
     options: Record<string, any> = {},
     cancelToken?: vscode.CancellationToken,
     hooks?: CliRunHooks
@@ -115,6 +115,7 @@ export class CliRunner implements ICliRunner {
         // Convert progress to hooks if needed
       },
       onChunk: (chunk: string) => {
+        // Stream both stdout and stderr to hooks for real-time display
         hooks?.onStdout?.(chunk);
       },
     };
@@ -142,7 +143,7 @@ export class CliRunner implements ICliRunner {
    * Fallback to original command execution.
    */
   private async executeCommandFallback(
-    command: 'scan' | 'migrate' | 'init',
+    command: 'scan' | 'migrate' | 'init' | 'fix' | 'status',
     options: Record<string, any> = {},
     cancelToken?: vscode.CancellationToken,
     hooks?: CliRunHooks
@@ -223,7 +224,14 @@ export class CliRunner implements ICliRunner {
       const childProcess = spawn(command, args, {
         cwd: options.cwd || process.cwd(),
         shell: true,
-        env: { ...process.env }
+        env: { 
+          ...process.env,
+          // Force unbuffered output for real-time streaming
+          PYTHONUNBUFFERED: '1',
+          NODE_NO_WARNINGS: '1',
+        },
+        // Ensure stdout/stderr are not buffered
+        stdio: ['inherit', 'pipe', 'pipe'],
       });
 
       const commandId = `${command}-${Date.now()}`;

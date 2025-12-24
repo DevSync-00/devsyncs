@@ -19,6 +19,8 @@ export interface ChatMessageMetadata {
   command?: ChatCliCommand;
   conversationId?: string;
   branchId?: string;
+  aiModel?: string;
+  aiProvider?: string;
 }
 
 export type ChatAction =
@@ -64,6 +66,11 @@ export interface AiQueryResult {
   answer: string;
   question: string;
   scanReportId: string;
+  metadata?: {
+    aiModel?: string;
+    aiProvider?: string;
+    [key: string]: any;
+  };
 }
 
 export interface ScanMismatch {

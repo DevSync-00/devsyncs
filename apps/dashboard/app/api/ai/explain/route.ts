@@ -46,13 +46,17 @@ export async function POST(request: NextRequest) {
 
     // Get AI provider configuration from request or environment
     const { provider } = body;
-    const aiProvider = provider || process.env.AI_PROVIDER || 'openai';
+    const aiProvider = provider || process.env.AI_PROVIDER || 'puter';
     
-    // Get API key based on provider
+    // Get API key and base URL based on provider
     let apiKey: string | undefined;
     let baseUrl: string | undefined;
     
-    if (aiProvider === 'deepseek') {
+    if (aiProvider === 'puter') {
+      // Puter.js uses OpenRouter API - no API key required (user-pays model)
+      baseUrl = 'https://openrouter.ai/api/v1';
+      // No API key needed for Puter.js
+    } else if (aiProvider === 'deepseek') {
       apiKey = process.env.DEEPSEEK_API_KEY;
       baseUrl = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1';
       if (!apiKey) {
@@ -62,6 +66,7 @@ export async function POST(request: NextRequest) {
         );
       }
     } else {
+      // OpenAI (explicit selection only)
       apiKey = process.env.OPENAI_API_KEY;
       baseUrl = process.env.OPENAI_API_URL || 'https://api.openai.com/v1';
       if (!apiKey) {
@@ -115,7 +120,7 @@ export async function POST(request: NextRequest) {
 
     // Generate AI explanation using standalone reasoner
     const { AIReasoner } = await import('../../../../../../packages/ai-reasoner/src/reasoner-standalone');
-    const reasoner = new AIReasoner(apiKey, baseUrl, aiProvider as 'openai' | 'deepseek');
+    const reasoner = new AIReasoner(apiKey || '', baseUrl, aiProvider as 'puter' | 'openai' | 'deepseek');
 
     const explanation = await reasoner.explainMigration(mismatches, codeSchema, dbSchema);
     const riskAssessment = await reasoner.assessRisk(mismatches, codeSchema, dbSchema);

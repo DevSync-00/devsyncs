@@ -29,11 +29,26 @@ export default async function TeamsPage() {
     .order('created_at', { ascending: false });
 
   // Get team member counts
+  // Use admin client to bypass RLS for counting members
   const teamIds = teamMemberships?.map((tm: any) => tm.teams?.id).filter(Boolean) || [];
-  const { data: memberCounts } = teamIds.length > 0 ? await supabase
+  let memberCounts: any[] = [];
+  
+  if (teamIds.length > 0) {
+    try {
+      const { getAdminClient } = await import('@/lib/supabase/admin');
+      const adminClient = getAdminClient();
+      
+      const { data } = await adminClient
     .from('team_members')
     .select('team_id')
-    .in('team_id', teamIds) : { data: null };
+        .in('team_id', teamIds);
+      
+      memberCounts = data || [];
+    } catch (error) {
+      // If admin client fails, use own memberships as fallback
+      memberCounts = teamMemberships || [];
+    }
+  }
 
   const countsByTeam = (memberCounts || []).reduce((acc: Record<string, number>, curr: any) => {
     acc[curr.team_id] = (acc[curr.team_id] || 0) + 1;
