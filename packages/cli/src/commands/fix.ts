@@ -1,7 +1,7 @@
 import { scanCodebase } from '../services/code-scanner.js';
 import { scanDatabase, closeDatabaseConnections } from '../services/db-scanner.js';
 import { compareSchemas } from '../services/diff-engine.js';
-import { generateMigration } from '../services/migration-generator.js';
+import { generateMigration, generateAndValidateMigration } from '../services/migration-generator.js';
 import { loadConfig } from '../utils/config.js';
 import { loadAuthConfig } from '../lib/auth-config.js';
 import { requireAuthenticatedCli } from '../lib/auth-check.js';
@@ -172,11 +172,52 @@ export async function fixCommand(options: FixOptions = {}) {
       }));
     }
 
-    // Generate migration
-    const migration = generateMigration(diff.mismatches, codeSchema, {
-      includeRollback: true,
-      dryRun: isDryRun
-    });
+    // Generate and validate migration
+    let migration;
+    if (dbConnection) {
+      if (!options.json) {
+        console.log(chalk.gray('🔍 Validating migration...'));
+      }
+      migration = await generateAndValidateMigration(
+        diff.mismatches,
+        codeSchema,
+        dbSchema,
+        dbConnection,
+        {
+          includeRollback: true,
+          dryRun: isDryRun,
+          checkBreakingChanges: true,
+          checkPermissions: true
+        }
+      );
+      
+      // Display validation results
+      if (!options.json && migration.validation) {
+        displayValidationResults(migration.validation);
+        
+        if (!migration.validation.valid) {
+          console.log(chalk.red('❌ Migration validation failed!'));
+          if (options.apply) {
+            console.log(chalk.red('❌ Cannot apply migration with validation errors.\n'));
+            await closeDatabaseConnections();
+            process.exit(1);
+          }
+        } else if (migration.validation.summary.warningCount > 0 || migration.validation.summary.breakingChangeCount > 0) {
+          console.log(chalk.yellow('⚠️  Migration has warnings or breaking changes. Review carefully.\n'));
+        } else {
+          console.log(chalk.green('✅ Migration validation passed!\n'));
+        }
+      }
+    } else {
+      // Generate without validation if no connection
+      migration = generateMigration(diff.mismatches, codeSchema, {
+        includeRollback: true,
+        dryRun: isDryRun
+      });
+      if (!options.json) {
+        console.log(chalk.yellow('⚠️  No database connection - skipping validation\n'));
+      }
+    }
 
     // Display fixes
     if (options.json) {
@@ -211,6 +252,36 @@ export async function fixCommand(options: FixOptions = {}) {
 
     // Apply migration if requested (dangerous!)
     if (options.apply && !isDryRun) {
+      // Re-validate before applying if not already validated
+      if (!migration.validation && dbConnection) {
+        if (!options.json) {
+          console.log(chalk.gray('\n🔍 Validating migration before applying...'));
+        }
+        const { validateMigration } = await import('../services/migration-validator.js');
+        const validation = await validateMigration(migration.sql, {
+          connectionString: dbConnection,
+          currentSchema: dbSchema.tables,
+          strictMode: false,
+          checkPermissions: true,
+          checkBreakingChanges: true
+        });
+        
+        if (!validation.valid) {
+          if (options.json) {
+            console.log(JSON.stringify({
+              status: 'error',
+              error: 'Migration validation failed',
+              validation
+            }, null, 2));
+          } else {
+            console.log(chalk.red('\n❌ Migration validation failed! Cannot apply.'));
+            displayValidationResults(validation);
+          }
+          await closeDatabaseConnections();
+          process.exit(1);
+        }
+      }
+      
       if (!options.json) {
         console.log(chalk.yellow('\n⚠️  Applying migration to database...'));
       }
@@ -457,7 +528,82 @@ function displayFixesJSON(
       name: migration.name,
       description: migration.description,
       sql: migration.sql,
-      rollback: migration.rollback
+      rollback: migration.rollback,
+      validation: migration.validation
     }
   }, null, 2));
+}
+
+function displayValidationResults(validation: ReturnType<typeof generateMigration>['validation']) {
+  if (!validation) {
+    return;
+  }
+
+  const { errors, warnings, breakingChanges, summary } = validation;
+
+  // Display summary
+  console.log(chalk.blue('📊 Validation Results:\n'));
+  console.log(chalk.gray(`   Total Issues: ${summary.totalIssues}`));
+  console.log(
+    summary.errorCount > 0 
+      ? chalk.red(`   Errors: ${summary.errorCount}`)
+      : chalk.green(`   Errors: ${summary.errorCount}`)
+  );
+  console.log(
+    summary.warningCount > 0
+      ? chalk.yellow(`   Warnings: ${summary.warningCount}`)
+      : chalk.gray(`   Warnings: ${summary.warningCount}`)
+  );
+  console.log(
+    summary.breakingChangeCount > 0
+      ? chalk.red(`   Breaking Changes: ${summary.breakingChangeCount}`)
+      : chalk.gray(`   Breaking Changes: ${summary.breakingChangeCount}`)
+  );
+
+  // Display errors
+  if (errors.length > 0) {
+    console.log(chalk.red('\n❌ Errors:'));
+    for (const error of errors) {
+      console.log(chalk.red(`   • ${error.message}`));
+      if (error.line) {
+        console.log(chalk.gray(`     Line ${error.line}`));
+      }
+      if (error.suggestion) {
+        console.log(chalk.gray(`     💡 ${error.suggestion}`));
+      }
+    }
+  }
+
+  // Display warnings
+  if (warnings.length > 0) {
+    console.log(chalk.yellow('\n⚠️  Warnings:'));
+    for (const warning of warnings) {
+      console.log(chalk.yellow(`   • ${warning.message}`));
+      if (warning.line) {
+        console.log(chalk.gray(`     Line ${warning.line}`));
+      }
+      if (warning.suggestion) {
+        console.log(chalk.gray(`     💡 ${warning.suggestion}`));
+      }
+    }
+  }
+
+  // Display breaking changes
+  if (breakingChanges.length > 0) {
+    console.log(chalk.red('\n🚨 Breaking Changes:'));
+    for (const change of breakingChanges) {
+      console.log(chalk.red(`   • ${change.message}`));
+      if (change.affectedTable) {
+        console.log(chalk.gray(`     Table: ${change.affectedTable}${change.affectedColumn ? `, Column: ${change.affectedColumn}` : ''}`));
+      }
+      if (change.impact) {
+        console.log(chalk.gray(`     Impact: ${change.impact}`));
+      }
+      if (change.mitigation) {
+        console.log(chalk.gray(`     💡 ${change.mitigation}`));
+      }
+    }
+  }
+
+  console.log(''); // Empty line
 }

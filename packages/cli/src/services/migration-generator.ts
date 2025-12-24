@@ -1,4 +1,5 @@
 import type { Mismatch, CodeSchema, DbSchema } from '../types/index.js';
+import { validateMigration, type ValidationResult } from './migration-validator.js';
 
 export interface Migration {
   id: string;
@@ -8,6 +9,7 @@ export interface Migration {
   mismatches: Mismatch[];
   timestamp: Date;
   rollback?: string; // Optional rollback SQL
+  validation?: ValidationResult; // Validation results if validated
 }
 
 export interface MigrationOptions {
@@ -15,6 +17,9 @@ export interface MigrationOptions {
   format?: 'sql' | 'prisma';
   includeRollback?: boolean;
   dryRun?: boolean;
+  strictMode?: boolean; // Treat warnings as errors
+  checkPermissions?: boolean; // Check database permissions
+  checkBreakingChanges?: boolean; // Detect breaking changes (default: true)
 }
 
 /**
@@ -142,6 +147,53 @@ export function generateMigration(
     mismatches,
     timestamp,
     rollback
+  };
+}
+
+/**
+ * Generates and validates a migration.
+ */
+export async function generateAndValidateMigration(
+  mismatches: Mismatch[],
+  codeSchema: CodeSchema | undefined,
+  dbSchema: DbSchema | undefined,
+  connectionString: string | undefined,
+  options: MigrationOptions = {}
+): Promise<Migration & { validation: ValidationResult }> {
+  // Generate migration
+  const migration = generateMigration(mismatches, codeSchema, options);
+
+  // Validate if connection string provided
+  if (connectionString) {
+    const validation = await validateMigration(migration.sql, {
+      connectionString,
+      currentSchema: dbSchema?.tables,
+      strictMode: options.strictMode,
+      checkPermissions: options.checkPermissions,
+      checkBreakingChanges: options.checkBreakingChanges !== false
+    });
+
+    return {
+      ...migration,
+      validation
+    };
+  }
+
+  // Return migration without validation if no connection string
+  return {
+    ...migration,
+    validation: {
+      valid: true,
+      errors: [],
+      warnings: [],
+      breakingChanges: [],
+      summary: {
+        totalIssues: 0,
+        errorCount: 0,
+        warningCount: 0,
+        breakingChangeCount: 0
+      }
+    }
   };
 }
 

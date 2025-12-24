@@ -1,7 +1,7 @@
 import { scanCodebase } from '../services/code-scanner.js';
 import { scanDatabase } from '../services/db-scanner.js';
 import { compareSchemas } from '../services/diff-engine.js';
-import { generateMigration } from '../services/migration-generator.js';
+import { generateMigration, generateAndValidateMigration } from '../services/migration-generator.js';
 import { loadConfig } from '../utils/config.js';
 import chalk from 'chalk';
 import { resolve } from 'path';
@@ -67,14 +67,50 @@ export async function migrateCommand(options: MigrateOptions) {
       outputPath: options.output,
       format: options.format || 'sql',
       includeRollback: options.includeRollback !== false,
-      dryRun: options.dryRun
+      dryRun: options.dryRun,
+      checkBreakingChanges: true,
+      checkPermissions: true
     };
 
-    const migration = generateMigration(
-      diff.mismatches,
-      codeSchema,
-      migrationOptions
-    );
+    // Generate and validate migration
+    let migration;
+    if (dbConnection) {
+      console.log(chalk.gray('🔍 Validating migration...'));
+      migration = await generateAndValidateMigration(
+        diff.mismatches,
+        codeSchema,
+        dbSchema,
+        dbConnection,
+        migrationOptions
+      );
+      
+      // Display validation results
+      displayValidationResults(migration.validation);
+      
+      // Warn if validation failed
+      if (!migration.validation.valid) {
+        console.log(chalk.red('\n❌ Migration validation failed!'));
+        console.log(chalk.yellow('⚠️  Review errors above before applying.\n'));
+        
+        if (options.apply) {
+          console.log(chalk.red('❌ Cannot apply migration with validation errors.'));
+          console.log(chalk.gray('   Fix the errors and try again.\n'));
+          process.exit(1);
+        }
+      } else if (migration.validation.summary.warningCount > 0 || migration.validation.summary.breakingChangeCount > 0) {
+        console.log(chalk.yellow('\n⚠️  Migration has warnings or breaking changes. Review carefully.\n'));
+      } else {
+        console.log(chalk.green('✅ Migration validation passed!\n'));
+      }
+    } else {
+      // Generate without validation if no connection
+      migration = generateMigration(
+        diff.mismatches,
+        codeSchema,
+        migrationOptions
+      );
+      console.log(chalk.yellow('⚠️  No database connection - skipping validation\n'));
+    }
 
     // 6. Display migration preview
     displayMigrationPreview(migration);
@@ -85,6 +121,25 @@ export async function migrateCommand(options: MigrateOptions) {
 
     // 8. Apply migration if requested
     if (options.apply && !options.dryRun) {
+      // Re-validate before applying if not already validated
+      if (!migration.validation && dbConnection) {
+        console.log(chalk.gray('\n🔍 Validating migration before applying...'));
+        const { validateMigration } = await import('../services/migration-validator.js');
+        const validation = await validateMigration(migration.sql, {
+          connectionString: dbConnection,
+          currentSchema: dbSchema.tables,
+          strictMode: false,
+          checkPermissions: true,
+          checkBreakingChanges: true
+        });
+        
+        if (!validation.valid) {
+          console.log(chalk.red('\n❌ Migration validation failed! Cannot apply.'));
+          displayValidationResults(validation);
+          process.exit(1);
+        }
+      }
+      
       console.log(chalk.gray('\n🔄 Applying migration...'));
       await applyMigration(dbConnection, migration);
       console.log(chalk.green('✅ Migration applied successfully!\n'));
@@ -125,6 +180,80 @@ function displayMigrationPreview(migration: ReturnType<typeof generateMigration>
   }
   
   console.log(chalk.gray(`\n   SQL Preview:\n${chalk.dim(migration.sql.split('\n').slice(0, 15).join('\n'))}...\n`));
+}
+
+function displayValidationResults(validation: ReturnType<typeof generateMigration>['validation']) {
+  if (!validation) {
+    return;
+  }
+
+  const { errors, warnings, breakingChanges, summary } = validation;
+
+  // Display summary
+  console.log(chalk.blue('📊 Validation Results:\n'));
+  console.log(chalk.gray(`   Total Issues: ${summary.totalIssues}`));
+  console.log(
+    summary.errorCount > 0 
+      ? chalk.red(`   Errors: ${summary.errorCount}`)
+      : chalk.green(`   Errors: ${summary.errorCount}`)
+  );
+  console.log(
+    summary.warningCount > 0
+      ? chalk.yellow(`   Warnings: ${summary.warningCount}`)
+      : chalk.gray(`   Warnings: ${summary.warningCount}`)
+  );
+  console.log(
+    summary.breakingChangeCount > 0
+      ? chalk.red(`   Breaking Changes: ${summary.breakingChangeCount}`)
+      : chalk.gray(`   Breaking Changes: ${summary.breakingChangeCount}`)
+  );
+
+  // Display errors
+  if (errors.length > 0) {
+    console.log(chalk.red('\n❌ Errors:'));
+    for (const error of errors) {
+      console.log(chalk.red(`   • ${error.message}`));
+      if (error.line) {
+        console.log(chalk.gray(`     Line ${error.line}`));
+      }
+      if (error.suggestion) {
+        console.log(chalk.gray(`     💡 ${error.suggestion}`));
+      }
+    }
+  }
+
+  // Display warnings
+  if (warnings.length > 0) {
+    console.log(chalk.yellow('\n⚠️  Warnings:'));
+    for (const warning of warnings) {
+      console.log(chalk.yellow(`   • ${warning.message}`));
+      if (warning.line) {
+        console.log(chalk.gray(`     Line ${warning.line}`));
+      }
+      if (warning.suggestion) {
+        console.log(chalk.gray(`     💡 ${warning.suggestion}`));
+      }
+    }
+  }
+
+  // Display breaking changes
+  if (breakingChanges.length > 0) {
+    console.log(chalk.red('\n🚨 Breaking Changes:'));
+    for (const change of breakingChanges) {
+      console.log(chalk.red(`   • ${change.message}`));
+      if (change.affectedTable) {
+        console.log(chalk.gray(`     Table: ${change.affectedTable}${change.affectedColumn ? `, Column: ${change.affectedColumn}` : ''}`));
+      }
+      if (change.impact) {
+        console.log(chalk.gray(`     Impact: ${change.impact}`));
+      }
+      if (change.mitigation) {
+        console.log(chalk.gray(`     💡 ${change.mitigation}`));
+      }
+    }
+  }
+
+  console.log(''); // Empty line
 }
 
 function getDefaultOutputPath(projectPath: string): string {
@@ -173,6 +302,46 @@ async function applyMigration(
   migration: ReturnType<typeof generateMigration>
 ) {
   try {
+    // Validate before applying if not already validated
+    if (!migration.validation) {
+      console.log(chalk.gray('🔍 Validating migration before applying...'));
+      const { validateMigration } = await import('../services/migration-validator.js');
+      const { scanDatabase } = await import('../services/db-scanner.js');
+      
+      // Get current schema for validation
+      const dbSchema = await scanDatabase({ connectionString: dbConnection });
+      
+      const validation = await validateMigration(migration.sql, {
+        connectionString: dbConnection,
+        currentSchema: dbSchema.tables,
+        strictMode: false,
+        checkPermissions: true,
+        checkBreakingChanges: true
+      });
+      
+      if (!validation.valid) {
+        console.log(chalk.red('\n❌ Migration validation failed! Cannot apply.'));
+        displayValidationResults(validation);
+        throw new Error('Migration validation failed');
+      }
+      
+      if (validation.summary.warningCount > 0 || validation.summary.breakingChangeCount > 0) {
+        console.log(chalk.yellow('⚠️  Migration has warnings or breaking changes.'));
+        const proceed = await new Promise<boolean>((resolve) => {
+          // In CLI, we'll just warn and continue
+          // In interactive mode, could prompt user
+          console.log(chalk.yellow('⚠️  Proceeding with application...'));
+          resolve(true);
+        });
+        
+        if (!proceed) {
+          throw new Error('Migration application cancelled by user');
+        }
+      } else {
+        console.log(chalk.green('✅ Validation passed!\n'));
+      }
+    }
+    
     // Import pg dynamically
     const { Client } = await import('pg');
     

@@ -445,7 +445,11 @@ export async function activate(context: vscode.ExtensionContext) {
                   sql: f.sql,
                   safety: f.safety
                 })),
-                migration: fixData.migration,
+                migration: {
+                  ...fixData.migration,
+                  // Include validation results if available from CLI
+                  validation: fixData.migration?.validation || fixData.validation || null
+                },
                 summary: {
                   total: fixData.fixes.length,
                   safe: fixData.fixes.filter((f: any) => f.safety === 'safe').length,
@@ -517,19 +521,25 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const showSchemaComparisonCommand = vscode.commands.registerCommand(
     'devsync.showSchemaComparison',
-    async () => {
+    async (fix?: any) => {
       // Load schema comparison on demand
-      await StartupOptimizer.getProgressiveEnhancement().loadFeature('schemaComparison');
-      const { SchemaComparisonManager } = await import('./editor');
+      const { SchemaComparisonManager } = await import('./editor/schemaComparison');
       const schemaComparison = new SchemaComparisonManager(editorService);
       
-      const scanReport = await apiClient.getLatestScanReport();
-      if (!scanReport) {
-        vscode.window.showWarningMessage('No scan report found. Run a scan first.');
-        return;
+      if (fix) {
+        // Show comparison for a specific fix
+        await schemaComparison.showComparisonForFix(fix);
+      } else {
+        // Show comparison for latest scan report
+        const scanReport = await apiClient.getLatestScanReport();
+        if (!scanReport) {
+          vscode.window.showWarningMessage('No scan report found. Run a scan first.');
+          return;
+        }
+        
+        // For now, show a message - full scan report comparison would need more implementation
+        vscode.window.showInformationMessage('Schema comparison: Select a fix to view detailed comparison.');
       }
-      
-      await schemaComparison.showComparison(scanReport);
     }
   );
   

@@ -357,11 +357,34 @@ export class DevSyncCommands implements ICommands {
           await this.pluginRegistry.executeExtensionPoint('devsync.migration.generated', result.migration);
         }
 
+        // Show validation results if available
+        if (result.migration.validation) {
+          const validation = result.migration.validation;
+          if (!validation.valid) {
+            const errorCount = validation.summary.errorCount;
+            const warningCount = validation.summary.warningCount;
+            const breakingCount = validation.summary.breakingChangeCount;
+            
+            await this.notifications.showWarning(
+              `Migration generated with ${errorCount} error${errorCount !== 1 ? 's' : ''}, ${warningCount} warning${warningCount !== 1 ? 's' : ''}, ${breakingCount} breaking change${breakingCount !== 1 ? 's' : ''}. Review validation results.`,
+              'View Details',
+              'Dismiss'
+            );
+          } else if (validation.summary.warningCount > 0 || validation.summary.breakingChangeCount > 0) {
+            await this.notifications.showWarning(
+              `Migration generated with ${validation.summary.warningCount} warning${validation.summary.warningCount !== 1 ? 's' : ''} and ${validation.summary.breakingChangeCount} breaking change${validation.summary.breakingChangeCount !== 1 ? 's' : ''}. Review before applying.`,
+              'View Details',
+              'Dismiss'
+            );
+          } else {
+            await this.notifications.showInfo('DevSync: Migration generated and validated successfully!');
+          }
+        } else {
+          await this.notifications.showInfo('DevSync: Migration generated! Review and apply manually.');
+        }
+
         // UI: Show migration in editor
         await this.editor.openDocument('Migration generated', result.migration.content, 'sql');
-
-        // UI: Show completion message
-        await this.notifications.showInfo('DevSync: Migration generated! Review and apply manually.');
       } catch (error) {
         this.stateStore.dispatch(migrationActions.fail(error instanceof Error ? error.message : String(error)));
         if (error instanceof MigrationError) {

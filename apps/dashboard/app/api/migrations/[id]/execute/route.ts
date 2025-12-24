@@ -331,60 +331,40 @@ async function validateMigrationSQL(sql: string, connectionString: string): Prom
   success: boolean;
   error?: string;
   executionTime?: number;
+  validation?: any; // Full validation result
 }> {
   const startTime = Date.now();
-  const pool = new Pool({ connectionString });
   
   try {
-    // Try to parse and validate SQL without executing
-    // Note: This is a simplified validation - in production, you'd want more robust validation
-    const client = await pool.connect();
+    // Use comprehensive migration validator
+    const { validateMigration } = await import('@devsync/cli/services/migration-validator');
     
-    try {
-      // Parse SQL to check for syntax errors (PostgreSQL can do this with EXPLAIN)
-      const statements = sql.split(';').filter(s => s.trim().length > 0);
-      
-      for (const statement of statements) {
-        const trimmed = statement.trim();
-        
-        // Skip comments and transaction commands
-        if (
-          trimmed.startsWith('--') ||
-          trimmed.toUpperCase().startsWith('BEGIN') ||
-          trimmed.toUpperCase().startsWith('COMMIT') ||
-          trimmed.length === 0
-        ) {
-          continue;
-        }
+    const validation = await validateMigration(sql, {
+      connectionString,
+      strictMode: false,
+      checkPermissions: true,
+      checkBreakingChanges: true
+    });
 
-        // Try to explain the statement (validates syntax without executing)
-        try {
-          await client.query(`EXPLAIN ${trimmed}`);
-        } catch (explainError: any) {
-          // If EXPLAIN fails, the SQL is likely invalid
-          return {
-            success: false,
-            error: `SQL validation failed: ${explainError.message}`,
-            executionTime: Date.now() - startTime,
-          };
-        }
+    return {
+      success: validation.valid,
+      error: validation.errors.length > 0 
+        ? validation.errors.map(e => e.message).join('; ')
+        : undefined,
+      executionTime: Date.now() - startTime,
+      validation: {
+        errors: validation.errors,
+        warnings: validation.warnings,
+        breakingChanges: validation.breakingChanges,
+        summary: validation.summary
       }
-
-      return {
-        success: true,
-        executionTime: Date.now() - startTime,
-      };
-    } finally {
-      client.release();
-    }
+    };
   } catch (error: any) {
     return {
       success: false,
       error: error.message || 'Failed to validate SQL',
       executionTime: Date.now() - startTime,
     };
-  } finally {
-    await pool.end();
   }
 }
 

@@ -80,6 +80,130 @@ export async function POST(request: NextRequest) {
     const migrationSQL = generateMigrationSQL(mismatches, codeSchema, dbSchema);
     const migrationName = generateMigrationName(mismatches);
 
+    // Validate migration if database connection available
+    let validationResult = null;
+    const dbConnectionString = project.db_connection_string;
+    
+    if (dbConnectionString && typeof dbConnectionString === 'string') {
+      try {
+        // Use comprehensive validation
+        // Import the validator - using relative path for monorepo structure
+        // If not available, will fall back to basic validation
+        let validatorAvailable = false;
+        let validateMigration: any = null;
+        
+        try {
+          // Try to import from CLI package (monorepo structure)
+          const validatorPath = process.env.NODE_ENV === 'production'
+            ? '@devsync/cli/services/migration-validator'
+            : '../../../../packages/cli/src/services/migration-validator.js';
+          
+          const validatorModule = await import(validatorPath);
+          validateMigration = validatorModule.validateMigration;
+          validatorAvailable = true;
+        } catch (importError) {
+          // Validator not available - will use basic validation
+          console.warn('CLI validator not available, using basic validation');
+        }
+        
+        if (validatorAvailable && validateMigration) {
+          // Use comprehensive validator
+          validationResult = await validateMigration(migrationSQL, {
+            connectionString: dbConnectionString,
+            currentSchema: dbSchema?.tables || [],
+            strictMode: false,
+            checkPermissions: true,
+            checkBreakingChanges: true
+          });
+        } else {
+          // Fallback: Basic validation using PostgreSQL EXPLAIN
+          const { Pool } = await import('pg');
+          const pool = new Pool({ connectionString: dbConnectionString });
+          const client = await pool.connect();
+          
+          try {
+            const statements = migrationSQL.split(';').filter(s => s.trim().length > 0);
+            const errors: any[] = [];
+            const warnings: any[] = [];
+            
+            for (const statement of statements) {
+              const trimmed = statement.trim();
+              if (trimmed.startsWith('--') || 
+                  trimmed.toUpperCase().startsWith('BEGIN') || 
+                  trimmed.toUpperCase().startsWith('COMMIT') ||
+                  trimmed.length === 0) {
+                continue;
+              }
+              
+              // Check for breaking changes (basic detection)
+              const upperSQL = trimmed.toUpperCase();
+              if (upperSQL.includes('DROP TABLE') || upperSQL.includes('DROP COLUMN') || upperSQL.includes('TRUNCATE')) {
+                warnings.push({
+                  type: 'data_loss',
+                  severity: 'warning',
+                  message: `Potentially destructive operation detected: ${trimmed.substring(0, 50)}...`,
+                  suggestion: 'Review carefully - this may cause data loss'
+                });
+              }
+              
+              // Validate syntax
+              try {
+                await client.query(`EXPLAIN ${trimmed}`);
+              } catch (explainError: any) {
+                errors.push({
+                  type: 'syntax',
+                  severity: 'error',
+                  message: `SQL syntax error: ${explainError.message}`,
+                  suggestion: 'Check SQL syntax against PostgreSQL documentation'
+                });
+              }
+            }
+            
+            validationResult = {
+              valid: errors.length === 0,
+              errors,
+              warnings,
+              breakingChanges: warnings.filter(w => w.type === 'data_loss').map(w => ({
+                type: 'drop_table' as const,
+                severity: 'warning' as const,
+                message: w.message,
+                impact: 'This operation may cause data loss',
+                mitigation: w.suggestion
+              })),
+              summary: {
+                totalIssues: errors.length + warnings.length,
+                errorCount: errors.length,
+                warningCount: warnings.length,
+                breakingChangeCount: warnings.filter(w => w.type === 'data_loss').length
+              }
+            };
+          } finally {
+            client.release();
+            await pool.end();
+          }
+        }
+      } catch (validationError) {
+        // Log but don't fail - validation errors will be shown to user
+        console.warn('Migration validation failed:', validationError);
+        validationResult = {
+          valid: false,
+          errors: [{
+            type: 'semantic' as const,
+            severity: 'error' as const,
+            message: `Validation error: ${validationError instanceof Error ? validationError.message : 'Unknown error'}`
+          }],
+          warnings: [],
+          breakingChanges: [],
+          summary: {
+            totalIssues: 1,
+            errorCount: 1,
+            warningCount: 0,
+            breakingChangeCount: 0
+          }
+        };
+      }
+    }
+
     // Create migration record
     const { data: migration, error: insertError } = await supabase
       .from('migrations')
@@ -89,6 +213,15 @@ export async function POST(request: NextRequest) {
         content: migrationSQL,
         format: format,
         applied: false,
+        // Store validation results in metadata (if supported by schema)
+        metadata: validationResult ? {
+          validation: {
+            valid: validationResult.valid,
+            errorCount: validationResult.summary.errorCount,
+            warningCount: validationResult.summary.warningCount,
+            breakingChangeCount: validationResult.summary.breakingChangeCount
+          }
+        } : null
       })
       .select()
       .single();
@@ -102,11 +235,20 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
+      id: migration.id,
       migrationId: migration.id,
       filename: migration.filename,
       sql: migration.content,
+      content: migration.content,
       format: migration.format,
       createdAt: migration.created_at,
+      validation: validationResult ? {
+        valid: validationResult.valid,
+        errors: validationResult.errors,
+        warnings: validationResult.warnings,
+        breakingChanges: validationResult.breakingChanges,
+        summary: validationResult.summary
+      } : null
     });
   } catch (error) {
     console.error('API error:', error);

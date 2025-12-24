@@ -135,6 +135,40 @@ export interface Migration {
   applied: boolean;
   /** ISO 8601 timestamp when the migration was created */
   created_at: string;
+  /** Validation results if migration was validated */
+  validation?: {
+    valid: boolean;
+    errors: Array<{
+      type: string;
+      severity: 'error';
+      message: string;
+      line?: number;
+      suggestion?: string;
+    }>;
+    warnings: Array<{
+      type: string;
+      severity: 'warning';
+      message: string;
+      line?: number;
+      suggestion?: string;
+    }>;
+    breakingChanges: Array<{
+      type: string;
+      severity: 'error' | 'warning';
+      message: string;
+      affectedTable?: string;
+      affectedColumn?: string;
+      line?: number;
+      impact?: string;
+      mitigation?: string;
+    }>;
+    summary: {
+      totalIssues: number;
+      errorCount: number;
+      warningCount: number;
+      breakingChangeCount: number;
+    };
+  };
 }
 
 import { IApiClient } from './interfaces';
