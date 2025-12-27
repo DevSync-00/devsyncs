@@ -4,10 +4,13 @@ import { useEffect, useRef } from 'react';
 
 interface TrendChartProps {
   data: Array<{ date: string; value: number }>;
-  metric: string;
+  title?: string;
+  metric?: string; // For backward compatibility
+  color?: string;
 }
 
-export default function TrendChart({ data, metric }: TrendChartProps) {
+export default function TrendChart({ data, title, metric, color = '#3b82f6' }: TrendChartProps) {
+  const displayTitle = title || (metric ? `${metric} Trend` : 'Trend');
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -57,7 +60,7 @@ export default function TrendChart({ data, metric }: TrendChartProps) {
     }
 
     // Draw line
-    ctx.strokeStyle = '#3b82f6';
+    ctx.strokeStyle = color;
     ctx.lineWidth = 2;
     ctx.beginPath();
 
@@ -75,7 +78,7 @@ export default function TrendChart({ data, metric }: TrendChartProps) {
     ctx.stroke();
 
     // Draw points
-    ctx.fillStyle = '#3b82f6';
+    ctx.fillStyle = color;
     data.forEach((point, index) => {
       const x = data.length > 1 ? (width / (data.length - 1)) * index : width / 2;
       const y = height - ((point.value - min) / (max - min || 1)) * height;
@@ -89,15 +92,15 @@ export default function TrendChart({ data, metric }: TrendChartProps) {
   if (data.length === 0) {
     return (
       <div className="p-4 bg-card border rounded-lg">
-        <h3 className="text-lg font-semibold mb-4 capitalize">{metric} Trend</h3>
+        <h3 className="text-lg font-semibold mb-4">{displayTitle}</h3>
         <p className="text-muted-foreground text-center py-8">No data available</p>
       </div>
     );
   }
 
   return (
-    <div className="p-4 bg-card border rounded-lg">
-      <h3 className="text-lg font-semibold mb-4 capitalize">{metric} Trend</h3>
+    <div>
+      {displayTitle && <h3 className="text-lg font-semibold mb-4">{displayTitle}</h3>}
       <div className="w-full">
         <canvas
           ref={canvasRef}

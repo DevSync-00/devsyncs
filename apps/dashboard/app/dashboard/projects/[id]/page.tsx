@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import ScanReportsList from '@/components/ScanReportsList';
 import CodebaseStatus from '@/components/CodebaseStatus';
+import ProjectAnalyticsWidget from '@/components/analytics/ProjectAnalyticsWidget';
 import { Button } from '@/components/ui/button';
 import { Scan } from 'lucide-react';
 import { ScanReportSkeleton } from '@/components/LoadingSkeleton';
@@ -87,6 +88,11 @@ export default async function ProjectDetailPage({
 
       {/* Codebase Status */}
       <CodebaseStatus projectId={params.id} />
+
+      {/* Analytics Widget */}
+      <Suspense fallback={<div className="h-32 bg-card border rounded-lg animate-pulse" />}>
+        <ProjectAnalyticsWidget projectId={params.id} />
+      </Suspense>
 
       <div className="border-t border-border pt-8">
         <h2 className="text-xl font-semibold mb-4">Scan Reports</h2>

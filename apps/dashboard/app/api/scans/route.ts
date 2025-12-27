@@ -103,6 +103,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Record analytics (async, don't block response)
+    try {
+      const { storeSchemaSnapshot, calculateAndStoreDriftMetrics } = await import('@/lib/analytics/drift-analyzer');
+      const { recordTeamActivity } = await import('@/lib/analytics/team-metrics');
+      
+      // Store schema snapshots
+      if (dbSchema) {
+        await storeSchemaSnapshot(supabase, projectId, 'db', dbSchema, mismatches?.length || 0, user.id);
+      }
+      if (codeSchema) {
+        await storeSchemaSnapshot(supabase, projectId, 'code', codeSchema, mismatches?.length || 0, user.id);
+      }
+      
+      // Calculate drift metrics if we have both schemas
+      if (dbSchema && codeSchema) {
+        await calculateAndStoreDriftMetrics(supabase, projectId, dbSchema, codeSchema);
+      }
+      
+      // Record team activity
+      if (project.team_id) {
+        await recordTeamActivity(supabase, {
+          team_id: project.team_id,
+          user_id: user.id,
+          project_id: projectId,
+          activity_type: 'scan',
+        });
+      }
+    } catch (analyticsError) {
+      // Log but don't fail the request
+      console.warn('Error recording analytics:', analyticsError);
+    }
+
     return NextResponse.json({
       scanId: scanReport.id,
       status: 'success',

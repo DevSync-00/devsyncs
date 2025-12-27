@@ -146,6 +146,23 @@
         "icon": "$(output)"
       },
       {
+        "command": "devsync.openERD",
+        "title": "Open ER Diagram",
+        "category": "DevSync",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "devsync.captureSchemaSnapshot",
+        "title": "Capture Schema Snapshot",
+        "category": "DevSync",
+        "icon": "$(camera)"
+      },
+      {
+        "command": "devsync.captureSchemaFromDatabase",
+        "title": "Capture Schema from Database",
+        "category": "DevSync"
+      },
+      {
         "command": "devsync.sidebar.viewFix",
         "title": "View Suggested Fix"
       },
@@ -340,8 +357,10 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "compile": "tsc -p ./ && npm run compile:webview",
+    "compile:webview": "webpack --config src/erd/webview/webpack.config.js",
     "watch": "tsc -watch -p ./",
+    "watch:webview": "webpack --config src/erd/webview/webpack.config.js --watch",
     "pretest": "npm run compile; npm run compile-tests",
     "compile-tests": "tsc -p ./tsconfig.test.json",
     "test": "node ./out/test/runTest.js",
@@ -363,12 +382,16 @@
     "@types/pg": "^8.15.6",
     "@types/sqlite3": "^5.1.0",
     "@types/vscode": "^1.80.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
     "@vscode/test-electron": "^2.3.0",
     "glob": "^11.0.0",
     "mocha": "^10.0.0",
+    "ts-loader": "^9.5.0",
     "typedoc": "^0.28.15",
     "typedoc-plugin-markdown": "^4.9.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "webpack": "^5.90.0"
   },
   "dependencies": {
     "dompurify": "^3.0.9",

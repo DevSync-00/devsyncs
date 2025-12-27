@@ -1,5 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { getDriftTrends, getFrequentlyChangingObjects } from '@/lib/analytics/drift-analyzer';
+import { getMigrationStats, correlateMigrationFailures } from '@/lib/analytics/migration-metrics';
+import { calculateStabilityScore, getStabilityScoreHistory } from '@/lib/analytics/stability-scorer';
+import { getTeamCollaborationMetrics, getCollaborationPatterns } from '@/lib/analytics/team-metrics';
 
 export const dynamic = 'force-dynamic';
 
@@ -286,6 +290,23 @@ export async function GET(request: NextRequest) {
         byStatus: {},
       },
       team: teamMetrics,
+      // Enhanced analytics
+      drift: projectIdsList.length > 0 ? {
+        trends: await getDriftTrends(supabase, projectIdsList[0], 30).catch(() => []),
+        frequentlyChanging: await getFrequentlyChangingObjects(supabase, projectIdsList[0], 10).catch(() => []),
+      } : null,
+      stability: projectIdsList.length > 0 ? {
+        current: await calculateStabilityScore(supabase, projectIdsList[0]).catch(() => null),
+        history: await getStabilityScoreHistory(supabase, projectIdsList[0], 90).catch(() => []),
+      } : null,
+      migrationMetrics: projectIdsList.length > 0 ? {
+        stats: await getMigrationStats(supabase, projectIdsList[0], periodStart, now).catch(() => null),
+        correlation: await correlateMigrationFailures(supabase, projectIdsList[0]).catch(() => null),
+      } : null,
+      collaboration: teamId ? {
+        metrics: await getTeamCollaborationMetrics(supabase, teamId, 30).catch(() => null),
+        patterns: await getCollaborationPatterns(supabase, teamId, 30).catch(() => null),
+      } : null,
     });
   } catch (error) {
     console.error('Get analytics error:', error);

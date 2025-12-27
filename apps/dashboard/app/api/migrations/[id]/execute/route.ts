@@ -189,6 +189,49 @@ export async function POST(
             .eq('id', historyEntry.id);
         }
 
+        // Record migration metrics (async, don't block response)
+        try {
+          const { storeMigrationMetric, calculateComplexityScore } = await import('@/lib/analytics/migration-metrics');
+          const { recordTeamActivity } = await import('@/lib/analytics/team-metrics');
+          
+          const complexityScore = calculateComplexityScore(migration.content);
+          const validationErrors = (migration.metadata as any)?.validation?.errors?.length || 0;
+          const validationWarnings = (migration.metadata as any)?.validation?.warnings?.length || 0;
+          const breakingChanges = (migration.metadata as any)?.validation?.breakingChanges?.length || 0;
+          
+          await storeMigrationMetric(supabase, {
+            migration_id: params.id,
+            project_id: project.id,
+            execution_type: dryRun ? 'dry_run' : 'apply',
+            execution_status: 'success',
+            duration_ms: executionTime,
+            affected_tables: executionResult.affectedTables || 0,
+            affected_rows: executionResult.affectedRows || 0,
+            complexity_score: complexityScore,
+            validation_errors: validationErrors,
+            validation_warnings: validationWarnings,
+            breaking_changes: breakingChanges,
+            executed_by: user.id,
+            metadata: {
+              dryRun,
+              executionResult,
+            },
+          });
+          
+          // Record team activity
+          if (project.team_id) {
+            await recordTeamActivity(supabase, {
+              team_id: project.team_id,
+              user_id: user.id,
+              project_id: project.id,
+              activity_type: 'migration',
+            });
+          }
+        } catch (analyticsError) {
+          // Log but don't fail the request
+          console.warn('Error recording migration analytics:', analyticsError);
+        }
+
         return NextResponse.json({
           success: true,
           dryRun,
@@ -215,6 +258,30 @@ export async function POST(
             execution_completed_at: new Date().toISOString(),
           })
           .eq('id', params.id);
+
+        // Record failed migration metrics
+        try {
+          const { storeMigrationMetric, calculateComplexityScore } = await import('@/lib/analytics/migration-metrics');
+          
+          const complexityScore = calculateComplexityScore(migration.content);
+          
+          await storeMigrationMetric(supabase, {
+            migration_id: params.id,
+            project_id: project.id,
+            execution_type: dryRun ? 'dry_run' : 'apply',
+            execution_status: 'failed',
+            duration_ms: executionTime,
+            complexity_score: complexityScore,
+            executed_by: user.id,
+            error_message: errorMessage,
+            metadata: {
+              dryRun,
+              error: errorMessage,
+            },
+          });
+        } catch (analyticsError) {
+          console.warn('Error recording failed migration analytics:', analyticsError);
+        }
 
         // Update history entry
         if (historyEntry) {

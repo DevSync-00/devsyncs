@@ -6,6 +6,7 @@ import { ApiClient } from '../services/api-client.js';
 import { saveScanResults, getScanExitCode } from '../utils/output.js';
 import { detectProjectInfo, matchProject } from '../utils/project-detector.js';
 import { loadAuthConfig, isTokenExpired } from '../lib/auth-config.js';
+import { convertDbSchemaToErdFormat, convertCodeSchemaToErdFormat, saveErdSnapshot } from '../utils/erd-snapshot.js';
 import { requireAuthenticatedCli } from '../lib/auth-check.js';
 import chalk from 'chalk';
 import { resolve } from 'path';
@@ -380,12 +381,54 @@ export async function scanCommand(options: ScanOptions) {
       console.log(chalk.gray(`\n📄 Results saved to: ${resultsPath}\n`));
     }
 
-    // 6. Sync to cloud if configured
+    // 6. Save ERD snapshot for VS Code extension (always save if DB schema available)
+    if (dbSchema && dbSchema.models.length > 0) {
+      try {
+        const erdFormat = convertDbSchemaToErdFormat(dbSchema);
+        const snapshotPath = await saveErdSnapshot(
+          absolutePath,
+          erdFormat,
+          `CLI scan (database: ${dbSchema.type})`,
+          `Auto-captured from CLI scan - ${dbSchema.models.length} tables`
+        );
+        if (!options.json) {
+          console.log(chalk.blue(`📊 ERD snapshot saved: ${snapshotPath}`));
+          console.log(chalk.gray('   Open in VS Code: Run "DevSync: Open ERD" command\n'));
+        }
+      } catch (err) {
+        // Don't fail scan if ERD snapshot fails
+        if (!options.json) {
+          console.log(chalk.yellow(`⚠️  Failed to save ERD snapshot: ${err instanceof Error ? err.message : String(err)}`));
+        }
+      }
+    } else if (codeSchema && codeSchema.models.length > 0) {
+      // Save code schema as ERD snapshot if no DB connection
+      try {
+        const erdFormat = convertCodeSchemaToErdFormat(codeSchema);
+        const snapshotPath = await saveErdSnapshot(
+          absolutePath,
+          erdFormat,
+          `CLI scan (codebase: ${codeSchema.type})`,
+          `Auto-captured from CLI scan - ${codeSchema.models.length} models`
+        );
+        if (!options.json) {
+          console.log(chalk.blue(`📊 ERD snapshot saved: ${snapshotPath}`));
+          console.log(chalk.gray('   Open in VS Code: Run "DevSync: Open ERD" command\n'));
+        }
+      } catch (err) {
+        // Don't fail scan if ERD snapshot fails
+        if (!options.json) {
+          console.log(chalk.yellow(`⚠️  Failed to save ERD snapshot: ${err instanceof Error ? err.message : String(err)}`));
+        }
+      }
+    }
+
+    // 7. Sync to cloud if configured
     if (shouldSync && projectId && apiUrl && apiKey) {
       await syncToCloud(apiUrl, apiKey, projectId, codeSchema, dbSchema, diff.mismatches);
     }
 
-    // 7. Exit with appropriate code for CI/CD
+    // 8. Exit with appropriate code for CI/CD
     const exitCode = getScanExitCode(diff, options.failOnWarnings || false);
     
     // Clean up database connections

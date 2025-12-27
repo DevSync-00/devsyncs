@@ -11,6 +11,9 @@ import { SchemaStatusBarManager } from './ui/schemaStatusBar';
 import { FixPreviewManager } from './editor/fixPreview';
 import { Mismatch } from './api';
 import { getModelInfoFromConfig } from './utils/aiModelInfo';
+import { ErdPanel } from './erd/panel';
+import { registerErdCommands } from './erd/commands';
+import { ErdSnapshotWatcher } from './erd/watcher';
 
 /**
  * Activates the DevSync VS Code extension.
@@ -146,6 +149,21 @@ export async function activate(context: vscode.ExtensionContext) {
       },
     })
   );
+
+  // ERD Panel command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('devsync.openERD', () => {
+      ErdPanel.createOrShow(context);
+    }),
+  );
+  registerErdCommands(context);
+
+  // Setup ERD snapshot watcher for CLI integration
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (workspaceRoot) {
+    const erdWatcher = new ErdSnapshotWatcher(workspaceRoot);
+    context.subscriptions.push(erdWatcher);
+  }
 
   // Register code action provider (basic - critical for diagnostics)
   const codeActionProvider = vscode.languages.registerCodeActionsProvider(

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import AnalyticsDashboard from '@/components/reporting/AnalyticsDashboard';
+import EnhancedAnalyticsDashboard from '@/components/reporting/EnhancedAnalyticsDashboard';
 
 export default async function AnalyticsPage({
   searchParams,
@@ -37,9 +38,10 @@ export default async function AnalyticsPage({
         </p>
       </div>
 
-      <AnalyticsDashboard
+      <EnhancedAnalyticsDashboard
         teamId={searchParams.teamId}
         period={searchParams.period || 'month'}
+        projectId={searchParams.projectId}
       />
     </div>
   );
