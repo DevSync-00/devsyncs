@@ -6,7 +6,7 @@
  */
 
 import { Pool } from 'pg';
-import type { DatabaseTable } from '../types/index.js';
+import type { DatabaseTable, DatabaseColumn } from '../types/index.js';
 
 export interface ValidationResult {
   valid: boolean;
@@ -281,7 +281,7 @@ function validateSchemaState(
         const [, tableName, columnName] = columnMatch;
         const table = schemaMap.get(tableName.toLowerCase());
         if (table) {
-          const column = table.columns.find(c => c.name.toLowerCase() === columnName.toLowerCase());
+          const column = table.columns.find((c: DatabaseColumn) => c.name.toLowerCase() === columnName.toLowerCase());
           if (!column) {
             warnings.push({
               type: 'data_loss',
@@ -303,7 +303,7 @@ function validateSchemaState(
         const [, tableName, columnName] = columnMatch;
         const table = schemaMap.get(tableName.toLowerCase());
         if (table) {
-          const column = table.columns.find(c => c.name.toLowerCase() === columnName.toLowerCase());
+          const column = table.columns.find((c: DatabaseColumn) => c.name.toLowerCase() === columnName.toLowerCase());
           if (column && !statement.sql.toUpperCase().includes('IF NOT EXISTS')) {
             errors.push({
               type: 'schema',
@@ -422,9 +422,9 @@ function detectBreakingChanges(
         const [, tableName, columnName, newType] = typeMatch;
         const table = schemaMap.get(tableName.toLowerCase());
         if (table) {
-          const column = table.columns.find(c => c.name.toLowerCase() === columnName.toLowerCase());
+          const column = table.columns.find((c: DatabaseColumn) => c.name.toLowerCase() === columnName.toLowerCase());
           if (column) {
-            const oldType = column.type.toLowerCase();
+            const oldType = (column.type || '').toLowerCase();
             const newTypeLower = newType.toLowerCase();
             
             // Check for type narrowing
@@ -453,7 +453,7 @@ function detectBreakingChanges(
         const [, tableName, columnName] = columnMatch;
         const table = schemaMap.get(tableName.toLowerCase());
         if (table) {
-          const column = table.columns.find(c => c.name.toLowerCase() === columnName.toLowerCase());
+          const column = table.columns.find((c: DatabaseColumn) => c.name.toLowerCase() === columnName.toLowerCase());
           if (column && column.nullable) {
             breakingChanges.push({
               type: 'not_null_add',

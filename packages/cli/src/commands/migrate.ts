@@ -7,25 +7,29 @@ import chalk from 'chalk';
 import { resolve } from 'path';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
-import type { ScanOptions } from '../types/index.js';
+import type { DatabaseTable } from '../types/index.js';
 import type { MigrationOptions } from '../services/migration-generator.js';
 
-export interface MigrateOptions extends ScanOptions {
+export interface MigrateOptions {
+  path?: string;
   output?: string;
   format?: 'sql' | 'prisma';
   dryRun?: boolean;
   apply?: boolean;
   includeRollback?: boolean;
+  db?: string;
+  config?: string;
 }
 
 export async function migrateCommand(options: MigrateOptions) {
   try {
     console.log(chalk.blue('🔧 Generating migration...\n'));
 
-    // Resolve path to absolute path
-    const absolutePath = options.path.startsWith('/') || /^[A-Z]:/.test(options.path)
-      ? options.path
-      : resolve(process.cwd(), options.path);
+    // Resolve path to absolute path (default: cwd)
+    const basePath = options.path || process.cwd();
+    const absolutePath = basePath.startsWith('/') || /^[A-Z]:/.test(basePath)
+      ? basePath
+      : resolve(process.cwd(), basePath);
 
     // Load config if exists
     const config = options.config ? await loadConfig(options.config) : null;
@@ -47,6 +51,18 @@ export async function migrateCommand(options: MigrateOptions) {
     console.log(chalk.gray('🗄️  Scanning database...'));
     const dbSchema = await scanDatabase(dbConnection);
     console.log(chalk.green(`✅ Database schema extracted (${dbSchema.models.length} tables)\n`));
+
+    // Derive DatabaseTable shape for validation routines
+    const dbTables: DatabaseTable[] = dbSchema.models.map(model => ({
+      name: model.name,
+      columns: model.fields.map(f => ({
+        name: f.name,
+        type: f.type,
+        nullable: f.nullable,
+        constraints: f.constraints,
+        defaultValue: f.defaultValue,
+      })),
+    }));
 
     // 3. Compare schemas
     console.log(chalk.gray('🔬 Comparing schemas...'));
@@ -124,14 +140,14 @@ export async function migrateCommand(options: MigrateOptions) {
       // Re-validate before applying if not already validated
       if (!migration.validation && dbConnection) {
         console.log(chalk.gray('\n🔍 Validating migration before applying...'));
-        const { validateMigration } = await import('../services/migration-validator.js');
-        const validation = await validateMigration(migration.sql, {
-          connectionString: dbConnection,
-          currentSchema: dbSchema.tables,
-          strictMode: false,
-          checkPermissions: true,
-          checkBreakingChanges: true
-        });
+          const { validateMigration } = await import('../services/migration-validator.js');
+          const validation = await validateMigration(migration.sql, {
+            connectionString: dbConnection,
+            currentSchema: dbTables,
+            strictMode: false,
+            checkPermissions: true,
+            checkBreakingChanges: true
+          });
         
         if (!validation.valid) {
           console.log(chalk.red('\n❌ Migration validation failed! Cannot apply.'));
@@ -310,10 +326,20 @@ async function applyMigration(
       
       // Get current schema for validation
       const dbSchema = await scanDatabase({ connectionString: dbConnection });
-      
+      const dbTables: DatabaseTable[] = dbSchema.models.map(model => ({
+        name: model.name,
+        columns: model.fields.map(f => ({
+          name: f.name,
+          type: f.type,
+          nullable: f.nullable,
+          constraints: f.constraints,
+          defaultValue: f.defaultValue,
+        })),
+      }));
+
       const validation = await validateMigration(migration.sql, {
         connectionString: dbConnection,
-        currentSchema: dbSchema.tables,
+        currentSchema: dbTables,
         strictMode: false,
         checkPermissions: true,
         checkBreakingChanges: true

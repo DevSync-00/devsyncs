@@ -136,7 +136,7 @@ export class ErdPanel {
     const nonce = getNonce()
     const cspSource = webview.cspSource
     const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'out', 'erd', 'erd-webview.js'),
+      vscode.Uri.joinPath(context.extensionUri, 'out', 'erd', 'webview', 'erd-webview.js'),
     )
 
     return /* html */ `

@@ -39,28 +39,35 @@ export async function initCommand(options: InitOptions) {
       mkdirSync(configPath, { recursive: true });
     }
 
-    // Create config with auto-detected values
+    // Create config with safe defaults
     const defaultConfig = {
       version: '1.0',
       project: {
         name: projectInfo.name,
-        schemaType: projectInfo.schemaType || 'prisma', // Default to prisma if not detected
-        id: '' // Project ID from dashboard (optional)
+        schemaType: projectInfo.schemaType || undefined,
+        id: ''
       },
       database: {
-        connectionString: '', // Will be prompted or set via --db flag
-        provider: 'postgresql' // postgresql, mysql, sqlite
+        mode: 'auto',
+        connectionString: '',
+        writeAccess: false
       },
-      scan: {
-        watch: false,
-        autoFix: false
+      ai: {
+        provider: '',
+        model: {
+          reasoning: '',
+          apply: '',
+          autocomplete: ''
+        }
       },
-      api: {
-        url: '', // Dashboard API URL (e.g., http://localhost:3000)
-        key: '', // API key / JWT token (optional)
-        enabled: false // Whether to sync to cloud by default
+      safety: {
+        allowWrites: false,
+        allowDbWrites: false,
+        requirePlanApproval: true
       },
-      // Store detected metadata for future reference
+      paths: {
+        ignores: []
+      },
       metadata: {
         gitRemote: projectInfo.gitRemote,
         gitBranch: projectInfo.gitBranch,
@@ -75,9 +82,9 @@ export async function initCommand(options: InitOptions) {
     console.log(chalk.green('✅ DevSync initialized successfully!\n'));
     console.log(chalk.gray(`📁 Config file created: ${configFile}\n`));
     console.log(chalk.blue('📝 Next steps:'));
-    console.log(chalk.gray('  1. Edit .devsync/config.json with your database connection'));
-    console.log(chalk.gray('  2. (Optional) Set api.url and api.key to sync to dashboard'));
-    console.log(chalk.gray('  3. Run: devsync scan\n'));
+    console.log(chalk.gray('  1. Edit .devsync/config.json and set database.connectionString if desired'));
+    console.log(chalk.gray('  2. Keep writeAccess false unless you explicitly opt-in later'));
+    console.log(chalk.gray('  3. Run: devsync scan (read-only)\n'));
 
   } catch (error) {
     if (error instanceof Error) {

@@ -72,33 +72,6 @@ export function validateConfig(config: Config): ConfigValidationResult {
         errors.push(...connValidation.errors.map(e => `Database: ${e}`));
       }
     }
-    
-    if (!config.database.provider) {
-      warnings.push('Database provider not specified');
-    } else {
-      const validProviders = ['postgresql', 'mysql', 'sqlite'];
-      if (!validProviders.includes(config.database.provider)) {
-        errors.push(`Invalid database provider: ${config.database.provider}. Must be one of: ${validProviders.join(', ')}`);
-      }
-    }
-  }
-
-  // Validate API
-  if (config.api) {
-    if (config.api.url) {
-      const urlValidation = validateApiUrl(config.api.url);
-      if (!urlValidation.valid) {
-        errors.push(...urlValidation.errors.map(e => `API: ${e}`));
-      }
-    }
-    
-    if (config.api.enabled && !config.api.url) {
-      warnings.push('API is enabled but URL is not specified');
-    }
-    
-    if (config.api.enabled && !config.api.key) {
-      warnings.push('API is enabled but API key is not specified');
-    }
   }
 
   return {

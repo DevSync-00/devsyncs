@@ -6,7 +6,7 @@ module.exports = {
   entry: path.resolve(__dirname, 'main.tsx'),
   output: {
     filename: 'erd-webview.js',
-    path: path.resolve(__dirname, '../../../out/erd'),
+    path: path.resolve(__dirname, '../../../out/erd/webview'),
     clean: true,
   },
   resolve: {

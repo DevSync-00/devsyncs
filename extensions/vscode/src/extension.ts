@@ -253,6 +253,18 @@ export async function activate(context: vscode.ExtensionContext) {
     'devsync.applyFix',
     (document, diagnostic, suggestedFix) => applyFix(document, diagnostic, suggestedFix)
   );
+  const statusCommand = vscode.commands.registerCommand(
+    'devsync.status',
+    () => sidebarCommands.status()
+  );
+  const fixCommand = vscode.commands.registerCommand(
+    'devsync.fix',
+    () => sidebarCommands.fix()
+  );
+  const applyCommand = vscode.commands.registerCommand(
+    'devsync.apply',
+    () => sidebarCommands.apply()
+  );
 
   // Register sidebar commands
   const sidebarScanCommand = vscode.commands.registerCommand(
@@ -278,6 +290,18 @@ export async function activate(context: vscode.ExtensionContext) {
   const sidebarOpenConfigCommand = vscode.commands.registerCommand(
     'devsync.sidebar.openConfig',
     () => sidebarCommands.openConfig()
+  );
+  const sidebarStatusCommand = vscode.commands.registerCommand(
+    'devsync.sidebar.status',
+    () => sidebarCommands.status()
+  );
+  const sidebarFixCommand = vscode.commands.registerCommand(
+    'devsync.sidebar.fix',
+    () => sidebarCommands.fix()
+  );
+  const sidebarApplyCommand = vscode.commands.registerCommand(
+    'devsync.sidebar.apply',
+    () => sidebarCommands.apply()
   );
   const sidebarRefreshCommand = vscode.commands.registerCommand(
     'devsync.sidebar.refresh',
@@ -404,104 +428,7 @@ export async function activate(context: vscode.ExtensionContext) {
   
   // Note: devsync.showStatus command is registered by SchemaStatusBarManager
   // No need to register it here to avoid duplicate command error
-
-  const fixCommand = vscode.commands.registerCommand(
-    'devsync.fix',
-    async () => {
-      try {
-        // Show AI model info
-        const modelInfo = getModelInfoFromConfig(vscode);
-        const outputChannel = vscode.window.createOutputChannel('DevSync');
-        outputChannel.appendLine(`🤖 Using AI Model: ${modelInfo.displayName}`);
-        outputChannel.appendLine(`   Provider: ${modelInfo.provider} | Model: ${modelInfo.model}`);
-        outputChannel.show(true);
-        
-        // Show scanning state
-        schemaStatusBar.showScanning();
-        
-        // Run fix command via CLI
-        const result = await cliRunner.executeCliCommand('fix', {
-          json: true
-        });
-
-        if (result.success && result.output) {
-          try {
-            const fixData = JSON.parse(result.output);
-            
-            // Update status bar
-            if (fixData.fixes && fixData.fixes.length > 0) {
-              const mismatches: Mismatch[] = fixData.fixes.map((f: any) => {
-                const base: any = {
-                  type: f.type,
-                  model: f.model,
-                  severity: f.severity
-                };
-                if (f.field) {
-                  base.field = f.field;
-                }
-                if (f.codeValue) {
-                  base.codeValue = f.codeValue;
-                }
-                if (f.dbValue) {
-                  base.dbValue = f.dbValue;
-                }
-                return base as Mismatch;
-              });
-              
-              schemaStatusBar.updateFromMismatches(mismatches);
-              
-              // Show fix preview
-              const preview = {
-                fixes: fixData.fixes.map((f: any) => ({
-                  mismatch: {
-                    type: f.type,
-                    model: f.model,
-                    field: f.field,
-                    severity: f.severity
-                  } as Mismatch,
-                  explanation: f.explanation,
-                  sql: f.sql,
-                  safety: f.safety
-                })),
-                migration: {
-                  ...fixData.migration,
-                  // Include validation results if available from CLI
-                  validation: fixData.migration?.validation || fixData.validation || null
-                },
-                summary: {
-                  total: fixData.fixes.length,
-                  safe: fixData.fixes.filter((f: any) => f.safety === 'safe').length,
-                  caution: fixData.fixes.filter((f: any) => f.safety === 'caution').length,
-                  risky: fixData.fixes.filter((f: any) => f.safety === 'risky').length
-                }
-              };
-              
-              await fixPreviewManager.showFixPreview(preview);
-            } else {
-              schemaStatusBar.updateStatus({
-                inSync: true,
-                totalMismatches: 0,
-                errors: 0,
-                warnings: 0,
-                infos: 0
-              });
-              vscode.window.showInformationMessage('✅ No conflicts detected - schemas are in sync!');
-            }
-          } catch (parseError) {
-            vscode.window.showErrorMessage('Failed to parse fix results');
-            schemaStatusBar.showError('Failed to parse fix results');
-          }
-        } else {
-          vscode.window.showErrorMessage(result.error || 'Failed to generate fixes');
-          schemaStatusBar.showError(result.error || 'Failed to generate fixes');
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        vscode.window.showErrorMessage(`Failed to generate fixes: ${errorMessage}`);
-        schemaStatusBar.showError(errorMessage);
-      }
-    }
-  );
+  // Note: devsync.fix is already registered above, so we skip duplicate registration here
 
   // Update status bar when scan completes
   const originalScan = commands.scan.bind(commands);

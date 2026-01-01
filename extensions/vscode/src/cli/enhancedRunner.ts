@@ -83,7 +83,7 @@ export class EnhancedCliRunner {
    * Executes a CLI command with enhanced features.
    */
   async executeEnhanced(
-    command: 'scan' | 'migrate' | 'init' | 'fix' | 'status',
+    command: 'scan' | 'migrate' | 'init' | 'fix' | 'status' | 'apply',
     options: Record<string, any> = {},
     cliOptions: EnhancedCliOptions = {}
   ): Promise<EnhancedCliResult> {

@@ -101,7 +101,7 @@ export class CliRunner implements ICliRunner {
    * Execute a CLI command
    */
   async executeCliCommand(
-    command: 'scan' | 'migrate' | 'init' | 'fix' | 'status',
+    command: 'scan' | 'migrate' | 'init' | 'fix' | 'status' | 'apply',
     options: Record<string, any> = {},
     cancelToken?: vscode.CancellationToken,
     hooks?: CliRunHooks
@@ -143,7 +143,7 @@ export class CliRunner implements ICliRunner {
    * Fallback to original command execution.
    */
   private async executeCommandFallback(
-    command: 'scan' | 'migrate' | 'init' | 'fix' | 'status',
+    command: 'scan' | 'migrate' | 'init' | 'fix' | 'status' | 'apply',
     options: Record<string, any> = {},
     cancelToken?: vscode.CancellationToken,
     hooks?: CliRunHooks

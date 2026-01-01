@@ -1,233 +1,160 @@
-import { scanCodebase } from '../services/code-scanner.js';
-import { scanDatabase, closeDatabaseConnections } from '../services/db-scanner.js';
-import { compareSchemas } from '../services/diff-engine.js';
-import { loadConfig } from '../utils/config.js';
 import chalk from 'chalk';
 import { resolve } from 'path';
-import type { ScanOptions } from '../types/index.js';
-
-export interface StatusOptions {
-  path?: string;
-  db?: string;
-  config?: string;
-  json?: boolean;
-  aiAnalysis?: boolean;
-  aiProvider?: 'puter' | 'openai' | 'deepseek';
-  useOllama?: boolean;
-  ollamaModel?: string;
-  ollamaUrl?: string;
-}
+import { loadConfig } from '../utils/config.js';
+import { extractAndNormalizeSchema } from '../services/schema-extractor.js';
+import { detectConflicts } from '../services/conflict-detector.js';
+import { scanDatabase } from '../services/db-scanner.js';
+import { normalizeDbSchema, type CanonicalSchema } from '../services/schema-normalizer.js';
+import type { StatusOptions, OutputFormat } from '../types/index.js';
 
 export async function statusCommand(options: StatusOptions = {}) {
-  try {
-    const absolutePath = options.path 
-      ? (options.path.startsWith('/') || /^[A-Z]:/.test(options.path)
+  const format: OutputFormat = options.format || 'table';
+  const root = options.path ? (options.path.startsWith('/') || /^[A-Z]:/.test(options.path)
           ? options.path
           : resolve(process.cwd(), options.path))
       : process.cwd();
 
-    // Load config if exists
-    const config = options.config ? await loadConfig(options.config) : null;
-    const dbConnection = options.db || config?.database?.connectionString;
+  const configPath = options.config || '.devsync/config.json';
+  const config = await loadConfig(configPath).catch(() => null);
 
-    // Show AI model info if using AI
-    if (!options.json && options.aiAnalysis !== false && !options.useOllama) {
-      const provider = options.aiProvider || 'puter';
-      const { getModelInfo } = await import('../utils/ai-provider-resolver.js');
-      const modelInfo = getModelInfo(provider as any);
-      console.log(chalk.blue(`🤖 AI Model: ${modelInfo.displayName}`));
-      console.log(chalk.gray(`   Provider: ${modelInfo.provider} | Model: ${modelInfo.model}\n`));
-    }
-
-    // Scan codebase
-    let codeSchema;
+  if (format === 'json') {
+    // JSON output: Try extraction and report readiness
     try {
-      codeSchema = await scanCodebase(absolutePath, {
-        useAI: options.aiAnalysis !== false,
-        useOllama: options.useOllama || false,
-        ollamaModel: options.ollamaModel,
-        ollamaUrl: options.ollamaUrl,
-        aiProvider: options.aiProvider || 'puter',
-        showProgress: !options.json
+      const extraction = await extractAndNormalizeSchema({
+        root,
+        connectionString: options.db || config?.database?.connectionString,
+        configPath,
+        readOnly: true,
       });
+
+      const result = {
+        status: 'ok',
+        root,
+        normalizedSchemaReady: extraction.canonicalSchema !== null,
+        source: extraction.source,
+        sourceType: extraction.sourceType,
+        warnings: extraction.warnings,
+        nextActions: extraction.canonicalSchema
+          ? ['Normalized schema available. Ready for conflict detection (Phase 5).']
+          : ['Run schema extraction to produce normalized schema (Phase 3).'],
+      };
+      console.log(JSON.stringify(result, null, 2));
     } catch (error) {
-      if (options.json) {
         console.log(JSON.stringify({
           status: 'error',
+        root,
           error: error instanceof Error ? error.message : String(error),
-          message: 'Failed to scan codebase'
+        normalizedSchemaReady: false,
         }, null, 2));
-      } else {
-        console.error(chalk.red(`❌ Failed to scan codebase: ${error instanceof Error ? error.message : String(error)}`));
-      }
-      await closeDatabaseConnections();
       process.exit(1);
     }
+    return;
+  }
 
-    // Scan database if connection provided
-    let dbSchema;
+  // Table output
+  console.log(chalk.blue('📊 Status (read-only)\n'));
+  console.log(chalk.gray(`Root: ${root}\n`));
+
+  try {
+    const codeExtraction = await extractAndNormalizeSchema({
+      root,
+      connectionString: undefined, // Extract from code/schema files only
+      configPath,
+      readOnly: true,
+    });
+
+    const dbConnection = options.db || config?.database?.connectionString;
+    let dbSchema: CanonicalSchema | null = null;
+
+    // Try to extract database schema if connection available
     if (dbConnection) {
       try {
-        dbSchema = await scanDatabase({
+        const rawDbSchema = await scanDatabase({
           connectionString: dbConnection,
-          showProgress: !options.json
+          showProgress: false,
         });
+        dbSchema = normalizeDbSchema(rawDbSchema);
       } catch (error) {
-        if (options.json) {
-          console.log(JSON.stringify({
-            status: 'error',
-            error: error instanceof Error ? error.message : String(error),
-            message: 'Failed to scan database'
-          }, null, 2));
-        } else {
-          console.error(chalk.red(`❌ Failed to scan database: ${error instanceof Error ? error.message : String(error)}`));
-        }
-        await closeDatabaseConnections();
-        process.exit(1);
+        // Database scan failed, continue without it
       }
     }
 
-    // Compare schemas if both exist
-    let diff;
-    if (codeSchema && dbSchema) {
-      diff = compareSchemas(codeSchema, dbSchema);
-    }
-
-    // Display status
-    if (options.json) {
-      displayStatusJSON(codeSchema, dbSchema, diff);
+    if (codeExtraction.canonicalSchema) {
+      console.log(chalk.green('✅ Code Schema: Available'));
+      console.log(chalk.gray(`   Source: ${codeExtraction.source} (${codeExtraction.sourceType})`));
+      console.log(chalk.gray(`   Tables: ${codeExtraction.canonicalSchema.tables.length}`));
+      const totalColumns = codeExtraction.canonicalSchema.tables.reduce(
+        (sum, t) => sum + t.columns.length,
+        0
+      );
+      console.log(chalk.gray(`   Columns: ${totalColumns}`));
     } else {
-      displayStatusHuman(codeSchema, dbSchema, diff);
+      console.log(chalk.yellow('⚠️  Code Schema: Not available'));
+      console.log(chalk.gray('   Run `devsync scan` to detect schema sources'));
     }
 
-    await closeDatabaseConnections();
-
-    // Exit with appropriate code
-    if (diff && diff.mismatches.some(m => m.severity === 'error')) {
-      process.exit(1);
-    }
-  } catch (error) {
-    await closeDatabaseConnections().catch(() => {});
-    
-    if (error instanceof Error) {
-      if (options.json) {
-        console.log(JSON.stringify({
-          status: 'error',
-          error: error.message
-        }, null, 2));
-      } else {
-        console.error(chalk.red(`❌ Error: ${error.message}`));
-      }
-    } else {
-      if (options.json) {
-        console.log(JSON.stringify({
-          status: 'error',
-          error: 'Unknown error occurred'
-        }, null, 2));
-      } else {
-        console.error(chalk.red('❌ Unknown error occurred'));
-      }
-    }
-    process.exit(1);
-  }
-}
-
-function displayStatusHuman(
-  codeSchema: any,
-  dbSchema: any,
-  diff: any
-) {
-  console.log(chalk.blue('\n📊 Schema Status Summary\n'));
-
-  // Code schema status
-  if (codeSchema) {
-    console.log(chalk.green('✅ Code Schema:'));
-    console.log(chalk.gray(`   Type: ${codeSchema.type}`));
-    console.log(chalk.gray(`   Models: ${codeSchema.models.length}`));
-    console.log(chalk.gray(`   Total Fields: ${codeSchema.models.reduce((sum: number, m: any) => sum + m.fields.length, 0)}`));
-  } else {
-    console.log(chalk.yellow('⚠️  Code Schema: Not detected'));
-  }
-
-  // Database schema status
   if (dbSchema) {
-    console.log(chalk.green('\n✅ Database Schema:'));
-    console.log(chalk.gray(`   Type: ${dbSchema.type}`));
-    console.log(chalk.gray(`   Tables: ${dbSchema.models.length}`));
-    console.log(chalk.gray(`   Total Columns: ${dbSchema.models.reduce((sum: number, m: any) => sum + m.fields.length, 0)}`));
+      console.log(chalk.green('\n✅ Database Schema: Available'));
+      console.log(chalk.gray(`   Source: ${dbSchema.metadata.source} (${dbSchema.metadata.sourceType})`));
+      console.log(chalk.gray(`   Tables: ${dbSchema.tables.length}`));
+      const totalColumns = dbSchema.tables.reduce((sum, t) => sum + t.columns.length, 0);
+      console.log(chalk.gray(`   Columns: ${totalColumns}`));
   } else {
     console.log(chalk.yellow('\n⚠️  Database Schema: Not connected'));
     console.log(chalk.gray('   Use --db <connection> to scan database'));
   }
 
-  // Diff status
-  if (diff) {
-    const errors = diff.mismatches.filter((m: any) => m.severity === 'error');
-    const warnings = diff.mismatches.filter((m: any) => m.severity === 'warning');
-    const infos = diff.mismatches.filter((m: any) => m.severity === 'info');
+    // Conflict detection if both schemas available
+    if (codeExtraction.canonicalSchema && dbSchema) {
+      console.log(chalk.blue('\n📊 Conflict Detection:'));
+      const conflictReport = detectConflicts(codeExtraction.canonicalSchema, dbSchema);
 
-    console.log(chalk.blue('\n📈 Schema Drift:'));
-    
-    if (diff.mismatches.length === 0) {
-      console.log(chalk.green('   ✅ No mismatches detected - schemas are in sync!'));
+      if (conflictReport.conflicts.length === 0) {
+        console.log(chalk.green('   ✅ No conflicts detected - schemas are in sync!'));
+      } else {
+        console.log(chalk.gray(`   Total conflicts: ${conflictReport.summary.total}`));
+        console.log(chalk.red(`   High risk: ${conflictReport.summary.byRisk.high}`));
+        console.log(chalk.yellow(`   Medium risk: ${conflictReport.summary.byRisk.medium}`));
+        console.log(chalk.gray(`   Low risk: ${conflictReport.summary.byRisk.low}`));
+        console.log(chalk.gray(`\n   By category:`));
+        console.log(chalk.gray(`     Structural: ${conflictReport.summary.byCategory.structural}`));
+        console.log(chalk.gray(`     Type: ${conflictReport.summary.byCategory.type}`));
+        console.log(chalk.gray(`     Relationship: ${conflictReport.summary.byCategory.relationship}`));
+        console.log(chalk.gray(`     Constraint: ${conflictReport.summary.byCategory.constraint}`));
+
+        // Show first 5 high-risk conflicts
+        const highRisk = conflictReport.conflicts.filter((c) => c.risk === 'high').slice(0, 5);
+        if (highRisk.length > 0) {
+          console.log(chalk.red(`\n   High-risk conflicts (showing first ${highRisk.length}):`));
+          for (const conflict of highRisk) {
+            console.log(chalk.red(`     - ${conflict.table}${conflict.column ? `.${conflict.column}` : ''}: ${conflict.message}`));
+          }
+        }
+      }
     } else {
-      if (errors.length > 0) {
-        console.log(chalk.red(`   ❌ ${errors.length} error(s)`));
-      }
-      if (warnings.length > 0) {
-        console.log(chalk.yellow(`   ⚠️  ${warnings.length} warning(s)`));
-      }
-      if (infos.length > 0) {
-        console.log(chalk.gray(`   ℹ️  ${infos.length} info(s)`));
-      }
-
-      // Show breakdown by type
-      const byType: Record<string, number> = {};
-      for (const mismatch of diff.mismatches) {
-        byType[mismatch.type] = (byType[mismatch.type] || 0) + 1;
-      }
-
-      console.log(chalk.gray('\n   Breakdown:'));
-      for (const [type, count] of Object.entries(byType)) {
-        console.log(chalk.gray(`     ${type}: ${count}`));
-      }
+      console.log(chalk.yellow('\n⚠️  Conflict Detection: Requires both code and database schemas'));
     }
-  } else {
-    console.log(chalk.yellow('\n⚠️  Cannot compare: Database connection required'));
+
+    console.log(chalk.blue('\n➡️  Next actions:'));
+    if (codeExtraction.canonicalSchema && dbSchema) {
+      console.log(chalk.gray('   - Conflicts detected (see above)'));
+      console.log(chalk.gray('   - Use `devsync fix` when Phase 6-7 are complete to generate fixes\n'));
+    } else {
+      console.log(chalk.gray('   - Run schema extraction (Phase 3)'));
+      console.log(chalk.gray('   - Provide database connection to enable conflict detection\n'));
+    }
+
+    if (codeExtraction.warnings.length > 0) {
+      console.log(chalk.yellow('⚠️  Warnings:'));
+      for (const warning of codeExtraction.warnings) {
+        console.log(chalk.gray(`   - ${warning}`));
+      }
+      console.log();
+    }
+  } catch (error) {
+    console.log(chalk.red('❌ Error checking status:'));
+    console.log(chalk.red(`   ${error instanceof Error ? error.message : String(error)}\n`));
+    process.exit(1);
   }
-
-  console.log('');
 }
 
-function displayStatusJSON(
-  codeSchema: any,
-  dbSchema: any,
-  diff: any
-) {
-  const status = {
-    codeSchema: codeSchema ? {
-      type: codeSchema.type,
-      modelCount: codeSchema.models.length,
-      fieldCount: codeSchema.models.reduce((sum: number, m: any) => sum + m.fields.length, 0)
-    } : null,
-    dbSchema: dbSchema ? {
-      type: dbSchema.type,
-      tableCount: dbSchema.models.length,
-      columnCount: dbSchema.models.reduce((sum: number, m: any) => sum + m.fields.length, 0)
-    } : null,
-    drift: diff ? {
-      totalMismatches: diff.mismatches.length,
-      errors: diff.mismatches.filter((m: any) => m.severity === 'error').length,
-      warnings: diff.mismatches.filter((m: any) => m.severity === 'warning').length,
-      infos: diff.mismatches.filter((m: any) => m.severity === 'info').length,
-      byType: diff.mismatches.reduce((acc: Record<string, number>, m: any) => {
-        acc[m.type] = (acc[m.type] || 0) + 1;
-        return acc;
-      }, {}),
-      inSync: diff.mismatches.length === 0
-    } : null,
-    timestamp: new Date().toISOString()
-  };
-
-  console.log(JSON.stringify(status, null, 2));
-}

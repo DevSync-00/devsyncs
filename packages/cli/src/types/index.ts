@@ -1,6 +1,9 @@
+export type OutputFormat = 'json' | 'table';
+
+// Schema types (used by extraction and normalization)
 export interface CodeSchema {
   models: Model[];
-  type: 'prisma' | 'typeorm' | 'raw-sql';
+  type: 'prisma' | 'typeorm' | 'raw-sql' | 'sequelize' | 'drizzle' | 'mongoose' | 'knex';
 }
 
 export interface DbSchema {
@@ -21,42 +24,20 @@ export interface Field {
   constraints?: string[];
 }
 
-export interface Mismatch {
-  type: 'missing_table' | 'missing_field' | 'type_mismatch' | 'extra_field' | 'constraint_mismatch';
-  model: string;
-  field?: string;
-  codeValue?: any;
-  dbValue?: any;
-  severity: 'error' | 'warning' | 'info';
-  suggestedFix?: string;
-}
-
-export interface SchemaDiff {
-  mismatches: Mismatch[];
-  warnings: string[];
-  metadata: {
-    codeVersion: string;
-    dbVersion: string;
-    timestamp: Date;
-  };
-}
-
 export interface ScanOptions {
-  path: string;
-  db?: string;
+  path?: string;
+  format?: OutputFormat;
+  planOnly?: boolean;
+  allowWrites?: boolean;
+  allowDbWrites?: boolean;
+  yes?: boolean;
+}
+
+export interface StatusOptions {
+  path?: string;
+  format?: OutputFormat;
   config?: string;
-  projectId?: string; // Project ID from dashboard
-  apiUrl?: string; // Dashboard API URL
-  apiKey?: string; // API key / JWT token
-  sync?: boolean; // Whether to sync to cloud (default: true if projectId is set)
-  output?: string; // Output JSON results file path
-  failOnWarnings?: boolean; // Exit with error code on warnings
-  json?: boolean; // Output JSON instead of human-readable format
-  aiAnalysis?: boolean; // Use AI to analyze codebase and infer schema (enabled by default, uses service-configured API keys)
-  aiProvider?: 'puter' | 'openai' | 'deepseek'; // AI provider to use (default: puter, uses service-configured API keys)
-  useOllama?: boolean; // Use Ollama (local, free) instead of service AI (requires local Ollama installation)
-  ollamaModel?: string; // Ollama model name (default: llama3.2:3b)
-  ollamaUrl?: string; // Ollama API URL (default: http://localhost:11434)
+  db?: string;
 }
 
 export interface InitOptions {
@@ -67,27 +48,109 @@ export interface Config {
   version: string;
   project: {
     name: string;
-    schemaType: 'prisma' | 'supabase' | 'typeorm' | 'kysely' | 'sequelize' | 'drizzle' | 'django' | 'sqlalchemy' | 'raw-sql';
-    id?: string; // Project ID from dashboard
+    schemaType?: string;
+    id?: string;
   };
   database: {
+    mode: 'auto' | 'url' | 'skip';
     connectionString?: string;
-    provider: 'postgresql' | 'mysql' | 'sqlite';
+    writeAccess: boolean;
   };
-  scan?: {
-    watch?: boolean;
-    autoFix?: boolean;
+  ai: {
+    provider?: 'openai' | 'anthropic' | 'ollama';
+    apiKey?: string; // User-provided API key (never use service-configured)
+    model?: {
+      reasoning?: string;
+      apply?: string;
+      autocomplete?: string;
+    };
+    ollamaUrl?: string; // For local Ollama
   };
-  api?: {
-    url?: string; // Dashboard API URL (e.g., http://localhost:3000)
-    key?: string; // API key / JWT token
-    enabled?: boolean; // Whether to send reports to cloud
+  safety: {
+    allowWrites: boolean;
+    allowDbWrites: boolean;
+    requirePlanApproval: boolean;
   };
-  ai?: {
-    useOllama?: boolean; // Use Ollama (local, free) instead of service AI
-    ollamaUrl?: string; // Ollama API URL (default: http://localhost:11434)
-    ollamaModel?: string; // Ollama model name (default: llama3.2:3b)
-    enabled?: boolean; // Whether AI analysis is enabled (default: true)
+  paths?: {
+    ignores?: string[];
   };
+}
+
+export interface ConnectionStringFinding {
+  source: 'env' | 'file';
+  key: string;
+  file?: string;
+  confidence: number;
+}
+
+export interface SchemaFileFinding {
+  path: string;
+  type: 'sql' | 'prisma' | 'migration' | 'orm';
+  size: number;
+  sha256: string;
+}
+
+export interface OrmDetection {
+  orm: 'prisma' | 'typeorm' | 'sequelize' | 'drizzle' | 'mongoose' | 'knex';
+  files: string[];
+}
+
+export interface SqlFinding {
+  path: string;
+  kind: 'migration' | 'raw-sql';
+}
+
+export interface ScanResult {
+  status: 'ok' | 'error';
+  root: string;
+  connectionStrings: ConnectionStringFinding[];
+  schemaFiles: SchemaFileFinding[];
+  ormDetections: OrmDetection[];
+  sqlFindings: SqlFinding[];
+  nextActions: string[];
+  warnings: string[];
+  error?: string;
+}
+
+// Legacy/compatibility types used by diff/migration utilities
+export interface Mismatch {
+  type:
+    | 'missing_table'
+    | 'extra_table'
+    | 'missing_field'
+    | 'extra_field'
+    | 'type_mismatch'
+    | 'constraint_mismatch';
+  model: string;
+  field?: string;
+  codeValue?: any;
+  dbValue?: any;
+  severity?: 'info' | 'warning' | 'error';
+  suggestedFix?: string;
+}
+
+export interface SchemaDiff {
+  mismatches: Mismatch[];
+  warnings?: string[];
+  metadata?: {
+    codeVersion?: string;
+    dbVersion?: string;
+    timestamp?: Date;
+  };
+}
+
+export interface DatabaseColumn {
+  name: string;
+  type?: string;
+  nullable?: boolean;
+  constraints?: string[];
+  defaultValue?: any;
+}
+
+export interface DatabaseTable {
+  name: string;
+  columns: DatabaseColumn[];
+  constraints?: string[];
+  indexes?: string[];
 }
 

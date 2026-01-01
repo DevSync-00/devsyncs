@@ -311,6 +311,307 @@ export class SidebarCommands {
     this.cliRunner.showOutput();
   }
 
+  /**
+   * Execute the status command to check schema readiness and conflicts.
+   */
+  async status(): Promise<void> {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      vscode.window.showErrorMessage('No workspace folder open');
+      return;
+    }
+
+    // Check if CLI is available
+    const cliAvailable = await this.cliRunner.checkCliAvailable();
+    if (!cliAvailable) {
+      const build = await vscode.window.showWarningMessage(
+        'CLI not built. Would you like to build it now?',
+        'Yes',
+        'No'
+      );
+      
+      if (build === 'Yes') {
+        await this.buildCli();
+        return;
+      } else {
+        return;
+      }
+    }
+
+    // Get configuration
+    const config = vscode.workspace.getConfiguration('devsync');
+    const dbConnection = config.get<string>('databaseConnection', '');
+    
+    this.cliRunner.showOutput();
+
+    try {
+      const options: Record<string, any> = {
+        format: 'json' // Always use JSON for structured output
+      };
+      
+      if (dbConnection) {
+        options.db = dbConnection;
+      }
+
+      const result = await this.cliRunner.executeCliCommand('status', options);
+
+      if (result.success) {
+        try {
+          // Parse JSON output
+          const statusData = JSON.parse(result.output);
+          
+          // Display summary
+          const conflicts = statusData.conflicts || [];
+          const errorCount = conflicts.filter((c: any) => c.risk === 'High').length;
+          const warningCount = conflicts.filter((c: any) => c.risk === 'Medium').length;
+          const infoCount = conflicts.filter((c: any) => c.risk === 'Low').length;
+
+          if (conflicts.length === 0) {
+            vscode.window.showInformationMessage('✅ DevSync: No conflicts detected. Schema is in sync!');
+          } else {
+            const message = `DevSync Status: ${errorCount} errors, ${warningCount} warnings, ${infoCount} info`;
+            const action = await vscode.window.showWarningMessage(
+              message,
+              'View Details',
+              'Propose Fixes',
+              'Dismiss'
+            );
+            
+            if (action === 'View Details') {
+              // Show detailed status in output channel
+              this.cliRunner.showOutput();
+            } else if (action === 'Propose Fixes') {
+              await this.fix();
+            }
+          }
+        } catch (parseError) {
+          // If JSON parsing fails, show raw output
+          vscode.window.showInformationMessage('✅ DevSync: Status check completed');
+          this.cliRunner.showOutput();
+        }
+        this.sidebarProvider.refresh();
+      } else {
+        vscode.window.showErrorMessage(
+          `❌ DevSync: Status check failed - ${result.error || 'Unknown error'}`
+        );
+      }
+    } catch (error: any) {
+      vscode.window.showErrorMessage(
+        `❌ DevSync: Status error - ${error.message || 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Execute the fix command to propose AI-powered fixes for conflicts.
+   * This command requires explicit opt-in for write operations.
+   */
+  async fix(): Promise<void> {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      vscode.window.showErrorMessage('No workspace folder open');
+      return;
+    }
+
+    // Check if CLI is available
+    const cliAvailable = await this.cliRunner.checkCliAvailable();
+    if (!cliAvailable) {
+      const build = await vscode.window.showWarningMessage(
+        'CLI not built. Would you like to build it now?',
+        'Yes',
+        'No'
+      );
+      
+      if (build === 'Yes') {
+        await this.buildCli();
+        return;
+      } else {
+        return;
+      }
+    }
+
+    // Get configuration
+    const config = vscode.workspace.getConfiguration('devsync');
+    let dbConnection = config.get<string>('databaseConnection', '');
+    
+    if (!dbConnection) {
+      const input = await vscode.window.showInputBox({
+        prompt: 'Enter database connection string (required for fix)',
+        placeHolder: 'postgresql://user:password@host:port/database',
+        ignoreFocusOut: true,
+        validateInput: (value) => {
+          if (!value || value.trim() === '') {
+            return 'Database connection string is required';
+          }
+          return null;
+        }
+      });
+      
+      if (!input) {
+        return; // User cancelled
+      }
+      dbConnection = input;
+    }
+
+    // Safety: Ask for confirmation and mode
+    const mode = await vscode.window.showQuickPick(
+      [
+        { label: 'Dry Run (Preview Only)', value: 'dry-run', description: 'Show proposed fixes without applying' },
+        { label: 'Generate Fix Files', value: 'generate', description: 'Generate fix files for review' },
+        { label: 'Apply Fixes (Dangerous)', value: 'apply', description: '⚠️ Apply fixes directly (requires explicit opt-in)' }
+      ],
+      {
+        placeHolder: 'Select fix mode (default: Dry Run)'
+      }
+    );
+
+    if (mode === undefined) {
+      return; // User cancelled
+    }
+
+    // Additional safety check for apply mode
+    if (mode.value === 'apply') {
+      const confirm = await vscode.window.showWarningMessage(
+        '⚠️ WARNING: This will apply fixes directly to your codebase and potentially your database. This action cannot be easily undone. Are you sure?',
+        { modal: true },
+        'Yes, Apply Fixes',
+        'Cancel'
+      );
+      
+      if (confirm !== 'Yes, Apply Fixes') {
+        return; // User cancelled
+      }
+
+      // Final confirmation for database writes
+      const dbConfirm = await vscode.window.showWarningMessage(
+        '⚠️ CRITICAL: This will write to your database. Ensure you have backups. Continue?',
+        { modal: true },
+        'Yes, I have backups',
+        'Cancel'
+      );
+      
+      if (dbConfirm !== 'Yes, I have backups') {
+        return; // User cancelled
+      }
+    }
+
+    // Get AI configuration
+    const useAI = config.get<boolean>('aiAnalysis', false);
+    const aiProvider = config.get<'openai' | 'anthropic' | 'ollama'>('aiProvider', 'openai');
+    const openaiKey = config.get<string>('openaiApiKey', '');
+    const anthropicKey = config.get<string>('anthropicApiKey', '');
+    const useOllama = config.get<boolean>('useOllama', false);
+    const ollamaModel = config.get<string>('ollamaModel', '');
+    const ollamaUrl = config.get<string>('ollamaUrl', '');
+
+    this.cliRunner.showOutput();
+
+    try {
+      const options: Record<string, any> = {
+        format: 'json',
+        dbConnection: dbConnection
+      };
+
+      // Set AI options if configured
+      if (useAI) {
+        options.aiProvider = aiProvider;
+        if (aiProvider === 'openai' && openaiKey) {
+          options.openaiApiKey = openaiKey;
+        } else if (aiProvider === 'anthropic' && anthropicKey) {
+          options.anthropicApiKey = anthropicKey;
+        } else if (aiProvider === 'ollama' && useOllama) {
+          options.useOllama = true;
+          if (ollamaModel) options.ollamaModel = ollamaModel;
+          if (ollamaUrl) options.ollamaUrl = ollamaUrl;
+        }
+      }
+
+      // Set mode flags
+      if (mode.value === 'dry-run') {
+        options.dryRun = true;
+      } else if (mode.value === 'apply') {
+        options.apply = true;
+        options.allowWrites = true;
+        options.allowDbWrites = true;
+      }
+
+      const result = await this.cliRunner.executeCliCommand('fix', options);
+
+      if (result.success) {
+        try {
+          // Parse JSON output
+          const fixData = JSON.parse(result.output);
+          
+          if (fixData.proposals && fixData.proposals.length > 0) {
+            const proposalCount = fixData.proposals.length;
+            const message = `✅ DevSync: Generated ${proposalCount} fix proposal${proposalCount === 1 ? '' : 's'}`;
+            
+            if (mode.value === 'dry-run') {
+              const action = await vscode.window.showInformationMessage(
+                message,
+                'View Proposals',
+                'Apply Fixes',
+                'Dismiss'
+              );
+              
+              if (action === 'View Proposals') {
+                // Show proposals in output channel
+                this.cliRunner.showOutput();
+              } else if (action === 'Apply Fixes') {
+                // Re-run with apply mode
+                options.dryRun = false;
+                options.apply = true;
+                options.allowWrites = true;
+                await this.cliRunner.executeCliCommand('fix', options);
+              }
+            } else if (mode.value === 'apply') {
+              vscode.window.showInformationMessage('✅ DevSync: Fixes applied successfully');
+            } else {
+              vscode.window.showInformationMessage(message);
+            }
+          } else {
+            vscode.window.showInformationMessage('✅ DevSync: No fixes needed. Schema is in sync!');
+          }
+        } catch (parseError) {
+          // If JSON parsing fails, show raw output
+          vscode.window.showInformationMessage('✅ DevSync: Fix command completed');
+          this.cliRunner.showOutput();
+        }
+        this.sidebarProvider.refresh();
+      } else {
+        vscode.window.showErrorMessage(
+          `❌ DevSync: Fix failed - ${result.error || 'Unknown error'}`
+        );
+      }
+    } catch (error: any) {
+      vscode.window.showErrorMessage(
+        `❌ DevSync: Fix error - ${error.message || 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Execute the apply command to apply previously generated fixes.
+   * This command is strictly blocked by default and requires explicit opt-in.
+   */
+  async apply(): Promise<void> {
+    // Safety: This command is blocked by default
+    const confirm = await vscode.window.showWarningMessage(
+      '⚠️ WARNING: The apply command is currently blocked for safety. Use the fix command with --apply flag instead, which includes proper safety checks and previews.',
+      { modal: true },
+      'I Understand',
+      'Cancel'
+    );
+
+    if (confirm !== 'I Understand') {
+      return;
+    }
+
+    vscode.window.showInformationMessage(
+      '💡 Tip: Use "DevSync: Propose Fixes" command instead, which includes safety previews and proper confirmation workflows.'
+    );
+  }
+
   private async buildCli(): Promise<void> {
     this.cliRunner.showOutput();
     

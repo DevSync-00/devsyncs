@@ -15,14 +15,17 @@ export function saveScanResults(
     mkdirSync(dir, { recursive: true });
   }
 
+  const timestamp = diff.metadata?.timestamp
+    ? new Date(diff.metadata.timestamp).toISOString()
+    : new Date().toISOString();
+
   const results = {
     timestamp: new Date().toISOString(),
     mismatches: diff.mismatches,
     warnings: diff.warnings,
-    metadata: {
-      ...diff.metadata,
-      timestamp: diff.metadata.timestamp.toISOString(),
-    },
+    metadata: diff.metadata
+      ? { ...diff.metadata, timestamp }
+      : { timestamp },
     summary: {
       totalMismatches: diff.mismatches.length,
       errors: diff.mismatches.filter(m => m.severity === 'error').length,

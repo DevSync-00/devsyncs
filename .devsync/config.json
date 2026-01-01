@@ -1,0 +1,35 @@
+{
+  "version": "1.0",
+  "project": {
+    "name": "vite_react_shadcn_ts",
+    "schemaType": "kysely",
+    "id": ""
+  },
+  "database": {
+    "mode": "auto",
+    "connectionString": "",
+    "writeAccess": false
+  },
+  "ai": {
+    "provider": "",
+    "model": {
+      "reasoning": "",
+      "apply": "",
+      "autocomplete": ""
+    }
+  },
+  "safety": {
+    "allowWrites": false,
+    "allowDbWrites": false,
+    "requirePlanApproval": true
+  },
+  "paths": {
+    "ignores": []
+  },
+  "metadata": {
+    "gitRemote": "https://github.com/DevSync-00/devsyncs.git",
+    "gitBranch": "main",
+    "packageManager": "bun",
+    "detectedAt": "2025-12-28T11:56:54.328Z"
+  }
+}

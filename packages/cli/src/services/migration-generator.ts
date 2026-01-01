@@ -1,4 +1,4 @@
-import type { Mismatch, CodeSchema, DbSchema } from '../types/index.js';
+import type { Mismatch, CodeSchema, DbSchema, DatabaseTable } from '../types/index.js';
 import { validateMigration, type ValidationResult } from './migration-validator.js';
 
 export interface Migration {
@@ -165,9 +165,22 @@ export async function generateAndValidateMigration(
 
   // Validate if connection string provided
   if (connectionString) {
+    const dbTables: DatabaseTable[] | undefined = dbSchema
+      ? dbSchema.models.map(model => ({
+          name: model.name,
+          columns: model.fields.map(f => ({
+            name: f.name,
+            type: f.type,
+            nullable: f.nullable,
+            constraints: f.constraints,
+            defaultValue: f.defaultValue,
+          })),
+        }))
+      : undefined;
+
     const validation = await validateMigration(migration.sql, {
       connectionString,
-      currentSchema: dbSchema?.tables,
+      currentSchema: dbTables,
       strictMode: options.strictMode,
       checkPermissions: options.checkPermissions,
       checkBreakingChanges: options.checkBreakingChanges !== false

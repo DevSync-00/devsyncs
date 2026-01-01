@@ -211,8 +211,14 @@ export const TableDetailModal: React.FC<{
                       → {constraint.refTable}({constraint.refColumns?.join(', ')})
                     </span>
                   )}
-                  {constraint.columns && constraint.columns.length > 0 && (
+                  {(constraint.kind === 'PRIMARY_KEY' || constraint.kind === 'FOREIGN_KEY' || constraint.kind === 'UNIQUE') && 
+                   'columns' in constraint && 
+                   constraint.columns && 
+                   constraint.columns.length > 0 && (
                     <span> on ({constraint.columns.join(', ')})</span>
+                  )}
+                  {constraint.kind === 'CHECK' && 'expression' in constraint && (
+                    <span> ({constraint.expression})</span>
                   )}
                 </div>
               ))}
