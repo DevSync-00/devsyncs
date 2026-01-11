@@ -18,7 +18,7 @@ export default function SchemaComparison({
   mismatches = [],
 }: SchemaComparisonProps) {
   const [selectedView, setSelectedView] = useState<'tables' | 'columns' | 'indexes' | 'relationships'>('tables');
-  const [filterType, setFilterType] = useState<'all' | 'errors' | 'warnings' | 'info'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'error' | 'warning' | 'info'>('all');
 
   const filteredMismatches = mismatches.filter((m) => {
     if (filterType === 'all') return true;
@@ -44,16 +44,16 @@ export default function SchemaComparison({
             All
           </Button>
           <Button
-            variant={filterType === 'errors' ? 'default' : 'outline'}
+            variant={filterType === 'error' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setFilterType('errors')}
+            onClick={() => setFilterType('error')}
           >
             Errors
           </Button>
           <Button
-            variant={filterType === 'warnings' ? 'default' : 'outline'}
+            variant={filterType === 'warning' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setFilterType('warnings')}
+            onClick={() => setFilterType('warning')}
           >
             Warnings
           </Button>

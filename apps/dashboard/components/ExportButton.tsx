@@ -17,6 +17,16 @@ export default function ExportButton({
 }: ExportButtonProps) {
   const [exporting, setExporting] = useState(false);
 
+  const escapeCSVValue = (value: string): string => {
+    if (value === null || value === undefined) return '';
+    const stringValue = String(value);
+    // RFC 4180: Fields containing commas, quotes, or newlines must be quoted
+    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n') || stringValue.includes('\r')) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  };
+
   const exportToCSV = () => {
     if (data.length === 0) return;
 
@@ -26,8 +36,8 @@ export default function ExportButton({
       const headers = Object.keys(data[0]);
       const csvRows = [];
 
-      // Add headers
-      csvRows.push(headers.join(','));
+      // Add headers (escaped)
+      csvRows.push(headers.map(escapeCSVValue).join(','));
 
       // Add data rows
       for (const row of data) {
@@ -35,19 +45,15 @@ export default function ExportButton({
           const value = row[header];
           // Handle nested objects and arrays
           if (value === null || value === undefined) return '';
-          if (typeof value === 'object') return JSON.stringify(value);
-          // Escape commas and quotes
-          const stringValue = String(value);
-          if (stringValue.includes(',') || stringValue.includes('"')) {
-            return `"${stringValue.replace(/"/g, '""')}"`;
-          }
-          return stringValue;
+          if (typeof value === 'object') return escapeCSVValue(JSON.stringify(value));
+          // Escape commas and quotes using the same function
+          return escapeCSVValue(String(value));
         });
         csvRows.push(values.join(','));
       }
 
       const csvContent = csvRows.join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;

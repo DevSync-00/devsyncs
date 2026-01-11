@@ -59,22 +59,44 @@ export default function ScanReportsListWithFilters({
     // Date range filter
     if (filters.dateRange !== 'all') {
       const now = new Date();
-      const cutoffDate = new Date();
+      let cutoffDate: Date;
+      let upperBoundDate: Date | null = null;
       
       switch (filters.dateRange) {
         case 'today':
+          // Both dates derived from the same 'now' moment to avoid midnight boundary issues
+          cutoffDate = new Date(now);
           cutoffDate.setHours(0, 0, 0, 0);
+          // Upper bound: end of today (start of tomorrow)
+          upperBoundDate = new Date(now);
+          upperBoundDate.setHours(23, 59, 59, 999);
           break;
         case 'week':
-          cutoffDate.setDate(now.getDate() - 7);
+          // Properly subtract 7 days using milliseconds to handle month boundaries
+          cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          cutoffDate.setHours(0, 0, 0, 0);
+          // Upper bound: end of today
+          upperBoundDate = new Date(now);
+          upperBoundDate.setHours(23, 59, 59, 999);
           break;
         case 'month':
-          cutoffDate.setMonth(now.getMonth() - 1);
+          // Set to first day of previous month to avoid day-of-month edge cases
+          // (e.g., March 31 -> February 1 instead of rolling over to March 3)
+          cutoffDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          cutoffDate.setHours(0, 0, 0, 0);
+          // Upper bound: end of previous month (start of current month)
+          upperBoundDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          upperBoundDate.setHours(0, 0, 0, 0);
+          // Subtract 1ms to get the last moment of the previous month
+          upperBoundDate = new Date(upperBoundDate.getTime() - 1);
           break;
       }
       
       filtered = filtered.filter((report) => {
         const reportDate = new Date(report.created_at);
+        if (upperBoundDate) {
+          return reportDate >= cutoffDate && reportDate <= upperBoundDate;
+        }
         return reportDate >= cutoffDate;
       });
     }

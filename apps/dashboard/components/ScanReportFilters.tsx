@@ -48,6 +48,15 @@ export default function ScanReportFilters({ onFilterChange }: ScanReportFiltersP
     filters.dateRange !== 'all' ||
     filters.status !== 'all';
 
+  // Count only dropdown filters (exclude search) for badge
+  const activeDropdownFiltersCount = [
+    filters.severity !== 'all',
+    filters.dateRange !== 'all',
+    filters.status !== 'all',
+  ].filter(Boolean).length;
+
+  const hasActiveDropdownFilters = activeDropdownFiltersCount > 0;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
@@ -67,15 +76,9 @@ export default function ScanReportFilters({ onFilterChange }: ScanReportFiltersP
         >
           <Filter className="w-4 h-4 mr-2" />
           Filters
-          {hasActiveFilters && (
+          {hasActiveDropdownFilters && (
             <span className="ml-2 px-1.5 py-0.5 bg-primary/20 rounded text-xs">
-              {[
-                filters.severity !== 'all' && '1',
-                filters.dateRange !== 'all' && '1',
-                filters.status !== 'all' && '1',
-              ]
-                .filter(Boolean)
-                .length}
+              {activeDropdownFiltersCount}
             </span>
           )}
         </Button>

@@ -354,16 +354,16 @@ export const GraphRenderer: React.FC<{
         setZoom((z) => Math.max(0.1, z * 0.9))
         e.preventDefault()
       } else if (e.key === 'ArrowUp') {
-        setPan((p) => ({ x: p.x, y: p.y + 40 }))
-        e.preventDefault()
-      } else if (e.key === 'ArrowDown') {
         setPan((p) => ({ x: p.x, y: p.y - 40 }))
         e.preventDefault()
+      } else if (e.key === 'ArrowDown') {
+        setPan((p) => ({ x: p.x, y: p.y + 40 }))
+        e.preventDefault()
       } else if (e.key === 'ArrowLeft') {
-        setPan((p) => ({ x: p.x + 40, y: p.y }))
+        setPan((p) => ({ x: p.x - 40, y: p.y }))
         e.preventDefault()
       } else if (e.key === 'ArrowRight') {
-        setPan((p) => ({ x: p.x - 40, y: p.y }))
+        setPan((p) => ({ x: p.x + 40, y: p.y }))
         e.preventDefault()
       }
     },

@@ -296,7 +296,16 @@ export class SidebarCommands {
       return;
     }
 
-    const sourceFile = await this.findSourceFile(mismatch);
+    let sourceFile: { filePath: string; lineNumber?: number } | null = null;
+    try {
+      sourceFile = await this.findSourceFile(mismatch);
+    } catch (error: any) {
+      vscode.window.showErrorMessage(
+        `Failed to search for source file: ${error.message || 'Unknown error'}`
+      );
+      return;
+    }
+
     if (!sourceFile) {
       vscode.window.showWarningMessage(
         `Could not find source file for model "${mismatch.model}". Try searching for schema files manually.`
@@ -317,7 +326,8 @@ export class SidebarCommands {
       } else {
         // Search for the model name in the file
         const text = doc.getText();
-        const modelRegex = new RegExp(`(model|entity|table)\\s+${mismatch.model}\\b`, 'i');
+        const escapedModel = this.escapeRegex(mismatch.model);
+        const modelRegex = new RegExp(`(model|entity|table)\\s+${escapedModel}\\b`, 'i');
         const match = text.match(modelRegex);
         if (match && match.index !== undefined) {
           const position = doc.positionAt(match.index);
@@ -329,6 +339,13 @@ export class SidebarCommands {
     } catch (error: any) {
       vscode.window.showErrorMessage(`Failed to open source file: ${error.message}`);
     }
+  }
+
+  /**
+   * Escape special regex characters in a string
+   */
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   /**
@@ -345,43 +362,66 @@ export class SidebarCommands {
     const path = await import('path');
     const fs = await import('fs');
 
-    // Search for Prisma schema files
-    const prismaFiles = await glob('**/schema.prisma', { cwd: root, absolute: true });
-    for (const file of prismaFiles) {
-      const content = fs.readFileSync(file, 'utf-8');
-      const modelRegex = new RegExp(`model\\s+${mismatch.model}\\b`, 'i');
-      if (modelRegex.test(content)) {
-        // Find line number
-        const lines = content.split('\n');
-        const lineIndex = lines.findIndex((line) => modelRegex.test(line));
-        return { filePath: file, lineNumber: lineIndex >= 0 ? lineIndex + 1 : undefined };
-      }
-    }
+    // Escape the model name for safe regex use
+    const escapedModel = this.escapeRegex(mismatch.model);
 
-    // Search for TypeORM entities
-    const tsFiles = await glob('**/*.entity.ts', { cwd: root, absolute: true });
-    for (const file of tsFiles) {
-      const content = fs.readFileSync(file, 'utf-8');
-      const entityRegex = new RegExp(`(class|export\\s+class)\\s+${mismatch.model}\\b`, 'i');
-      if (entityRegex.test(content)) {
-        const lines = content.split('\n');
-        const lineIndex = lines.findIndex((line) => entityRegex.test(line));
-        return { filePath: file, lineNumber: lineIndex >= 0 ? lineIndex + 1 : undefined };
-      }
-    }
-
-    // Search for Drizzle schemas
-    const drizzleFiles = await glob('**/*schema*.ts', { cwd: root, absolute: true });
-    for (const file of drizzleFiles) {
-      const content = fs.readFileSync(file, 'utf-8');
-      if (content.includes('pgTable') || content.includes('mysqlTable')) {
-        const tableRegex = new RegExp(`(pgTable|mysqlTable)\\s*\\(\\s*['"]${mismatch.model}['"]`, 'i');
-        if (tableRegex.test(content)) {
-          const lines = content.split('\n');
-          const lineIndex = lines.findIndex((line) => tableRegex.test(line));
-          return { filePath: file, lineNumber: lineIndex >= 0 ? lineIndex + 1 : undefined };
+    try {
+      // Search for Prisma schema files
+      const prismaFiles = await glob('**/schema.prisma', { cwd: root, absolute: true });
+      for (const file of prismaFiles) {
+        try {
+          const content = fs.readFileSync(file, 'utf-8');
+          const modelRegex = new RegExp(`model\\s+${escapedModel}\\b`, 'i');
+          if (modelRegex.test(content)) {
+            // Find line number
+            const lines = content.split('\n');
+            const lineIndex = lines.findIndex((line) => modelRegex.test(line));
+            return { filePath: file, lineNumber: lineIndex >= 0 ? lineIndex + 1 : undefined };
+          }
+        } catch (error) {
+          // Skip files that can't be read (permissions, etc.)
+          continue;
         }
       }
+
+      // Search for TypeORM entities
+      const tsFiles = await glob('**/*.entity.ts', { cwd: root, absolute: true });
+      for (const file of tsFiles) {
+        try {
+          const content = fs.readFileSync(file, 'utf-8');
+          const entityRegex = new RegExp(`(class|export\\s+class)\\s+${escapedModel}\\b`, 'i');
+          if (entityRegex.test(content)) {
+            const lines = content.split('\n');
+            const lineIndex = lines.findIndex((line) => entityRegex.test(line));
+            return { filePath: file, lineNumber: lineIndex >= 0 ? lineIndex + 1 : undefined };
+          }
+        } catch (error) {
+          // Skip files that can't be read (permissions, etc.)
+          continue;
+        }
+      }
+
+      // Search for Drizzle schemas
+      const drizzleFiles = await glob('**/*schema*.ts', { cwd: root, absolute: true });
+      for (const file of drizzleFiles) {
+        try {
+          const content = fs.readFileSync(file, 'utf-8');
+          if (content.includes('pgTable') || content.includes('mysqlTable')) {
+            const tableRegex = new RegExp(`(pgTable|mysqlTable)\\s*\\(\\s*['"]${escapedModel}['"]`, 'i');
+            if (tableRegex.test(content)) {
+              const lines = content.split('\n');
+              const lineIndex = lines.findIndex((line) => tableRegex.test(line));
+              return { filePath: file, lineNumber: lineIndex >= 0 ? lineIndex + 1 : undefined };
+            }
+          }
+        } catch (error) {
+          // Skip files that can't be read (permissions, etc.)
+          continue;
+        }
+      }
+    } catch (error) {
+      // Re-throw errors from glob operations or other failures
+      throw error;
     }
 
     return null;

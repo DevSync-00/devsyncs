@@ -285,11 +285,15 @@ export async function activate(context: vscode.ExtensionContext) {
   );
   const sidebarViewFixCommand = vscode.commands.registerCommand(
     'devsync.sidebar.viewFix',
-    (mismatch) => sidebarCommands.viewFix(mismatch)
+    (mismatch) => {
+      return sidebarCommands.viewFix(mismatch);
+    }
   );
   const sidebarJumpToSourceCommand = vscode.commands.registerCommand(
     'devsync.sidebar.jumpToSource',
-    (mismatch) => sidebarCommands.jumpToSource(mismatch)
+    (mismatch) => {
+      return sidebarCommands.jumpToSource(mismatch);
+    }
   );
   const sidebarOpenConfigCommand = vscode.commands.registerCommand(
     'devsync.sidebar.openConfig',
@@ -532,6 +536,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     codeActionProvider,
+    sidebarScanCommand,
+    sidebarMigrateCommand,
+    sidebarInitCommand,
+    sidebarShowOutputCommand,
+    sidebarOpenConfigCommand,
+    sidebarStatusCommand,
+    sidebarFixCommand,
+    sidebarApplyCommand,
+    sidebarRefreshCommand,
     sidebarSearchCommand,
     sidebarClearSearchCommand,
     sidebarFilterPresetCommand,

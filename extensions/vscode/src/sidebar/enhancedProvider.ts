@@ -741,6 +741,7 @@ export class EnhancedSidebarProvider implements vscode.TreeDataProvider<Enhanced
       case 'errors':
         return mismatches.filter((m) => m.severity === 'error');
       case 'warnings':
+        // "Warnings + Errors" preset: show both warnings and errors
         return mismatches.filter((m) => m.severity === 'warning' || m.severity === 'error');
       case 'info':
         return mismatches.filter((m) => m.severity === 'info');

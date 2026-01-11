@@ -214,10 +214,16 @@ export default function MigrationTimeline({ projectId }: MigrationTimelineProps)
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        // Open migration in new tab/view
+                        // Download migration SQL file directly
                         const blob = new Blob([migration.content], { type: 'text/plain' });
                         const url = URL.createObjectURL(blob);
-                        window.open(url, '_blank');
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `${migration.filename || 'migration'}.sql`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
                       }}
                     >
                       <FileText className="w-4 h-4 mr-2" />
