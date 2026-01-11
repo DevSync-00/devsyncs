@@ -3,6 +3,7 @@ import { join } from 'path';
 import chalk from 'chalk';
 import type { InitOptions } from '../types/index.js';
 import { detectProjectInfo } from '../utils/project-detector.js';
+import { promptInput, promptYesNo } from '../utils/prompt.js';
 
 export async function initCommand(options: InitOptions) {
   try {
@@ -39,6 +40,23 @@ export async function initCommand(options: InitOptions) {
       mkdirSync(configPath, { recursive: true });
     }
 
+    // Optional interactive wizard (safe, read-only defaults)
+    let wizardConnection: string | undefined;
+    let wizardProvider: string | undefined;
+
+    if (options.wizard) {
+      console.log(chalk.blue('🧭 Wizard mode (safe defaults, read-only by default)\n'));
+      const wantsDb = await promptYesNo('Capture a database connection string now (read-only use only)?', false);
+      if (wantsDb) {
+        wizardConnection = await promptInput('Enter database connection string (optional, press Enter to skip)');
+      }
+      const wantsAi = await promptYesNo('Set an AI provider preference now?', false);
+      if (wantsAi) {
+        wizardProvider = await promptInput('AI provider (openai|anthropic|ollama)');
+      }
+      console.log();
+    }
+
     // Create config with safe defaults
     const defaultConfig = {
       version: '1.0',
@@ -49,11 +67,11 @@ export async function initCommand(options: InitOptions) {
       },
       database: {
         mode: 'auto',
-        connectionString: '',
+        connectionString: wizardConnection || '',
         writeAccess: false
       },
       ai: {
-        provider: '',
+        provider: (wizardProvider as any) || '',
         model: {
           reasoning: '',
           apply: '',

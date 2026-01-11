@@ -28,6 +28,8 @@ export async function scanCommand(options: ScanOptions = {}): Promise<void> {
   const root = resolvePath(options.path ?? process.cwd());
   const format = (options.format || 'table') as OutputFormat;
 
+  const guided = options.guided || false;
+
   if (options.allowDbWrites) {
     const message = 'DB writes are blocked in Phase 1. Remove --allow-db-writes.';
     emitResult(format, {
@@ -44,12 +46,29 @@ export async function scanCommand(options: ScanOptions = {}): Promise<void> {
     return;
   }
 
+  const logProgress = (pct: number, msg: string) => {
+    if (format === 'table') {
+      console.log(chalk.gray(`[${pct.toString().padStart(3, ' ')}%] ${msg}`));
+    }
+  };
+
+  if (guided && format === 'table') {
+    console.log(chalk.blue('🧭 Guided scan (read-only)\n'));
+    console.log(chalk.gray('Steps: detect connection → detect schema files → detect ORM → detect SQL\n'));
+  }
+
+  logProgress(5, 'Loading ignore rules');
   const ignores = loadIgnoreSet(root);
+  logProgress(15, 'Walking project files');
   const files = listFiles(root, ignores);
 
+  logProgress(35, 'Detecting connection strings');
   const connectionStrings = detectConnectionStrings(files, root);
+  logProgress(55, 'Detecting schema files');
   const schemaFiles = detectSchemaFiles(files, root);
+  logProgress(70, 'Detecting ORM signatures');
   const ormDetections = detectOrms(files, root);
+  logProgress(85, 'Detecting SQL files');
   const sqlFindings = detectSql(files, root);
 
   const nextActions: string[] = [];
@@ -78,13 +97,13 @@ export async function scanCommand(options: ScanOptions = {}): Promise<void> {
 function emitResult(format: OutputFormat, result: ScanResult) {
   if (format === 'json') {
     console.log(JSON.stringify(result, null, 2));
-            return;
-          }
+    return;
+  }
 
   if (result.status === 'error') {
     console.log(chalk.red(`❌ ${result.error}`));
-          return;
-        }
+    return;
+  }
         
   console.log(chalk.blue('📂 Scan (read-only)'));
   console.log(chalk.gray(`Root: ${result.root}\n`));
@@ -128,6 +147,12 @@ function emitResult(format: OutputFormat, result: ScanResult) {
   console.log(chalk.blue('\n➡️  Next actions'));
   for (const action of result.nextActions) {
     console.log(chalk.gray(`  - ${action}`));
+  }
+
+  // Guided recap and safety reminder
+  if (result.connectionStrings.length === 0 && result.schemaFiles.length === 0 && result.sqlFindings.length === 0) {
+    console.log(chalk.yellow('\n⚠️  No obvious schema signals found.'));
+    console.log(chalk.gray('   Tip: Add a database URL or schema file for deeper analysis.'));
   }
 }
 

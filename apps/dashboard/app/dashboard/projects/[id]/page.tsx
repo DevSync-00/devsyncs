@@ -2,9 +2,10 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
-import ScanReportsList from '@/components/ScanReportsList';
+import ScanReportsListWithFilters from '@/components/ScanReportsListWithFilters';
 import CodebaseStatus from '@/components/CodebaseStatus';
 import ProjectAnalyticsWidget from '@/components/analytics/ProjectAnalyticsWidget';
+import MigrationTimeline from '@/components/MigrationTimeline';
 import { Button } from '@/components/ui/button';
 import { Scan } from 'lucide-react';
 import { ScanReportSkeleton } from '@/components/LoadingSkeleton';
@@ -94,6 +95,13 @@ export default async function ProjectDetailPage({
         <ProjectAnalyticsWidget projectId={params.id} />
       </Suspense>
 
+      {/* Migration Timeline */}
+      <div className="border-t border-border pt-8">
+        <Suspense fallback={<div className="h-64 bg-card border rounded-lg animate-pulse" />}>
+          <MigrationTimeline projectId={params.id} />
+        </Suspense>
+      </div>
+
       <div className="border-t border-border pt-8">
         <h2 className="text-xl font-semibold mb-4">Scan Reports</h2>
         <Suspense fallback={
@@ -103,7 +111,7 @@ export default async function ProjectDetailPage({
             ))}
           </div>
         }>
-          <ScanReportsList reports={scanReports || []} projectId={params.id} />
+          <ScanReportsListWithFilters reports={scanReports || []} projectId={params.id} />
         </Suspense>
       </div>
     </div>

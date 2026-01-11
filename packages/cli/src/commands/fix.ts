@@ -11,6 +11,7 @@ import { generateFixPlan, validateFixPlan, formatFixPlan, type FixOptions } from
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import type { StatusOptions, OutputFormat } from '../types/index.js';
+import { promptInput, promptYesNo } from '../utils/prompt.js';
 
 interface FixCommandOptions extends StatusOptions {
   format?: OutputFormat;
@@ -22,6 +23,9 @@ interface FixCommandOptions extends StatusOptions {
   model?: string;
   ollamaUrl?: string;
   yes?: boolean; // Auto-approve (still requires explicit flags for writes)
+   summary?: boolean; // Summary-only output
+   preview?: boolean; // Force preview mode (default)
+   verifyScript?: string; // Optional verification script hint
 }
 
 export async function fixCommand(options: FixCommandOptions = {}) {
@@ -70,24 +74,33 @@ export async function fixCommand(options: FixCommandOptions = {}) {
     }
 
     // Extract database schema
-    const dbConnection = options.db || config?.database?.connectionString;
+    let dbConnection = options.db || config?.database?.connectionString;
     if (!dbConnection) {
-      const payload = {
-        status: 'blocked' as const,
-        reason: 'database_connection_missing',
-        message: 'Database connection required for conflict detection.',
-        required: ['Provide --db <connection> or set database.connectionString in config.'],
-        warnings: [],
-      };
-
-      if (format === 'json') {
-        console.log(JSON.stringify(payload, null, 2));
-      } else {
-        console.log(chalk.red('❌ Fix blocked'));
-        console.log(chalk.gray('Reason: Database connection required.'));
-        console.log(chalk.gray('Required: Provide --db <connection> or set in config.'));
+      if (process.stdin.isTTY && format === 'table') {
+        const wantsPrompt = await promptYesNo('No database connection provided. Enter one now for read-only scan?', false);
+        if (wantsPrompt) {
+          dbConnection = await promptInput('Database connection string (not stored unless config already set)');
+        }
       }
-      return;
+
+      if (!dbConnection) {
+        const payload = {
+          status: 'blocked' as const,
+          reason: 'database_connection_missing',
+          message: 'Database connection required for conflict detection.',
+          required: ['Provide --db <connection> or set database.connectionString in config.'],
+          warnings: [],
+        };
+
+        if (format === 'json') {
+          console.log(JSON.stringify(payload, null, 2));
+        } else {
+          console.log(chalk.red('❌ Fix blocked'));
+          console.log(chalk.gray('Reason: Database connection required.'));
+          console.log(chalk.gray('Required: Provide --db <connection> or set in config.'));
+        }
+        return;
+      }
     }
 
     let dbSchema;
@@ -207,6 +220,7 @@ export async function fixCommand(options: FixCommandOptions = {}) {
               rollback: fixPlan.migration.rollback,
             },
             recommendedActions: fixPlan.recommendedActions,
+            verifyScript: options.verifyScript,
           },
           null,
           2
@@ -215,7 +229,12 @@ export async function fixCommand(options: FixCommandOptions = {}) {
     } else {
       // Table format
       console.log(chalk.blue('🔧 Fix Plan Generated\n'));
-      console.log(formatFixPlan(fixPlan, 'table'));
+
+      if (options.summary) {
+        printSummary(fixPlan, validation, options.verifyScript);
+      } else {
+        console.log(formatFixPlan(fixPlan, 'table'));
+      }
 
       if (!validation.valid) {
         console.log(chalk.red('\n❌ Validation Errors:'));
@@ -251,6 +270,10 @@ export async function fixCommand(options: FixCommandOptions = {}) {
         console.log(chalk.gray('\n💡 Tip: Use --output <path> to save migration to file'));
       }
 
+      if (options.verifyScript) {
+        console.log(chalk.gray(`\n🔎 Verification (manual): Run "${options.verifyScript}" after applying in a safe environment.`));
+      }
+
       console.log(chalk.yellow('\n⚠️  This is a PREVIEW. No changes have been applied.'));
       console.log(chalk.gray('   Review the migration carefully before applying.'));
     }
@@ -275,5 +298,44 @@ function resolvePath(inputPath: string, root: string): string {
     return inputPath;
   }
   return join(root, inputPath);
+}
+
+function printSummary(
+  fixPlan: Awaited<ReturnType<typeof generateFixPlan>>,
+  validation: ReturnType<typeof validateFixPlan>,
+  verifyScript?: string
+): void {
+  const conflictCount = fixPlan.conflicts.length;
+  const highRisk = fixPlan.conflicts.filter((c) => c.risk === 'high').length;
+  const mediumRisk = fixPlan.conflicts.filter((c) => c.risk === 'medium').length;
+  const lowRisk = fixPlan.conflicts.filter((c) => c.risk === 'low').length;
+
+  console.log(chalk.gray(`Conflicts: ${conflictCount} (high: ${highRisk}, medium: ${mediumRisk}, low: ${lowRisk})`));
+  console.log(chalk.gray(`Overall risk: ${fixPlan.safetyAssessment.overallRisk}`));
+  if (fixPlan.safetyAssessment.requiresBackup) {
+    console.log(chalk.yellow('Backup required before apply (high risk or potential data loss).'));
+  }
+  if (fixPlan.safetyAssessment.breakingChanges.length > 0) {
+    console.log(chalk.yellow(`Breaking changes: ${fixPlan.safetyAssessment.breakingChanges.length}`));
+  }
+
+  console.log(chalk.gray('\nRecommended actions:'));
+  for (const action of fixPlan.recommendedActions.slice(0, 5)) {
+    console.log(chalk.gray(`  - ${action}`));
+  }
+  if (fixPlan.recommendedActions.length > 5) {
+    console.log(chalk.gray(`  - ...and ${fixPlan.recommendedActions.length - 5} more`));
+  }
+
+  if (!validation.valid) {
+    console.log(chalk.red(`\nValidation errors: ${validation.errors.length}`));
+  }
+  if (validation.warnings.length > 0) {
+    console.log(chalk.yellow(`Validation warnings: ${validation.warnings.length}`));
+  }
+
+  if (verifyScript) {
+    console.log(chalk.gray(`\nManual verification: run "${verifyScript}" after applying in a safe environment.`));
+  }
 }
 

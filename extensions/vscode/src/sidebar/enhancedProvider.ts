@@ -47,11 +47,14 @@ export class EnhancedSidebarProvider implements vscode.TreeDataProvider<Enhanced
   private stateManager: SidebarStateManager;
   private searchFilter: SidebarSearchFilter;
   private searchQuery: string = '';
+  private filterPreset: 'all' | 'errors' | 'warnings' | 'info';
 
   constructor(cliRunner: ICliRunner, context: vscode.ExtensionContext) {
     this.cliRunner = cliRunner;
     this.stateManager = new SidebarStateManager(context);
     this.searchFilter = new SidebarSearchFilter();
+    this.filterPreset = this.stateManager.getFilterPreset();
+    this.searchQuery = this.stateManager.getLastSearch();
     this.loadScanResults();
     this.loadMigrationHistory();
   }
@@ -70,6 +73,16 @@ export class EnhancedSidebarProvider implements vscode.TreeDataProvider<Enhanced
    */
   setSearchQuery(query: string): void {
     this.searchQuery = query;
+    this.stateManager.setLastSearch(query);
+    this._onDidChangeTreeData.fire();
+  }
+
+  /**
+   * Sets a filter preset (severity-based) and refreshes.
+   */
+  setFilterPreset(preset: 'all' | 'errors' | 'warnings' | 'info'): void {
+    this.filterPreset = preset;
+    this.stateManager.setFilterPreset(preset);
     this._onDidChangeTreeData.fire();
   }
 
@@ -352,22 +365,23 @@ export class EnhancedSidebarProvider implements vscode.TreeDataProvider<Enhanced
 
     const items: EnhancedTreeItem[] = [];
     const mismatches = this.scanResults.mismatches || [];
+    const filteredMismatches = this.filterMismatches(mismatches);
 
     // Summary
     const summaryExpanded = this.stateManager.isExpanded('summary');
     items.push(new EnhancedTreeItem(
-      `Summary: ${mismatches.length} mismatch${mismatches.length !== 1 ? 'es' : ''}`,
+      `Summary: ${filteredMismatches.length} mismatch${filteredMismatches.length !== 1 ? 'es' : ''}`,
       summaryExpanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed,
       'info',
       undefined,
       'summary',
-      this.getSummaryDescription(mismatches),
+      this.getSummaryDescription(filteredMismatches),
       undefined,
-      this.getSummaryStatus(mismatches)
+      this.getSummaryStatus(filteredMismatches)
     ));
 
     // Mismatches
-    if (mismatches.length > 0) {
+    if (filteredMismatches.length > 0) {
       const mismatchesExpanded = this.stateManager.isExpanded('mismatches');
       items.push(new EnhancedTreeItem(
         'Mismatches',
@@ -375,7 +389,7 @@ export class EnhancedSidebarProvider implements vscode.TreeDataProvider<Enhanced
         'warning',
         undefined,
         'mismatches',
-        `${mismatches.length} issue${mismatches.length !== 1 ? 's' : ''} found`,
+        `${filteredMismatches.length} issue${filteredMismatches.length !== 1 ? 's' : ''} found (${this.filterPreset})`,
         undefined,
         TreeItemStatus.Warning
       ));
@@ -441,7 +455,7 @@ export class EnhancedSidebarProvider implements vscode.TreeDataProvider<Enhanced
    * Gets mismatch items.
    */
   private getMismatchItems(): EnhancedTreeItem[] {
-    const mismatches = this.scanResults?.mismatches || [];
+    const mismatches = this.filterMismatches(this.scanResults?.mismatches || []);
     return mismatches.map((mismatch: Mismatch, index: number) => {
       const icon = mismatch.severity === 'error' ? 'error' : 'warning';
       const fieldLabel = 'field' in mismatch ? mismatch.field : 'N/A';
@@ -532,6 +546,22 @@ export class EnhancedSidebarProvider implements vscode.TreeDataProvider<Enhanced
         severityStatus
       ));
     }
+
+    // Add jump to source option
+    items.push(new EnhancedTreeItem(
+      'Jump to Source',
+      vscode.TreeItemCollapsibleState.None,
+      'go-to-file',
+      {
+        command: 'devsync.sidebar.jumpToSource',
+        title: 'Jump to Source',
+        arguments: [mismatch]
+      },
+      'mismatch-jump',
+      'Open source file and navigate to model/field',
+      undefined,
+      TreeItemStatus.Info
+    ));
 
     if (mismatch.suggestedFix) {
       items.push(new EnhancedTreeItem(
@@ -701,6 +731,22 @@ export class EnhancedSidebarProvider implements vscode.TreeDataProvider<Enhanced
     }
 
     return TreeItemStatus.Warning;
+  }
+
+  /**
+   * Filters mismatches by the current preset.
+   */
+  private filterMismatches(mismatches: Mismatch[]): Mismatch[] {
+    switch (this.filterPreset) {
+      case 'errors':
+        return mismatches.filter((m) => m.severity === 'error');
+      case 'warnings':
+        return mismatches.filter((m) => m.severity === 'warning' || m.severity === 'error');
+      case 'info':
+        return mismatches.filter((m) => m.severity === 'info');
+      default:
+        return mismatches;
+    }
   }
 
   /**

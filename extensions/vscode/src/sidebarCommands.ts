@@ -270,13 +270,147 @@ export class SidebarCommands {
       return;
     }
 
-    // Create a new document with the fix
+    // Try to show inline diff preview if source file exists
+    const sourceFile = await this.findSourceFile(mismatch);
+    if (sourceFile) {
+      await this.showInlineDiffPreview(mismatch, sourceFile);
+      return;
+    }
+
+    // Fallback: Create a new document with the fix
     const doc = await vscode.workspace.openTextDocument({
       content: mismatch.suggestedFix,
       language: 'sql'
     });
 
     await vscode.window.showTextDocument(doc);
+  }
+
+  /**
+   * Jump to source file for a mismatch (Prisma schema, TypeORM entity, etc.)
+   */
+  async jumpToSource(mismatch: import('./api').Mismatch): Promise<void> {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      vscode.window.showErrorMessage('No workspace folder open');
+      return;
+    }
+
+    const sourceFile = await this.findSourceFile(mismatch);
+    if (!sourceFile) {
+      vscode.window.showWarningMessage(
+        `Could not find source file for model "${mismatch.model}". Try searching for schema files manually.`
+      );
+      return;
+    }
+
+    try {
+      const doc = await vscode.workspace.openTextDocument(sourceFile.filePath);
+      const editor = await vscode.window.showTextDocument(doc);
+      
+      // Try to navigate to the model/field
+      if (sourceFile.lineNumber) {
+        const line = Math.max(0, sourceFile.lineNumber - 1);
+        const range = new vscode.Range(line, 0, line, 0);
+        editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+        editor.selection = new vscode.Selection(range.start, range.start);
+      } else {
+        // Search for the model name in the file
+        const text = doc.getText();
+        const modelRegex = new RegExp(`(model|entity|table)\\s+${mismatch.model}\\b`, 'i');
+        const match = text.match(modelRegex);
+        if (match && match.index !== undefined) {
+          const position = doc.positionAt(match.index);
+          const range = new vscode.Range(position, position);
+          editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+          editor.selection = new vscode.Selection(range.start, range.start);
+        }
+      }
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Failed to open source file: ${error.message}`);
+    }
+  }
+
+  /**
+   * Find source file for a mismatch
+   */
+  private async findSourceFile(mismatch: import('./api').Mismatch): Promise<{ filePath: string; lineNumber?: number } | null> {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      return null;
+    }
+
+    const root = workspaceFolders[0].uri.fsPath;
+    const { glob } = await import('glob');
+    const path = await import('path');
+    const fs = await import('fs');
+
+    // Search for Prisma schema files
+    const prismaFiles = await glob('**/schema.prisma', { cwd: root, absolute: true });
+    for (const file of prismaFiles) {
+      const content = fs.readFileSync(file, 'utf-8');
+      const modelRegex = new RegExp(`model\\s+${mismatch.model}\\b`, 'i');
+      if (modelRegex.test(content)) {
+        // Find line number
+        const lines = content.split('\n');
+        const lineIndex = lines.findIndex((line) => modelRegex.test(line));
+        return { filePath: file, lineNumber: lineIndex >= 0 ? lineIndex + 1 : undefined };
+      }
+    }
+
+    // Search for TypeORM entities
+    const tsFiles = await glob('**/*.entity.ts', { cwd: root, absolute: true });
+    for (const file of tsFiles) {
+      const content = fs.readFileSync(file, 'utf-8');
+      const entityRegex = new RegExp(`(class|export\\s+class)\\s+${mismatch.model}\\b`, 'i');
+      if (entityRegex.test(content)) {
+        const lines = content.split('\n');
+        const lineIndex = lines.findIndex((line) => entityRegex.test(line));
+        return { filePath: file, lineNumber: lineIndex >= 0 ? lineIndex + 1 : undefined };
+      }
+    }
+
+    // Search for Drizzle schemas
+    const drizzleFiles = await glob('**/*schema*.ts', { cwd: root, absolute: true });
+    for (const file of drizzleFiles) {
+      const content = fs.readFileSync(file, 'utf-8');
+      if (content.includes('pgTable') || content.includes('mysqlTable')) {
+        const tableRegex = new RegExp(`(pgTable|mysqlTable)\\s*\\(\\s*['"]${mismatch.model}['"]`, 'i');
+        if (tableRegex.test(content)) {
+          const lines = content.split('\n');
+          const lineIndex = lines.findIndex((line) => tableRegex.test(line));
+          return { filePath: file, lineNumber: lineIndex >= 0 ? lineIndex + 1 : undefined };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Show inline diff preview for a fix
+   */
+  private async showInlineDiffPreview(mismatch: import('./api').Mismatch, sourceFile: { filePath: string; lineNumber?: number }): Promise<void> {
+    try {
+      const doc = await vscode.workspace.openTextDocument(sourceFile.filePath);
+      const originalText = doc.getText();
+
+      // Create a simple diff view by opening the original and suggested fix side by side
+      // For now, show the fix in a new document with a note
+      const fixDoc = await vscode.workspace.openTextDocument({
+        content: `// Suggested Fix for ${mismatch.model}${'field' in mismatch ? `.${mismatch.field}` : ''}\n// Original file: ${sourceFile.filePath}\n\n${mismatch.suggestedFix || 'No fix available'}`,
+        language: 'sql'
+      });
+
+      await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
+      await vscode.window.showTextDocument(fixDoc, vscode.ViewColumn.Two);
+
+      vscode.window.showInformationMessage(
+        `Fix preview opened. Review the suggested fix in the right panel.`
+      );
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Failed to show diff preview: ${error.message}`);
+    }
   }
 
   async openConfig(): Promise<void> {

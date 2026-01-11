@@ -192,6 +192,14 @@
         "title": "View Suggested Fix"
       },
       {
+        "command": "devsync.sidebar.jumpToSource",
+        "title": "Jump to Source"
+      },
+      {
+        "command": "devsync.sidebar.filterPreset",
+        "title": "Set Sidebar Filter"
+      },
+      {
         "command": "devsync.sidebar.openConfig",
         "title": "Open Config File"
       },
@@ -380,6 +388,28 @@
     "problemMatchers": [],
     "problemPatterns": []
   },
+  "keybindings": [
+    {
+      "command": "devsync.sidebar.scan",
+      "key": "ctrl+shift+d s",
+      "when": "view == devsyncSidebar"
+    },
+    {
+      "command": "devsync.sidebar.filterPreset",
+      "key": "ctrl+shift+d f",
+      "when": "view == devsyncSidebar"
+    },
+    {
+      "command": "devsync.sidebar.jumpToSource",
+      "key": "ctrl+shift+d j",
+      "when": "view == devsyncSidebar && viewItem == mismatch-*"
+    },
+    {
+      "command": "devsync.sidebar.viewFix",
+      "key": "ctrl+shift+d v",
+      "when": "view == devsyncSidebar && viewItem == mismatch-fix"
+    }
+  ],
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./ && npm run compile:webview",

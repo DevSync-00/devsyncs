@@ -76,6 +76,15 @@ export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTr
     }
   }
 
+  /**
+   * Sets filter preset (enhanced feature).
+   */
+  setFilterPreset(preset: 'all' | 'errors' | 'warnings' | 'info'): void {
+    if (this.enhancedProvider) {
+      this.enhancedProvider.setFilterPreset(preset);
+    }
+  }
+
   refresh(): void {
     this.loadScanResults();
     this.loadMigrationHistory();
@@ -308,6 +317,19 @@ export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTr
           'mismatch-detail'
         ));
       }
+
+      // Add jump to source option
+      items.push(new DevSyncTreeItem(
+        'Jump to Source',
+        vscode.TreeItemCollapsibleState.None,
+        'go-to-file',
+        {
+          command: 'devsync.sidebar.jumpToSource',
+          title: 'Jump to Source',
+          arguments: [mismatch]
+        },
+        'mismatch-jump'
+      ));
 
       if (mismatch.suggestedFix) {
         items.push(new DevSyncTreeItem(

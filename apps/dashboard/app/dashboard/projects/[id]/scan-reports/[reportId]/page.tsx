@@ -8,6 +8,8 @@ import GenerateMigrationButton from '@/components/GenerateMigrationButton';
 import AIExplanation from '@/components/AIExplanation';
 import AIQuery from '@/components/AIQuery';
 import MigrationHistory from '@/components/MigrationHistory';
+import SchemaComparison from '@/components/SchemaComparison';
+import ExportButton from '@/components/ExportButton';
 import { MessageSquare } from 'lucide-react';
 
 export default async function ScanReportDetailPage({
@@ -162,10 +164,28 @@ export default async function ScanReportDetailPage({
         </div>
       )}
 
+      {/* Schema Comparison */}
+      {hasMismatches && (
+        <div className="space-y-6 border-t border-border pt-8">
+          <SchemaComparison
+            codeSchema={report.code_schema}
+            dbSchema={report.db_schema}
+            mismatches={mismatches}
+          />
+        </div>
+      )}
+
       {/* Mismatches */}
       {mismatches.length > 0 ? (
         <div className="space-y-6 border-t border-border pt-8">
-          <h2 className="text-2xl font-bold">Mismatches</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">Mismatches</h2>
+            <ExportButton
+              data={mismatches}
+              filename={`scan-report-${params.reportId}-mismatches`}
+              exportType="csv"
+            />
+          </div>
           
           <div className="space-y-4">
             {mismatches.map((mismatch: any, index) => {

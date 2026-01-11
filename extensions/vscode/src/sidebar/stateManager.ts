@@ -9,7 +9,11 @@ import * as vscode from 'vscode';
  */
 export class SidebarStateManager {
   private static readonly STATE_KEY = 'devsync.sidebar.state';
+  private static readonly FILTER_KEY = 'devsync.sidebar.filterPreset';
+  private static readonly SEARCH_KEY = 'devsync.sidebar.searchQuery';
   private expandedSections: Set<string> = new Set();
+  private filterPreset: 'all' | 'errors' | 'warnings' | 'info' = 'all';
+  private lastSearch: string = '';
 
   constructor(private context: vscode.ExtensionContext) {
     this.loadState();
@@ -52,6 +56,16 @@ export class SidebarStateManager {
       // Default expanded sections
       this.expandedSections = new Set(['commands']);
     }
+
+    const storedFilter = this.context.workspaceState.get<string>(SidebarStateManager.FILTER_KEY);
+    if (storedFilter === 'errors' || storedFilter === 'warnings' || storedFilter === 'info' || storedFilter === 'all') {
+      this.filterPreset = storedFilter;
+    }
+
+    const storedSearch = this.context.workspaceState.get<string>(SidebarStateManager.SEARCH_KEY);
+    if (storedSearch) {
+      this.lastSearch = storedSearch;
+    }
   }
 
   /**
@@ -60,6 +74,8 @@ export class SidebarStateManager {
   private saveState(): void {
     const array = Array.from(this.expandedSections);
     this.context.workspaceState.update(SidebarStateManager.STATE_KEY, array);
+    this.context.workspaceState.update(SidebarStateManager.FILTER_KEY, this.filterPreset);
+    this.context.workspaceState.update(SidebarStateManager.SEARCH_KEY, this.lastSearch);
   }
 
   /**
@@ -67,6 +83,26 @@ export class SidebarStateManager {
    */
   reset(): void {
     this.expandedSections = new Set(['commands']);
+    this.filterPreset = 'all';
+    this.lastSearch = '';
+    this.saveState();
+  }
+
+  getFilterPreset(): 'all' | 'errors' | 'warnings' | 'info' {
+    return this.filterPreset;
+  }
+
+  setFilterPreset(preset: 'all' | 'errors' | 'warnings' | 'info'): void {
+    this.filterPreset = preset;
+    this.saveState();
+  }
+
+  getLastSearch(): string {
+    return this.lastSearch;
+  }
+
+  setLastSearch(query: string): void {
+    this.lastSearch = query;
     this.saveState();
   }
 }

@@ -23,6 +23,7 @@ program
   .command('init')
   .description('Initialize DevSync configuration with safe defaults')
   .option('-p, --path <path>', 'Project path to initialize (default: current directory)', process.cwd())
+  .option('--wizard', 'Interactive wizard to capture optional config (safe defaults)', false)
   .action(initCommand);
 
 program
@@ -34,6 +35,7 @@ program
   .option('--allow-writes', 'Allow file writes (ignored in scan)', false)
   .option('--allow-db-writes', 'Allow DB writes (blocked in Phase 1)', false)
   .option('-y, --yes', 'Auto-approve prompts within safe envelope', false)
+  .option('--guided', 'Interactive prompts for scan steps (still read-only)', false)
   .action(scanCommand);
 
 program
@@ -60,6 +62,9 @@ program
   .option('--model <model>', 'AI model identifier (e.g., gpt-4, claude-3-opus)')
   .option('--ollama-url <url>', 'Ollama API URL (for local AI)', 'http://localhost:11434')
   .option('--yes', 'Auto-approve prompts (still preview-only, no writes)', false)
+  .option('--summary', 'Show summary-only output', false)
+  .option('--preview', 'Force preview (no apply) output mode', true)
+  .option('--verify-script <cmd>', 'Optional verification script to run manually after migration')
   .addHelpText('after', `
 Examples:
   $ devsync fix --db postgresql://...              Generate fix plan (preview only)

@@ -41,6 +41,7 @@ const getTableDiffStatus = (
   tableName: string,
   schema: string | undefined,
   diffs: SchemaDiff[],
+  allowedActions: Set<string>,
 ): 'add' | 'remove' | 'change' | null => {
   const key = `${schema ?? ''}:${tableName}`
   const tableDiffs = diffs.filter((d) => {
@@ -54,9 +55,12 @@ const getTableDiffStatus = (
     }
     return false
   })
-  if (tableDiffs.some((d) => d.action === 'add')) return 'add'
-  if (tableDiffs.some((d) => d.action === 'remove')) return 'remove'
-  if (tableDiffs.some((d) => d.action === 'change')) return 'change'
+  const add = tableDiffs.some((d) => d.action === 'add' && allowedActions.has('add'))
+  const remove = tableDiffs.some((d) => d.action === 'remove' && allowedActions.has('remove'))
+  const change = tableDiffs.some((d) => d.action === 'change' && allowedActions.has('change'))
+  if (add) return 'add'
+  if (remove) return 'remove'
+  if (change) return 'change'
   return null
 }
 
@@ -66,10 +70,27 @@ export const GraphRenderer: React.FC<{
   width: number
   height: number
   searchQuery?: string
+  relationshipSearch?: string
+  showAdd?: boolean
+  showRemove?: boolean
+  showChange?: boolean
   layout?: LayoutState
   onTableClick?: (table: Table) => void
   onLayoutChange?: (layout: LayoutState) => void
-}> = ({ schema, diffs = [], width, height, searchQuery = '', layout, onTableClick, onLayoutChange }) => {
+}> = ({
+  schema,
+  diffs = [],
+  width,
+  height,
+  searchQuery = '',
+  relationshipSearch = '',
+  showAdd = true,
+  showRemove = true,
+  showChange = true,
+  layout,
+  onTableClick,
+  onLayoutChange,
+}) => {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [isDragging, setIsDragging] = useState(false)
@@ -108,6 +129,11 @@ export const GraphRenderer: React.FC<{
     const tableNodes: Node[] = []
     const relationshipEdges: Edge[] = []
 
+    const allowedActions = new Set<string>()
+    if (showAdd) allowedActions.add('add')
+    if (showRemove) allowedActions.add('remove')
+    if (showChange) allowedActions.add('change')
+
     // Filter tables by search query
     const allTables = schema.tables || []
     const query = searchQuery.toLowerCase().trim()
@@ -130,7 +156,7 @@ export const GraphRenderer: React.FC<{
     tables.forEach((table) => {
       const key = `${table.schema ?? ''}:${table.name}`
       const savedPos = nodePositions[key]
-      const diffStatus = getTableDiffStatus(table.name, table.schema, diffs)
+      const diffStatus = getTableDiffStatus(table.name, table.schema, diffs, allowedActions)
       
       // Use saved position or default to (0, 0) if not found
       const x = savedPos?.x ?? 0
@@ -162,6 +188,7 @@ export const GraphRenderer: React.FC<{
     // Create relationship edges (only for visible tables)
     const visibleTableIds = new Set(tableNodes.map((n) => n.id))
     const relationships = schema.relationships || []
+    const relQuery = relationshipSearch.toLowerCase().trim()
     relationships.forEach((rel) => {
       // Find source and target tables to get their schema
       const sourceTable = schema.tables.find((t) => t.name === rel.sourceTable)
@@ -184,6 +211,20 @@ export const GraphRenderer: React.FC<{
             (d.payload as any).sourceTable === rel.sourceTable &&
             (d.payload as any).targetTable === rel.targetTable,
         )
+        if (relDiff && !allowedActions.has(relDiff.action)) {
+          return
+        }
+
+        const relLabel = `${rel.sourceTable}.${rel.sourceColumn}->${rel.targetTable}.${rel.targetColumn}`.toLowerCase()
+        if (
+          relQuery &&
+          !relLabel.includes(relQuery) &&
+          !rel.sourceTable.toLowerCase().includes(relQuery) &&
+          !rel.targetTable.toLowerCase().includes(relQuery)
+        ) {
+          return
+        }
+
         const edgeColor = getDiffColor(relDiff?.action)
 
         relationshipEdges.push({
@@ -203,7 +244,7 @@ export const GraphRenderer: React.FC<{
       edges: relationshipEdges,
       bounds: { minX, minY, maxX, maxY },
     }
-  }, [schema, diffs, searchQuery, nodePositions])
+  }, [schema, diffs, searchQuery, relationshipSearch, nodePositions, showAdd, showRemove, showChange])
 
   // Auto-fit on mount
   useEffect(() => {
@@ -304,6 +345,31 @@ export const GraphRenderer: React.FC<{
     [zoom],
   )
 
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === '+' || e.key === '=') {
+        setZoom((z) => Math.min(2, z * 1.1))
+        e.preventDefault()
+      } else if (e.key === '-' || e.key === '_') {
+        setZoom((z) => Math.max(0.1, z * 0.9))
+        e.preventDefault()
+      } else if (e.key === 'ArrowUp') {
+        setPan((p) => ({ x: p.x, y: p.y + 40 }))
+        e.preventDefault()
+      } else if (e.key === 'ArrowDown') {
+        setPan((p) => ({ x: p.x, y: p.y - 40 }))
+        e.preventDefault()
+      } else if (e.key === 'ArrowLeft') {
+        setPan((p) => ({ x: p.x + 40, y: p.y }))
+        e.preventDefault()
+      } else if (e.key === 'ArrowRight') {
+        setPan((p) => ({ x: p.x - 40, y: p.y }))
+        e.preventDefault()
+      }
+    },
+    [],
+  )
+
   const handleFitView = useCallback(() => {
     if (bounds && containerRef.current) {
       const containerWidth = containerRef.current.clientWidth
@@ -334,11 +400,13 @@ export const GraphRenderer: React.FC<{
         background: 'var(--vscode-editor-background)',
         cursor: draggedNodeId ? 'grabbing' : isDragging ? 'grabbing' : 'grab',
       }}
+      tabIndex={0}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       onWheel={handleWheel}
+      onKeyDown={handleKeyDown}
     >
       {/* Controls */}
       <div

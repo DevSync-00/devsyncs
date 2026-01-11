@@ -287,6 +287,10 @@ export async function activate(context: vscode.ExtensionContext) {
     'devsync.sidebar.viewFix',
     (mismatch) => sidebarCommands.viewFix(mismatch)
   );
+  const sidebarJumpToSourceCommand = vscode.commands.registerCommand(
+    'devsync.sidebar.jumpToSource',
+    (mismatch) => sidebarCommands.jumpToSource(mismatch)
+  );
   const sidebarOpenConfigCommand = vscode.commands.registerCommand(
     'devsync.sidebar.openConfig',
     () => sidebarCommands.openConfig()
@@ -327,6 +331,28 @@ export async function activate(context: vscode.ExtensionContext) {
     'devsync.sidebar.clearSearch',
     () => {
       sidebarProvider.setSearchQuery('');
+    }
+  );
+
+  const sidebarFilterPresetCommand = vscode.commands.registerCommand(
+    'devsync.sidebar.filterPreset',
+    async () => {
+      const choice = await vscode.window.showQuickPick(
+        [
+          { label: 'All severities', value: 'all' },
+          { label: 'Errors only', value: 'errors' },
+          { label: 'Warnings + Errors', value: 'warnings' },
+          { label: 'Info only', value: 'info' },
+        ],
+        {
+          placeHolder: 'Filter mismatches by severity',
+          ignoreFocusOut: true,
+        }
+      );
+      if (choice) {
+        sidebarProvider.setFilterPreset(choice.value as 'all' | 'errors' | 'warnings' | 'info');
+        vscode.window.showInformationMessage(`DevSync sidebar filter set to ${choice.label}`);
+      }
     }
   );
   
@@ -508,6 +534,9 @@ export async function activate(context: vscode.ExtensionContext) {
     codeActionProvider,
     sidebarSearchCommand,
     sidebarClearSearchCommand,
+    sidebarFilterPresetCommand,
+    sidebarViewFixCommand,
+    sidebarJumpToSourceCommand,
     previewFixCommand,
     showDiffCommand,
     batchApplyFixesCommand,

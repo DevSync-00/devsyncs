@@ -37,6 +37,10 @@ export const App: React.FC = () => {
   const [meta, setMeta] = useState<{ id: string; createdAt: string; note?: string } | null>(null)
   const [layout, setLayout] = useState<LayoutState | undefined>(undefined)
   const [searchQuery, setSearchQuery] = useState<string>('')
+  const [relationshipSearch, setRelationshipSearch] = useState<string>('')
+  const [showAdd, setShowAdd] = useState<boolean>(true)
+  const [showRemove, setShowRemove] = useState<boolean>(true)
+  const [showChange, setShowChange] = useState<boolean>(true)
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [snapshots, setSnapshots] = useState<SnapshotMeta[]>([])
   const [showTimeline, setShowTimeline] = useState(false)
@@ -117,6 +121,35 @@ export const App: React.FC = () => {
                 width: 200,
               }}
             />
+            <input
+              type="text"
+              placeholder="Search relationships..."
+              value={relationshipSearch}
+              onChange={(e) => setRelationshipSearch(e.target.value)}
+              style={{
+                padding: '4px 8px',
+                border: '1px solid var(--vscode-input-border)',
+                background: 'var(--vscode-input-background)',
+                color: 'var(--vscode-input-foreground)',
+                borderRadius: 4,
+                fontSize: 12,
+                width: 180,
+              }}
+            />
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} title="Diff visibility">
+              <label style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 11 }}>
+                <input type="checkbox" checked={showAdd} onChange={(e) => setShowAdd(e.target.checked)} />
+                <span style={{ color: '#4ade80' }}>Add</span>
+              </label>
+              <label style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 11 }}>
+                <input type="checkbox" checked={showRemove} onChange={(e) => setShowRemove(e.target.checked)} />
+                <span style={{ color: '#f87171' }}>Remove</span>
+              </label>
+              <label style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 11 }}>
+                <input type="checkbox" checked={showChange} onChange={(e) => setShowChange(e.target.checked)} />
+                <span style={{ color: '#fbbf24' }}>Change</span>
+              </label>
+            </div>
             <button
               onClick={() => setShowTimeline(true)}
               style={{
@@ -186,6 +219,10 @@ export const App: React.FC = () => {
           width={window.innerWidth}
           height={window.innerHeight - 150}
           searchQuery={searchQuery}
+          relationshipSearch={relationshipSearch}
+          showAdd={showAdd}
+          showRemove={showRemove}
+          showChange={showChange}
           layout={layout}
           onTableClick={setSelectedTable}
           onLayoutChange={(newLayout) => {

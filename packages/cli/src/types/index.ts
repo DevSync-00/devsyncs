@@ -31,6 +31,7 @@ export interface ScanOptions {
   allowWrites?: boolean;
   allowDbWrites?: boolean;
   yes?: boolean;
+  guided?: boolean;
 }
 
 export interface StatusOptions {
@@ -42,6 +43,7 @@ export interface StatusOptions {
 
 export interface InitOptions {
   path: string;
+  wizard?: boolean;
 }
 
 export interface Config {
