@@ -1,6 +1,6 @@
 # 🚀 DevSync.AI
 
-**AI-powered database schema synchronization tool** that automatically detects mismatches between code and database schemas, generates migrations, and provides intelligent insights. Supports 9+ schema types including Prisma, Supabase, TypeORM, and more.
+**AI-powered database schema synchronization tool** that automatically detects mismatches between code and database schemas, generates migrations, and provides intelligent insights. Supports 9+ schema types including Prisma, Supabase, and more.
 
 ## ✨ Features
 
