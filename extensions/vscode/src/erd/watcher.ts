@@ -128,7 +128,9 @@ export class ErdSnapshotWatcher {
         return
       }
 
-      this.debugLog(`[ERD Watcher] Snapshot loaded successfully. Schema tables: ${Array.isArray(snapshot.schema?.columns) ? snapshot.schema.columns.length : 'unknown'}`)
+      const tableCount = Array.isArray(snapshot.schema?.tables) ? snapshot.schema.tables.length : 0
+      const relationshipCount = Array.isArray(snapshot.schema?.relationships) ? snapshot.schema.relationships.length : 0
+      this.debugLog(`[ERD Watcher] Snapshot loaded successfully. Tables: ${tableCount}, Relationships: ${relationshipCount}`)
 
       // Determine source type for better messaging
       const source = snapshot.meta.source || snapshot.meta.note || 'unknown'
