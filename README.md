@@ -1,217 +1,190 @@
-# 🚀 DevSync.AI
+# DevSync
 
-**AI-powered database schema synchronization tool** that automatically detects mismatches between code and database schemas, generates migrations, and provides intelligent insights. Supports 9+ schema types including Prisma, Supabase, and more.
+DevSync provides:
+- a CLI in `packages/cli`
+- a VS Code extension in `extensions/vscode`
+- a dashboard/service surface under `apps/`
 
-## ✨ Features
+This README is the current end-to-end validation and production-readiness audit baseline.
 
-### Core Features
-- 🔍 **Schema Scanning** - Supports 9 schema types (Prisma, Supabase, TypeORM, Kysely, Sequelize, Drizzle, Django, SQLAlchemy, Raw SQL)
-- 🔬 **Schema Comparison** - Intelligent diff engine detects mismatches
-- 📝 **Migration Generation** - Automatic SQL migration generation
-- ▶️ **Migration Execution** - Execute migrations from dashboard
-- ↪️ **Migration Rollback** - Rollback applied migrations safely
-- 👥 **Team Collaboration** - Team creation, member management, project sharing
-- 🤖 **AI Reasoning** - AI-powered explanations and recommendations
-- 💻 **CLI Tool** - Command-line interface for automation
-- 🔄 **GitHub Actions** - CI/CD integration for automated scanning
+## Session Change Summary
 
-### Security
-- 🔒 Security headers (HSTS, CSP, XSS protection)
-- ✅ Input validation and sanitization
-- 🛡️ Complete access control
-- 🔐 Team-based permissions
-- 🚫 Safe error handling
+Changes completed during this session:
+- Added CLI `login` command wiring in `packages/cli/src/index.ts`.
+- Added CLI `migrate` command wiring in `packages/cli/src/index.ts` to restore extension compatibility.
+- Extended `scan` to include detailed project + database inventory:
+  - inferred project databases (for example Supabase migrations without live URL)
+  - connection masking and provider detection
+  - per-database reachability/detail reporting
+  - project summary block
+- Fixed summary mismatch so `Databases detected` reflects actual detected databases.
+- Fixed CLI test syntax error in `packages/cli/tests/retry-timeout.test.js`.
+- Added missing shared helper module for tests: `packages/cli/src/commands/projects/shared.ts`.
+- Fixed VS Code extension `pretest` script separator in `extensions/vscode/package.json`.
+- Fixed extension enhanced runner CLI path guard bug in `extensions/vscode/src/cli/enhancedRunner.ts`.
+- Added VS Code test-host cache cleanup in `extensions/vscode/src/test/runTest.ts` to reduce stale host failures.
+- Added `formatLastScan()` export in `packages/cli/src/commands/scan.ts` for test compatibility.
 
-### Performance
-- ⚡ Optimized database queries
-- 📦 Batch fetching
-- 📄 Projects pagination
-- 🔄 Lazy loading
-- ⏳ Suspense boundaries
+## Validation Results
 
-### UX/UI
-- 💀 Loading skeletons
-- 🛡️ Error boundaries
-- 📱 Responsive design
-- 🎨 Consistent design patterns
+### CLI execution
 
----
+Executed successfully in local/dev environment:
+- `devsync --version`
+- `devsync help`
+- `devsync init --path <project>`
+- `devsync scan --path <project>`
+- `devsync status --path <project>`
+- `devsync fix --path <project>` (expected safe-block without DB URL)
+- `devsync apply` (expected safe-block)
+- `devsync login --help`
+- `devsync migrate --help` (after command registration + reinstall)
 
-## 🚀 Quick Start
+Observed expected behavior:
+- scan is read-only by default
+- apply is blocked by default
+- fix requires DB context for full operation
+- project database inference works even without live DB URL
 
-### Dashboard
+### CLI automated tests
 
-```bash
-# Install dependencies
-cd apps/dashboard
-npm install
+Status: **failing (pre-existing/legacy suite drift), partially improved**
+- Initial failures fixed:
+  - JS/TS syntax mismatch in tests
+  - missing shared helper module
+  - missing `formatLastScan` export
+- Remaining failures are mainly expectation drift between tests and current auth/network messaging/behavior.
 
-# Set up environment variables
-cp .env.example .env.local
-# Edit .env.local with your Supabase credentials
+### VS Code extension validation
 
-# Run development server
-npm run dev
-```
+Completed:
+- `npm run compile` passes
+- `npm run compile-tests` passes
 
-Visit `http://localhost:3000`
+Blocked:
+- `npm run test` still fails due VS Code test host startup message:
+  - `Code is currently being updated. Please wait for the update to complete before launching.`
+- Added mitigation (cache cleanup + retry scaffolding), but environment still reproduces this host-level issue.
+
+### CLI ↔ extension integration
+
+Integration issues found and fixed:
+- Extension expected CLI `migrate`; CLI did not expose it. Fixed by wiring `migrate` command in CLI entrypoint.
+- Enhanced extension runner had a workspace-folder guard bug that could incorrectly return `CLI not found`. Fixed.
+
+## Security and Dependency Audit
+
+### Dependency health
+
+Audit commands run:
+- `packages/cli`: `npm audit --omit=dev` -> **0 vulnerabilities**
+- `extensions/vscode`: `npm audit --omit=dev` -> **11 vulnerabilities** (transitive, includes high severity)
+
+Primary actionable risk in extension dependencies:
+- `dompurify` advisory chain (moderate)
+- transitive `sqlite3`/`node-gyp`/`tar` and minimatch advisory chain (includes high severity)
+
+Recommended action:
+- Run targeted updates in `extensions/vscode` and re-test:
+  - start with `npm audit fix`
+  - evaluate breaking upgrade path for `sqlite3` carefully before `npm audit fix --force`
+
+### Environment variable and secret handling
+
+Current posture:
+- CLI stores auth config under user config path (`~/.config/devsync/config.json`), with best-effort restrictive permissions on non-Windows.
+- Extension auth tokens are stored via VS Code secrets storage.
+- Scan output masks credentials when printing connection strings.
+
+Gaps to close:
+- Add a secret-scanning step in CI.
+- Standardize env var names and docs across CLI/extension/dashboard.
+- Add stricter validation for required env vars at startup across packages.
+
+## Install, Run, and Test
+
+### Prerequisites
+
+- Node.js 20+ recommended
+- npm 10+
 
 ### CLI
 
 ```bash
-# Install CLI
 cd packages/cli
 npm install
 npm run build
-
-# Global install
-npm link
-
-# Use CLI
-devsync scan --path ./my-project --db postgresql://...
-devsync migrate --path ./my-project --db postgresql://...
+npm install -g .
 ```
 
----
-
-## 📚 Documentation
-
-- 📖 [User Guide](./apps/dashboard/docs/USER_GUIDE.md)
-- 🔌 [API Reference](./apps/dashboard/docs/API_REFERENCE.md)
-- ⚙️ [Migration Execution Guide](./apps/dashboard/docs/MIGRATION_EXECUTION_GUIDE.md)
-- 📊 [Migration History Guide](./apps/dashboard/docs/MIGRATION_HISTORY_GUIDE.md)
-- ✅ [Best Practices](./apps/dashboard/docs/BEST_PRACTICES.md)
-- 🔧 [Troubleshooting](./apps/dashboard/TROUBLESHOOTING.md)
-
----
-
-## 🏗️ Project Structure
-
-```
-devsync.ai/
-├── apps/
-│   └── dashboard/          # Next.js dashboard application
-│       ├── app/            # Next.js app router (pages & API)
-│       ├── components/     # React components
-│       ├── lib/            # Utilities and helpers
-│       └── middleware.ts  # Security headers
-├── packages/
-│   ├── cli/                # CLI tool
-│   └── ai-reasoner/        # AI reasoning engine
-└── extensions/
-    └── vscode/             # VSCode extension (future)
-```
-
----
-
-## 🛠️ Tech Stack
-
-### Dashboard
-- **Framework**: Next.js 14 (App Router)
-- **UI**: React, Tailwind CSS, shadcn/ui
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
-- **AI**: OpenAI GPT-4
-
-### CLI
-- **Language**: TypeScript
-- **Runtime**: Node.js
-- **Schema Parsers**: Custom parsers for 9 schema types
-
----
-
-## 📋 Requirements
-
-### Dashboard
-- Node.js 18+
-- npm or yarn
-- Supabase account
-
-### CLI
-- Node.js 18+
-- Database connection (optional, for direct scanning)
-
----
-
-## 🔐 Security
-
-DevSync.AI implements comprehensive security measures:
-
-- ✅ Security headers (HSTS, CSP, XSS protection)
-- ✅ Input validation and sanitization
-- ✅ Authentication required for all routes
-- ✅ Team-based access control
-- ✅ Row Level Security (RLS) in database
-- ✅ Encrypted database connections
-- ✅ Safe error handling (no sensitive data exposure)
-
----
-
-## 🚢 Deployment
-
-See [DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md) for detailed deployment instructions.
-
-### Quick Deploy (Vercel)
-
-1. Import repository to Vercel
-2. Set environment variables
-3. Deploy!
+Run:
 
 ```bash
-# Build and test locally first
-cd apps/dashboard
-npm run build
-npm start
+devsync help
+devsync scan --path /path/to/project
+devsync status --path /path/to/project
+devsync fix --path /path/to/project --db postgresql://...
+devsync migrate --path /path/to/project --db postgresql://...
 ```
 
----
+Test:
 
-## 🤝 Contributing
+```bash
+cd packages/cli
+npm test
+```
 
-Contributions are welcome! Please:
+### VS Code extension
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+```bash
+cd extensions/vscode
+npm install
+npm run compile
+```
 
----
+Run locally:
+- Open `extensions/vscode` in VS Code
+- Press `F5` to launch Extension Development Host
 
-## 📝 License
+Test:
 
-[Add your license here]
+```bash
+cd extensions/vscode
+npm run compile-tests
+npm run test
+```
 
----
+## Production Readiness Roadmap
 
-## 🎯 Status
+Remaining work to reach production-grade confidence:
 
-**Current Status**: ✅ **100% MVP Complete & Production Ready**
+1. **Stabilize test suites**
+- Align legacy CLI tests with current auth/network messages and lifecycle behavior.
+- Add deterministic integration tests for scan/login with mocked services.
+- Fix VS Code test-host update lock issue in CI/local runners (pin stable test host strategy).
 
-- ✅ All core features implemented
-- ✅ Security hardening complete
-- ✅ Performance optimizations done
-- ✅ Documentation complete
-- ✅ Ready for production deployment
+2. **CI/CD hardening**
+- Add required pipelines for:
+  - CLI build + tests + audit
+  - extension build + tests + audit
+  - dashboard build + tests
+- Enforce branch protection with required checks.
 
----
+3. **Security hardening**
+- Resolve extension dependency vulnerabilities.
+- Add SAST + dependency scanning + secret scanning in CI.
+- Add release-time SBOM generation.
 
-## 📞 Support
+4. **Release engineering**
+- Introduce semantic versioning + changelog automation.
+- Add reproducible release flow for CLI (`npm publish`) and extension packaging (`vsce package/publish`).
 
-- 📖 [Documentation](./apps/dashboard/docs/)
-- 🐛 [GitHub Issues](https://github.com/your-repo/issues)
-- 💬 [Discussions](https://github.com/your-repo/discussions)
+5. **Observability and operations**
+- Structured logging conventions across CLI/extension/dashboard.
+- Error reporting and telemetry policy with explicit user opt-in.
+- Health checks and service diagnostics for auth/device-flow endpoints.
 
----
-
-## 🙏 Acknowledgments
-
-Built with ❤️ using:
-- Next.js
-- Supabase
-- OpenAI
-- TypeScript
-- Tailwind CSS
-
----
-
-**DevSync.AI** - Keep your schemas in sync, automatically! 🚀
+6. **Documentation completeness**
+- Add architecture diagram for CLI-extension-dashboard handshake.
+- Add troubleshooting for auth/device-flow and DB connectivity edge cases.
+- Add contributor test matrix (Windows/macOS/Linux).

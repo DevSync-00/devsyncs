@@ -325,7 +325,7 @@ export class EnhancedCliRunner {
    */
   private getCliPath(): string | null {
     const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders || workspaceFolders.length > 0) {
+    if (!workspaceFolders || workspaceFolders.length === 0) {
       return null;
     }
 

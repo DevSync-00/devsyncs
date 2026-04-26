@@ -77,7 +77,7 @@ test('retry does not retry non-retryable errors', async () => {
 
 test('retry uses exponential backoff', async () => {
   let attempts = 0;
-  const delays: number[] = [];
+  const delays = [];
   const startTime = Date.now();
 
   const fn = async () => {

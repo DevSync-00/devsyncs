@@ -416,7 +416,7 @@
     "compile:webview": "webpack --config src/erd/webview/webpack.config.js",
     "watch": "tsc -watch -p ./",
     "watch:webview": "webpack --config src/erd/webview/webpack.config.js --watch",
-    "pretest": "npm run compile; npm run compile-tests",
+    "pretest": "npm run compile && npm run compile-tests",
     "compile-tests": "tsc -p ./tsconfig.test.json",
     "test": "node ./out/test/runTest.js",
     "test-watch": "npm run compile; npm run test",

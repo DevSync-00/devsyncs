@@ -83,6 +83,8 @@ export interface ConnectionStringFinding {
   key: string;
   file?: string;
   confidence: number;
+  value?: string;
+  provider?: string;
 }
 
 export interface SchemaFileFinding {
@@ -106,12 +108,38 @@ export interface ScanResult {
   status: 'ok' | 'error';
   root: string;
   connectionStrings: ConnectionStringFinding[];
+  databases?: DatabaseScanSummary[];
+  projectSummary?: ProjectScanSummary;
   schemaFiles: SchemaFileFinding[];
   ormDetections: OrmDetection[];
   sqlFindings: SqlFinding[];
   nextActions: string[];
   warnings: string[];
   error?: string;
+}
+
+export interface DatabaseScanSummary {
+  name: string;
+  provider: string;
+  source: 'env' | 'file';
+  key: string;
+  file?: string;
+  connectionPreview: string;
+  reachable: boolean;
+  error?: string;
+  schema?: string;
+  tableCount?: number;
+  modelCount?: number;
+  sampleTables?: string[];
+}
+
+export interface ProjectScanSummary {
+  fileCount: number;
+  schemaFileCount: number;
+  ormCount: number;
+  sqlFileCount: number;
+  connectionStringCount: number;
+  reachableDatabaseCount: number;
 }
 
 // Legacy/compatibility types used by diff/migration utilities

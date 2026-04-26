@@ -6,11 +6,14 @@ import type {
   ScanOptions,
   ScanResult,
   ConnectionStringFinding,
+  DatabaseScanSummary,
+  ProjectScanSummary,
   SchemaFileFinding,
   OrmDetection,
   SqlFinding,
   OutputFormat,
 } from '../types/index.js';
+import { scanDatabase, closeDatabaseConnections } from '../services/db-scanner.js';
 
 const DEFAULT_IGNORES = new Set(['node_modules', '.git', '.devsync', '.turbo', '.next']);
 const ENV_FILES = ['.env', '.env.local', '.env.development', '.env.production', '.env.test'];
@@ -70,10 +73,18 @@ export async function scanCommand(options: ScanOptions = {}): Promise<void> {
   const ormDetections = detectOrms(files, root);
   logProgress(85, 'Detecting SQL files');
   const sqlFindings = detectSql(files, root);
+  logProgress(92, 'Inspecting discovered databases');
+  const inferredDatabases = inferProjectDatabases(schemaFiles, ormDetections, root);
+  const inspectedDatabases = await inspectDatabases(connectionStrings);
+  const databases = mergeDatabases(inferredDatabases, inspectedDatabases);
 
   const nextActions: string[] = [];
-  if (connectionStrings.length > 0) {
-    nextActions.push('Select connection for read-only live inspection (Phase 3).');
+  if (databases.some((d) => d.reachable)) {
+    nextActions.push('Review table details and run status/fix for reachable databases.');
+  } else if (databases.length > 0) {
+    nextActions.push('Configure a database URL to enable live introspection for detected project databases.');
+  } else if (connectionStrings.length > 0) {
+    nextActions.push('Validate DB connectivity and rerun scan for live database details.');
   } else if (schemaFiles.length > 0) {
     nextActions.push('Proceed to schema extraction from files (Phase 3).');
         } else {
@@ -84,6 +95,15 @@ export async function scanCommand(options: ScanOptions = {}): Promise<void> {
     status: 'ok',
     root,
     connectionStrings,
+    databases,
+    projectSummary: buildProjectSummary({
+      files,
+      schemaFiles,
+      ormDetections,
+      sqlFindings,
+      connectionStrings,
+      databases,
+    }),
     schemaFiles,
     ormDetections,
     sqlFindings,
@@ -92,6 +112,19 @@ export async function scanCommand(options: ScanOptions = {}): Promise<void> {
   };
 
   emitResult(format, result);
+}
+
+export function formatLastScan(value?: string | null): string {
+  if (!value) {
+    return 'Never';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return parsed.toLocaleString();
 }
 
 function emitResult(format: OutputFormat, result: ScanResult) {
@@ -107,13 +140,40 @@ function emitResult(format: OutputFormat, result: ScanResult) {
         
   console.log(chalk.blue('📂 Scan (read-only)'));
   console.log(chalk.gray(`Root: ${result.root}\n`));
+  if (result.projectSummary) {
+    const p = result.projectSummary;
+    console.log(chalk.blue('📊 Project summary'));
+    console.log(chalk.gray(`  - Files scanned: ${p.fileCount}`));
+    console.log(chalk.gray(`  - Schema files: ${p.schemaFileCount}`));
+    console.log(chalk.gray(`  - ORM signals: ${p.ormCount}`));
+    console.log(chalk.gray(`  - SQL files: ${p.sqlFileCount}`));
+    console.log(chalk.gray(`  - Databases detected: ${p.connectionStringCount}`));
+    console.log(chalk.gray(`  - Reachable databases: ${p.reachableDatabaseCount}`));
+  }
 
   console.log(chalk.blue('🔑 Connection strings'));
   if (result.connectionStrings.length === 0) {
     console.log(chalk.gray('  (none found)'));
         } else {
     for (const cs of result.connectionStrings) {
-      console.log(chalk.gray(`  - ${cs.key} (${cs.source}${cs.file ? `:${cs.file}` : ''}) [conf ${Math.round(cs.confidence * 100)}%]`));
+      const provider = cs.provider ? ` ${cs.provider}` : '';
+      const valuePreview = cs.value ? ` ${maskConnectionString(cs.value)}` : '';
+      console.log(chalk.gray(`  - ${cs.key}${provider}${valuePreview} (${cs.source}${cs.file ? `:${cs.file}` : ''}) [conf ${Math.round(cs.confidence * 100)}%]`));
+    }
+  }
+
+  console.log(chalk.blue('\n🗄 Databases'));
+  if (!result.databases || result.databases.length === 0) {
+    console.log(chalk.gray('  (none detected)'));
+  } else {
+    for (const db of result.databases) {
+      const reachability = db.reachable ? chalk.green('reachable') : chalk.yellow('unreachable');
+      const detail = db.reachable
+        ? `tables=${db.tableCount ?? 0}, sample=${(db.sampleTables || []).slice(0, 5).join(', ') || 'n/a'}`
+        : db.error || 'connection failed';
+      console.log(chalk.gray(`  - ${db.name} [${db.provider}] ${reachability} (${db.source}${db.file ? `:${db.file}` : ''})`));
+      console.log(chalk.gray(`    ${db.connectionPreview}`));
+      console.log(chalk.gray(`    ${detail}`));
     }
   }
 
@@ -201,7 +261,13 @@ function detectConnectionStrings(files: string[], root: string): ConnectionStrin
   const findings: ConnectionStringFinding[] = [];
 
   if (process.env.DATABASE_URL) {
-    findings.push({ source: 'env', key: 'DATABASE_URL', confidence: 0.9 });
+    findings.push({
+      source: 'env',
+      key: 'DATABASE_URL',
+      confidence: 0.9,
+      value: process.env.DATABASE_URL,
+      provider: inferProvider(process.env.DATABASE_URL),
+    });
   }
 
   for (const envFile of ENV_FILES) {
@@ -211,7 +277,15 @@ function detectConnectionStrings(files: string[], root: string): ConnectionStrin
     const matches = Array.from(content.matchAll(/(DATABASE_URL|DB_URL|DB_CONNECTION|DATABASE_URI)\s*=\s*(.+)/gi));
     for (const match of matches) {
       const key = match[1];
-      findings.push({ source: 'file', key, file: envFile, confidence: 0.85 });
+      const rawValue = sanitizeConnectionValue(match[2]);
+      findings.push({
+        source: 'file',
+        key,
+        file: envFile,
+        confidence: 0.85,
+        value: rawValue,
+        provider: inferProvider(rawValue),
+      });
     }
   }
 
@@ -224,19 +298,36 @@ function detectConnectionStrings(files: string[], root: string): ConnectionStrin
     const rel = path.relative(root, file);
     const content = readLimitedText(file);
     for (const regex of CONNECTION_STRING_REGEXES) {
+      regex.lastIndex = 0;
       let match: RegExpExecArray | null;
       while ((match = regex.exec(content)) !== null) {
-        findings.push({ source: 'file', key: 'detected_connection', file: rel, confidence: 0.75 });
+        const rawValue = sanitizeConnectionValue(match[0]);
+        findings.push({
+          source: 'file',
+          key: 'detected_connection',
+          file: rel,
+          confidence: 0.75,
+          value: rawValue,
+          provider: inferProvider(rawValue),
+        });
       }
     }
     const envStyle = Array.from(content.matchAll(/(DATABASE_URL|DB_URL|DB_CONNECTION|DATABASE_URI)\s*[:=]\s*["']?([^\s"']+)/gi));
     for (const m of envStyle) {
       const key = m[1];
-      findings.push({ source: 'file', key, file: rel, confidence: 0.78 });
+      const rawValue = sanitizeConnectionValue(m[2]);
+      findings.push({
+        source: 'file',
+        key,
+        file: rel,
+        confidence: 0.78,
+        value: rawValue,
+        provider: inferProvider(rawValue),
+      });
     }
   }
 
-  return dedupe(findings, (f) => `${f.source}:${f.key}:${f.file ?? ''}`);
+  return dedupe(findings, (f) => `${f.source}:${f.key}:${f.file ?? ''}:${f.value ?? ''}`);
 }
 
 function detectSchemaFiles(files: string[], root: string): SchemaFileFinding[] {
@@ -336,5 +427,218 @@ function dedupe<T>(items: T[], keyFn: (item: T) => string): T[] {
     out.push(item);
   }
   return out;
+}
+
+async function inspectDatabases(connectionStrings: ConnectionStringFinding[]): Promise<DatabaseScanSummary[]> {
+  const summaries: DatabaseScanSummary[] = [];
+  const candidates = connectionStrings.filter((c) => c.value && isLikelyLiveConnectionString(c.value));
+
+  for (const candidate of candidates) {
+    const connection = candidate.value!;
+    const provider = inferProvider(connection) || candidate.provider || 'unknown';
+    const schema = inferSchemaFromConnection(connection);
+    const name = inferDatabaseName(connection);
+
+    if (provider !== 'postgresql') {
+      summaries.push({
+        name,
+        provider,
+        source: candidate.source,
+        key: candidate.key,
+        file: candidate.file,
+        connectionPreview: maskConnectionString(connection),
+        reachable: false,
+        schema,
+        error: `Live introspection currently supports postgresql; detected ${provider}.`,
+      });
+      continue;
+    }
+
+    try {
+      const dbSchema = await scanDatabase({
+        connectionString: connection,
+        schema: schema || 'public',
+        showProgress: false,
+        timeout: 15000,
+      });
+      summaries.push({
+        name,
+        provider,
+        source: candidate.source,
+        key: candidate.key,
+        file: candidate.file,
+        connectionPreview: maskConnectionString(connection),
+        reachable: true,
+        schema: schema || 'public',
+        tableCount: dbSchema.models.length,
+        modelCount: dbSchema.models.length,
+        sampleTables: dbSchema.models.slice(0, 8).map((m) => m.name),
+      });
+    } catch (error) {
+      summaries.push({
+        name,
+        provider,
+        source: candidate.source,
+        key: candidate.key,
+        file: candidate.file,
+        connectionPreview: maskConnectionString(connection),
+        reachable: false,
+        schema,
+        error: error instanceof Error ? error.message : 'Unknown connection error',
+      });
+    } finally {
+      await closeDatabaseConnections(connection);
+    }
+  }
+
+  return summaries;
+}
+
+function inferProjectDatabases(
+  schemaFiles: SchemaFileFinding[],
+  ormDetections: OrmDetection[],
+  root: string
+): DatabaseScanSummary[] {
+  const databases: DatabaseScanSummary[] = [];
+
+  const hasSupabaseMigrations = schemaFiles.some((f) => f.path.toLowerCase().includes('supabase\\migrations') || f.path.toLowerCase().includes('supabase/migrations'));
+  if (hasSupabaseMigrations) {
+    const migrationTables = extractTableNamesFromSchemaFiles(schemaFiles, root, (p) => p.toLowerCase().includes('supabase\\migrations') || p.toLowerCase().includes('supabase/migrations'));
+    databases.push({
+      name: 'supabase_project_db',
+      provider: 'postgresql',
+      source: 'file',
+      key: 'supabase_migrations',
+      file: 'supabase/migrations',
+      connectionPreview: '(connection not configured)',
+      reachable: false,
+      schema: 'public',
+      tableCount: migrationTables.length,
+      sampleTables: migrationTables.slice(0, 8),
+      error: 'Detected from project migrations only. Add DATABASE_URL for live introspection.',
+    });
+  }
+
+  if (ormDetections.some((o) => o.orm === 'prisma')) {
+    databases.push({
+      name: 'prisma_project_db',
+      provider: 'postgresql',
+      source: 'file',
+      key: 'prisma_schema',
+      file: 'prisma/schema.prisma',
+      connectionPreview: '(connection not configured)',
+      reachable: false,
+      error: 'Detected from Prisma schema only. Add DATABASE_URL for live introspection.',
+    });
+  }
+
+  return databases;
+}
+
+function mergeDatabases(
+  inferred: DatabaseScanSummary[],
+  inspected: DatabaseScanSummary[]
+): DatabaseScanSummary[] {
+  const map = new Map<string, DatabaseScanSummary>();
+  for (const db of inferred) {
+    map.set(`${db.provider}:${db.name}:${db.key}:${db.file ?? ''}`, db);
+  }
+  for (const db of inspected) {
+    map.set(`${db.provider}:${db.name}:${db.key}:${db.file ?? ''}`, db);
+  }
+  return Array.from(map.values());
+}
+
+function extractTableNamesFromSchemaFiles(
+  schemaFiles: SchemaFileFinding[],
+  root: string,
+  includePath: (relativePath: string) => boolean
+): string[] {
+  const tableNames = new Set<string>();
+  const createTableRegex = /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:(?:"?([a-zA-Z_][a-zA-Z0-9_]*)"?\.)?"?([a-zA-Z_][a-zA-Z0-9_]*)"?)/gi;
+
+  for (const schemaFile of schemaFiles) {
+    if (!includePath(schemaFile.path)) continue;
+    const fullPath = path.join(root, schemaFile.path);
+    const content = readLimitedText(fullPath, 256 * 1024);
+    createTableRegex.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = createTableRegex.exec(content)) !== null) {
+      const table = match[2]?.toLowerCase();
+      if (table) tableNames.add(table);
+    }
+  }
+
+  return Array.from(tableNames).sort();
+}
+
+function buildProjectSummary(input: {
+  files: string[];
+  schemaFiles: SchemaFileFinding[];
+  ormDetections: OrmDetection[];
+  sqlFindings: SqlFinding[];
+  connectionStrings: ConnectionStringFinding[];
+  databases: DatabaseScanSummary[];
+}): ProjectScanSummary {
+  return {
+    fileCount: input.files.length,
+    schemaFileCount: input.schemaFiles.length,
+    ormCount: input.ormDetections.length,
+    sqlFileCount: input.sqlFindings.length,
+    connectionStringCount: input.databases.length,
+    reachableDatabaseCount: input.databases.filter((d) => d.reachable).length,
+  };
+}
+
+function sanitizeConnectionValue(raw: string): string {
+  return raw.trim().replace(/^['"]/, '').replace(/['"]$/, '').split(/\s+/)[0];
+}
+
+function inferProvider(value?: string): string | undefined {
+  if (!value) return undefined;
+  const lower = value.toLowerCase();
+  if (lower.startsWith('postgres://') || lower.startsWith('postgresql://')) return 'postgresql';
+  if (lower.startsWith('mysql://')) return 'mysql';
+  if (lower.startsWith('mariadb://')) return 'mariadb';
+  if (lower.startsWith('sqlite://')) return 'sqlite';
+  if (lower.startsWith('sqlserver://')) return 'sqlserver';
+  if (lower.startsWith('mongodb://') || lower.startsWith('mongodb+srv://')) return 'mongodb';
+  return 'unknown';
+}
+
+function inferDatabaseName(connection: string): string {
+  try {
+    const url = new URL(connection);
+    const dbName = url.pathname.replace(/^\//, '') || 'unknown';
+    return dbName;
+  } catch {
+    return 'unknown';
+  }
+}
+
+function inferSchemaFromConnection(connection: string): string | undefined {
+  try {
+    const url = new URL(connection);
+    const schema = url.searchParams.get('schema');
+    return schema || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function maskConnectionString(connection: string): string {
+  try {
+    const url = new URL(connection);
+    if (url.password) {
+      url.password = '***';
+    }
+    return url.toString();
+  } catch {
+    return connection.replace(/:[^:@/]+@/, ':***@');
+  }
+}
+
+function isLikelyLiveConnectionString(connection: string): boolean {
+  return /^(postgres|postgresql|mysql|mariadb|sqlite|sqlserver):\/\//i.test(connection);
 }
 

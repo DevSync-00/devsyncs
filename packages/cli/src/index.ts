@@ -8,6 +8,8 @@ import { initCommand } from './commands/init.js';
 import { statusCommand } from './commands/status.js';
 import { fixCommand } from './commands/fix.js';
 import { applyCommand } from './commands/apply.js';
+import { loginCommand } from './commands/login.js';
+import { migrateCommand } from './commands/migrate.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -79,6 +81,24 @@ Safety:
   - Always review migrations before applying to production
   `)
   .action(fixCommand);
+
+program
+  .command('migrate')
+  .description('Generate migration plan from code/database schema differences')
+  .option('-p, --path <path>', 'Codebase path (default: current directory)', process.cwd())
+  .option('-d, --db <connection>', 'Database connection string (required)')
+  .option('--config <path>', 'Path to DevSync config file', '.devsync/config.json')
+  .option('--output <path>', 'Write generated migration SQL to file')
+  .option('--format <format>', 'Output format: sql|prisma', 'sql')
+  .option('--dry-run', 'Preview migration without applying', true)
+  .option('--apply', 'Apply migration after validation', false)
+  .option('--include-rollback', 'Generate rollback SQL', true)
+  .action(migrateCommand);
+
+program
+  .command('login')
+  .description('Authenticate CLI via browser device flow')
+  .action(loginCommand);
 
 program
   .command('apply')
