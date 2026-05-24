@@ -1,37 +1,63 @@
 import Link from "next/link";
 
+const footerLinks = {
+  Product: [
+    { href: "#how-it-works", label: "How it works" },
+    { href: "#features", label: "Features" },
+    { href: "#safety", label: "Safety" },
+    { href: "/auth/signup", label: "Sign up" },
+  ],
+  Resources: [
+    { href: "/docs", label: "Documentation" },
+    { href: "/docs/user-guide", label: "User guide" },
+    { href: "/docs/troubleshooting", label: "Troubleshooting" },
+    { href: "/auth/login", label: "Sign in" },
+  ],
+};
+
 const Footer = () => {
   return (
-    <footer className="py-12 px-6 border-t border-border">
-      <div className="container mx-auto max-w-6xl">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="text-center md:text-left">
-            <div className="font-bold text-2xl mb-2">
-              DevSync<span className="text-gradient">.ai</span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              AI DevOps Copilot for Modern Development
+    <footer className="border-t border-border bg-secondary/10">
+      <div className="container mx-auto max-w-6xl px-6 py-16">
+        <div className="grid md:grid-cols-4 gap-12">
+          <div className="md:col-span-1">
+            <Link href="/" className="inline-flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-xs">DS</span>
+              </div>
+              <span className="font-display text-lg font-bold">
+                DevSync<span className="text-gradient">.ai</span>
+              </span>
+            </Link>
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+              Database schema sync and migration safety for engineering teams.
             </p>
           </div>
 
-          <div className="flex gap-8 text-sm">
-            <Link href="/docs" className="text-muted-foreground hover:text-primary transition-colors">
-              Documentation
-            </Link>
-            <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">
-              Blog
-            </Link>
-            <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">
-              Privacy
-            </Link>
-            <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">
-              Terms
-            </Link>
-          </div>
+          {Object.entries(footerLinks).map(([title, links]) => (
+            <div key={title}>
+              <h4 className="font-semibold text-sm mb-4">{title}</h4>
+              <ul className="space-y-3">
+                {links.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
 
-        <div className="mt-8 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} DevSync.ai. All rights reserved.
+        <div className="mt-12 pt-8 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
+          <p>© {new Date().getFullYear()} DevSync.ai. All rights reserved.</p>
+          <p className="text-xs">
+            Scan read-only by default · Apply requires explicit approval
+          </p>
         </div>
       </div>
     </footer>
@@ -39,4 +65,3 @@ const Footer = () => {
 };
 
 export default Footer;
-

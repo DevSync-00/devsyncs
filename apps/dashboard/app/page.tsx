@@ -2,12 +2,15 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import LandingNav from "@/components/landing/LandingNav";
 import Hero from "@/components/landing/Hero";
+import TrustStrip from "@/components/landing/TrustStrip";
 import HowItWorks from "@/components/landing/HowItWorks";
 import Features from "@/components/landing/Features";
+import Safety from "@/components/landing/Safety";
 import DeveloperExperience from "@/components/landing/DeveloperExperience";
 import Integrations from "@/components/landing/Integrations";
-import Testimonials from "@/components/landing/Testimonials";
+import UseCases from "@/components/landing/UseCases";
 import CallToAction from "@/components/landing/CallToAction";
 import Footer from "@/components/landing/Footer";
 import { Plus, FolderKanban, Clock, Activity, TrendingUp, Users } from 'lucide-react';
@@ -260,14 +263,19 @@ export default async function HomePage() {
 
   // If user is not logged in, show landing page
   return (
-    <div className="min-h-screen">
-      <Hero />
-      <HowItWorks />
-      <Features />
-      <DeveloperExperience />
-      <Integrations />
-      <Testimonials />
-      <CallToAction />
+    <div className="min-h-screen bg-background">
+      <LandingNav />
+      <main>
+        <Hero />
+        <TrustStrip />
+        <HowItWorks />
+        <Features />
+        <Safety />
+        <DeveloperExperience />
+        <Integrations />
+        <UseCases />
+        <CallToAction />
+      </main>
       <Footer />
     </div>
   );

@@ -57,7 +57,7 @@ const HowItWorks = () => {
                   <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shadow-lg">
                     <step.icon className="w-7 h-7 text-primary-foreground" />
                   </div>
-                  <span className="font-display text-5xl font-bold text-muted/30 text-muted-foreground/20">
+                  <span className="font-display text-5xl font-bold text-muted-foreground/20">
                     0{index + 1}
                   </span>
                 </div>
