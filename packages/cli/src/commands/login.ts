@@ -7,18 +7,7 @@ import chalk from 'chalk';
 import { AnalyzerApiClient } from '../lib/analyzer-api-client.js';
 import { saveAuthConfig, deriveExpiryFromToken, deleteAuthConfig } from '../lib/auth-config.js';
 import { open } from '../utils/open-browser.js';
-
-/**
- * Get dashboard URL from environment or default
- * Authentication endpoints are in the dashboard, not a separate analyzer service
- */
-function getDashboardUrl(): string {
-  return process.env.DASHBOARD_URL || 
-         process.env.NEXT_PUBLIC_DASHBOARD_URL || 
-         process.env.ANALYZER_URL ||  // Fallback: some setups might use ANALYZER_URL for dashboard
-         process.env.NEXT_PUBLIC_ANALYZER_URL ||
-         'http://localhost:3000';
-}
+import { buildDeviceVerificationUrl, resolveDashboardUrl } from '../utils/dashboard-url.js';
 
 /**
  * Create a simple spinner for loading states
@@ -81,11 +70,12 @@ async function waitForAuthorization(
 export async function loginCommand(): Promise<void> {
   const silent = process.env.DEVSYNC_SILENT === '1';
   const log = silent ? () => {} : console.log;
+  const logError = (...args: unknown[]) => console.error(...args);
 
   try {
     log(chalk.blue('🔐 Starting DevSync CLI authentication...\n'));
 
-    const dashboardUrl = getDashboardUrl();
+    const dashboardUrl = resolveDashboardUrl();
 
     // Create analyzer client (uses dashboard URL for authentication)
     const client = new AnalyzerApiClient(dashboardUrl, {
@@ -102,16 +92,20 @@ export async function loginCommand(): Promise<void> {
       deviceFlowData = await client.startDeviceFlow('cli');
       stopSpinner();
     } catch (error) {
+      if (error instanceof Error && /^exit:\d+$/.test(error.message)) {
+        throw error;
+      }
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
       if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('fetch failed')) {
-        log(chalk.red('\n❌ Failed to connect to authentication service.'));
-        log(chalk.yellow('\n💡 Troubleshooting:'));
-        log(chalk.gray('   1. Ensure the DevSync dashboard is running'));
-        log(chalk.gray(`   2. Check that ${dashboardUrl} is accessible`));
-        log(chalk.gray('   3. Start the dashboard: cd apps/dashboard && npm run dev'));
-        log(chalk.gray('   4. Verify DASHBOARD_URL environment variable if using custom URL'));
-        log(chalk.gray('   5. Check your network connection\n'));
+        logError(chalk.red('\n❌ Failed to connect to authentication service.'));
+        logError(chalk.yellow('\n💡 Troubleshooting:'));
+        logError(chalk.gray('   1. Ensure the DevSync dashboard is running'));
+        logError(chalk.gray(`   2. Check that ${dashboardUrl} is accessible`));
+        logError(chalk.gray('   3. Start the dashboard: cd apps/dashboard && npm run dev'));
+        logError(chalk.gray('   4. Verify DASHBOARD_URL environment variable if using custom URL'));
+        logError(chalk.gray('   5. Check your network connection\n'));
         process.exit(1);
       }
       
@@ -121,7 +115,11 @@ export async function loginCommand(): Promise<void> {
     log(chalk.green('✅ Device flow started\n'));
 
     // Display authorization instructions
-    const deviceUrl = `${dashboardUrl}/device?code=${deviceFlowData.user_code}`;
+    const deviceUrl = buildDeviceVerificationUrl(
+      deviceFlowData.verification_uri,
+      dashboardUrl,
+      deviceFlowData.user_code
+    );
     
     log(chalk.bold('📋 Please complete authorization in your browser:\n'));
     log(chalk.white(`   Verification URL: ${chalk.cyan(deviceUrl)}`));
@@ -155,18 +153,21 @@ export async function loginCommand(): Promise<void> {
         }
       );
     } catch (error) {
+      if (error instanceof Error && /^exit:\d+$/.test(error.message)) {
+        throw error;
+      }
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
-      if (errorMessage.includes('expired')) {
-        log(chalk.red('\n❌ Authorization timed out.'));
-        log(chalk.gray('   The authorization code has expired. Please run `devsync login` again.\n'));
+      if (errorMessage.includes('expired') || errorMessage.includes('timed out')) {
+        logError(chalk.red('\n❌ Authorization timed out.'));
+        logError(chalk.gray('   The authorization code has expired. Please run `devsync login` again.\n'));
         process.exit(1);
       }
       
       if (errorMessage.includes('authorization_pending')) {
-        // This shouldn't happen as we handle it in pollDeviceFlowToken, but just in case
-        log(chalk.red('\n❌ Authorization was not completed in time.'));
-        log(chalk.gray('   Please run `devsync login` again to start a new authorization flow.\n'));
+        logError(chalk.red('\n❌ Authorization was not completed in time.'));
+        logError(chalk.gray('   Please run `devsync login` again to start a new authorization flow.\n'));
         process.exit(1);
       }
       
@@ -225,25 +226,29 @@ export async function loginCommand(): Promise<void> {
     log(chalk.gray(`   Your credentials have been saved securely.\n`));
 
   } catch (error) {
+    if (error instanceof Error && /^exit:\d+$/.test(error.message)) {
+      throw error;
+    }
+
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
     // Provide actionable error messages
     if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('fetch failed')) {
-      log(chalk.red('\n❌ Failed to connect to authentication service.'));
-      log(chalk.yellow('\n💡 Troubleshooting:'));
-      log(chalk.gray('   1. Ensure the DevSync dashboard is running'));
-      log(chalk.gray(`   2. Check that ${getDashboardUrl()} is accessible`));
-      log(chalk.gray('   3. Start the dashboard: cd apps/dashboard && npm run dev'));
-      log(chalk.gray('   4. Verify DASHBOARD_URL environment variable if using custom URL'));
-      log(chalk.gray('   5. Check your network connection\n'));
-    } else if (errorMessage.includes('timeout')) {
-      log(chalk.red('\n❌ Request timed out.'));
-      log(chalk.yellow('\n💡 Troubleshooting:'));
-      log(chalk.gray('   1. Check your network connection'));
-      log(chalk.gray('   2. The authentication service may be slow or unavailable'));
-      log(chalk.gray('   3. Try again in a few moments\n'));
+      logError(chalk.red('\n❌ Failed to connect to authentication service.'));
+      logError(chalk.yellow('\n💡 Troubleshooting:'));
+      logError(chalk.gray('   1. Ensure the DevSync dashboard is running'));
+      logError(chalk.gray(`   2. Check that ${resolveDashboardUrl()} is accessible`));
+      logError(chalk.gray('   3. Start the dashboard: cd apps/dashboard && npm run dev'));
+      logError(chalk.gray('   4. Verify DASHBOARD_URL environment variable if using custom URL'));
+      logError(chalk.gray('   5. Check your network connection\n'));
+    } else if (errorMessage.includes('timeout') || errorMessage.includes('timed out') || errorMessage.includes('expired')) {
+      logError(chalk.red('\n❌ Request timed out.'));
+      logError(chalk.yellow('\n💡 Troubleshooting:'));
+      logError(chalk.gray('   1. Check your network connection'));
+      logError(chalk.gray('   2. The authentication service may be slow or unavailable'));
+      logError(chalk.gray('   3. Try again in a few moments\n'));
     } else {
-      log(chalk.red(`\n❌ Authentication failed: ${errorMessage}\n`));
+      logError(chalk.red(`\n❌ Authentication failed: ${errorMessage}\n`));
     }
     
     process.exit(1);

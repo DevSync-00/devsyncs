@@ -66,6 +66,7 @@ suite('Chat Interface Tests', () => {
     test('should update chat configuration', () => {
       chatManager.updateConfiguration({
         apiUrl: 'https://api.example.com',
+        analyzerUrl: 'http://localhost:3000',
         projectId: 'test-project',
       });
       assert.ok(true);
@@ -74,6 +75,7 @@ suite('Chat Interface Tests', () => {
     test('should handle configuration changes', () => {
       chatManager.updateConfiguration({
         apiUrl: 'https://new-api.example.com',
+        analyzerUrl: 'http://localhost:3000',
         projectId: 'new-project',
       });
       assert.ok(true);

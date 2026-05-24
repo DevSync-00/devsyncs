@@ -99,7 +99,7 @@ test('AnalyzerApiClient.startDeviceFlow provides helpful error on service unavai
 
   await assert.rejects(
     () => client.startDeviceFlow('cli'),
-    /Ensure the DevSync analyzer service is running/
+    /Ensure the DevSync dashboard is running/
   );
 });
 
@@ -268,7 +268,7 @@ test('AnalyzerApiClient handles timeout errors', async () => {
 
   await assert.rejects(
     () => client.startDeviceFlow('cli'),
-    /timeout/
+    /timed out/i
   );
 }, { timeout: 1000 });
 

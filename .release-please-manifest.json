@@ -1,0 +1,6 @@
+{
+  "packages/cli": "0.1.0",
+  "extensions/vscode": "0.1.0",
+  "apps/dashboard": "0.1.0",
+  "packages/ai-reasoner": "0.1.0"
+}

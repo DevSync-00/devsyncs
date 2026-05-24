@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cli:
+    name: CLI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: packages/cli/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: npm audit --omit=dev --audit-level=high
+
+  extension:
+    name: VS Code Extension
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extensions/vscode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: extensions/vscode/package-lock.json
+      - run: npm ci
+      - run: npm run compile
+      - run: npm run compile-tests
+      - run: npm run lint
+      - run: npm audit --omit=dev --audit-level=high
+      - name: Run extension integration tests
+        env:
+          VSCODE_TEST_VERSION: '1.96.2'
+        run: npm run test
+
+  dashboard:
+    name: Dashboard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: apps/dashboard/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test -- --passWithNoTests
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          NEXT_PUBLIC_ANALYZER_URL: http://localhost:3000
+      - run: npm audit --omit=dev --audit-level=high
+
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Secret scanning
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Generate SBOM (CLI)
+        run: |
+          npm install -g @cyclonedx/cyclonedx-npm
+          cd packages/cli && npm ci && cyclonedx-npm --output-file ../../sbom-cli.json
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cli
+          path: sbom-cli.json
+
+  release-dry-run:
+    name: Release Version Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate package versions
+        run: |
+          node -e "
+            const fs = require('fs');
+            const pkgs = [
+              'packages/cli/package.json',
+              'extensions/vscode/package.json',
+              'apps/dashboard/package.json',
+              'packages/ai-reasoner/package.json',
+            ];
+            for (const p of pkgs) {
+              const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
+              if (!/^\d+\.\d+\.\d+/.test(pkg.version)) {
+                throw new Error('Invalid semver in ' + p + ': ' + pkg.version);
+              }
+              console.log(p + ': ' + pkg.version);
+            }
+          "

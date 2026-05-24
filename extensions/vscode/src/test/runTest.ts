@@ -29,6 +29,7 @@ async function main() {
         await runTests({
           extensionDevelopmentPath,
           extensionTestsPath,
+          version: process.env.VSCODE_TEST_VERSION || '1.96.2',
         });
         return;
       } catch (error) {

@@ -60,6 +60,7 @@ export interface AuthSessionState {
 export interface ChatViewConfig {
   projectId?: string;
   apiUrl: string;
+  analyzerUrl: string;
 }
 
 export interface AiQueryResult {

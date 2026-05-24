@@ -1,3 +1,4 @@
+import './dashboard-url.test.js';
 import './scanner-options.test.js';
 import './api-client-retry.test.js';
 import './projects-shared.test.js';

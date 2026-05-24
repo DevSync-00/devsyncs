@@ -94,17 +94,12 @@ test('Full auth flow: login → token refresh → requireAuthenticatedCli', asyn
     assert.equal(stored.refreshToken, 'refresh-token');
     assert.equal(stored.userId, 'user-1');
 
-    // Step 2: Wait a bit to simulate token expiry, then use requireAuthenticatedCli
-    // (In real scenario, token would expire, but for test we'll just check refresh logic)
+    // Force access token expiry before refresh
+    stored.expiresAt = Math.floor(Date.now() / 1000) - 60;
+    const { saveAuthConfig } = await import('../dist/lib/auth-config.js');
+    await saveAuthConfig(stored);
+
     const { requireAuthenticatedCli } = await import('../dist/lib/auth-check.js');
-    
-    // Mock isTokenExpired to return true to trigger refresh
-    const { __setAuthCheckDeps, __resetAuthCheckDeps } = await import('../dist/lib/auth-check.js');
-    const { isTokenExpired } = await import('../dist/lib/auth-config.js');
-    
-    __setAuthCheckDeps({
-      isTokenExpired: () => true, // Force refresh
-    });
 
     const auth = await requireAuthenticatedCli();
 
@@ -115,8 +110,6 @@ test('Full auth flow: login → token refresh → requireAuthenticatedCli', asyn
     // Verify config was updated
     stored = JSON.parse(readFileSync(configPath, 'utf-8'));
     assert.equal(stored.refreshToken, refreshedToken.refresh_token);
-
-    __resetAuthCheckDeps();
   } finally {
     globalThis.fetch = ORIGINAL_FETCH;
     rmSync(tmpDir, { recursive: true, force: true });
@@ -140,7 +133,7 @@ test('Auth flow handles refresh token expiration', async () => {
     clientId: 'cli',
   };
 
-  const { setAuthConfigPath, saveAuthConfig } = await import('../dist/lib/config.js');
+  const { setAuthConfigPath, saveAuthConfig } = await import('../dist/lib/auth-config.js');
   setAuthConfigPath(configPath);
   await saveAuthConfig(expiredConfig);
 
@@ -154,26 +147,11 @@ test('Auth flow handles refresh token expiration', async () => {
 
   try {
     const { requireAuthenticatedCli } = await import('../dist/lib/auth-check.js');
-    const { __setAuthCheckDeps } = await import('../dist/lib/auth-check.js');
-    
-    __setAuthCheckDeps({
-      isTokenExpired: () => true,
-    });
-
-    const originalExit = process.exit;
-    let exitCode = null;
-    process.exit = (code) => {
-      exitCode = code;
-      throw new Error(`exit:${code}`);
-    };
 
     await assert.rejects(
       () => requireAuthenticatedCli(),
-      /exit:1/
+      /Refresh token expired or invalid/
     );
-
-    assert.equal(exitCode, 1);
-    process.exit = originalExit;
   } finally {
     globalThis.fetch = ORIGINAL_FETCH;
     rmSync(tmpDir, { recursive: true, force: true });

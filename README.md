@@ -48,12 +48,9 @@ Observed expected behavior:
 
 ### CLI automated tests
 
-Status: **failing (pre-existing/legacy suite drift), partially improved**
-- Initial failures fixed:
-  - JS/TS syntax mismatch in tests
-  - missing shared helper module
-  - missing `formatLastScan` export
-- Remaining failures are mainly expectation drift between tests and current auth/network messaging/behavior.
+Status: **passing** (`npm test` runs build + 54 tests)
+- Tests aligned with dashboard-based auth messaging and device-flow behavior
+- `npm test` now builds TypeScript before running the suite
 
 ### VS Code extension validation
 
@@ -78,16 +75,8 @@ Integration issues found and fixed:
 
 Audit commands run:
 - `packages/cli`: `npm audit --omit=dev` -> **0 vulnerabilities**
-- `extensions/vscode`: `npm audit --omit=dev` -> **11 vulnerabilities** (transitive, includes high severity)
-
-Primary actionable risk in extension dependencies:
-- `dompurify` advisory chain (moderate)
-- transitive `sqlite3`/`node-gyp`/`tar` and minimatch advisory chain (includes high severity)
-
-Recommended action:
-- Run targeted updates in `extensions/vscode` and re-test:
-  - start with `npm audit fix`
-  - evaluate breaking upgrade path for `sqlite3` carefully before `npm audit fix --force`
+- `extensions/vscode`: `npm audit --omit=dev` -> **0 vulnerabilities** (upgraded `sqlite3@6`, `dompurify@3.3.4`)
+- Dev-only advisories may remain in extension test tooling (`mocha`); production deps are clean
 
 ### Environment variable and secret handling
 
@@ -164,19 +153,16 @@ Remaining work to reach production-grade confidence:
 - Fix VS Code test-host update lock issue in CI/local runners (pin stable test host strategy).
 
 2. **CI/CD hardening**
-- Add required pipelines for:
-  - CLI build + tests + audit
-  - extension build + tests + audit
-  - dashboard build + tests
-- Enforce branch protection with required checks.
+- Unified workflow added: `.github/workflows/ci.yml` (CLI, extension, dashboard, security)
+- Enforce branch protection with required checks on `ci` workflow jobs.
 
 3. **Security hardening**
-- Resolve extension dependency vulnerabilities.
-- Add SAST + dependency scanning + secret scanning in CI.
-- Add release-time SBOM generation.
+- Extension production dependency vulnerabilities resolved.
+- CI includes: Gitleaks secret scanning, CodeQL SAST (`.github/workflows/codeql.yml`), SBOM generation, `npm audit`.
+- Remaining: expand SBOM coverage to extension/dashboard packages.
 
 4. **Release engineering**
-- Introduce semantic versioning + changelog automation.
+- Release Please config added for semver + changelog automation (`.github/workflows/release-please.yml`).
 - Add reproducible release flow for CLI (`npm publish`) and extension packaging (`vsce package/publish`).
 
 5. **Observability and operations**

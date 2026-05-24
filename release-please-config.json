@@ -1,0 +1,21 @@
+{
+  "packages": {
+    "packages/cli": {
+      "component": "cli",
+      "release-type": "node"
+    },
+    "extensions/vscode": {
+      "component": "vscode-extension",
+      "release-type": "node"
+    },
+    "apps/dashboard": {
+      "component": "dashboard",
+      "release-type": "node"
+    },
+    "packages/ai-reasoner": {
+      "component": "ai-reasoner",
+      "release-type": "node"
+    }
+  },
+  "separate-pull-requests": true
+}

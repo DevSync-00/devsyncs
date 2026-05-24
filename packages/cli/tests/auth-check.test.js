@@ -79,17 +79,18 @@ test('requireAuthenticatedCli refreshes expired tokens and saves them', async ()
               access_token: 'new-access',
               refresh_token: 'new-refresh',
               client_id: 'cli',
+              expires_in: 3600,
             };
           }
         },
-        deriveExpiryFromToken: () => 999,
+        deriveExpiryFromToken: () => Math.floor(Date.now() / 1000) + 3600,
       },
       () => requireAuthenticatedCli()
     );
 
     assert.equal(refreshed.accessToken, 'new-access');
     assert.equal(refreshed.refreshToken, 'new-refresh');
-    assert.equal(refreshed.expiresAt, 999);
+    assert.ok(Math.abs(refreshed.expiresAt - (Math.floor(Date.now() / 1000) + 3600)) <= 2);
     assert.deepEqual(savedPayload, refreshed);
   } finally {
     restoreEnv();

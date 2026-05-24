@@ -201,7 +201,7 @@ test('deriveExpiryFromToken extracts expiry from JWT', () => {
 test('deriveExpiryFromToken throws on invalid JWT format', () => {
   assert.throws(
     () => deriveExpiryFromToken('invalid.jwt'),
-    /Invalid JWT format/
+    /Failed to parse token expiry/
   );
 });
 

@@ -27,7 +27,7 @@ marked.use({ renderer });
 function ChatApp() {
   const [messages, setMessages] = useState([]);
   const [session, setSession] = useState({ status: 'unauthenticated' });
-  const [config, setConfig] = useState({ apiUrl: '', projectId: undefined });
+  const [config, setConfig] = useState({ apiUrl: '', analyzerUrl: 'http://localhost:3000', projectId: undefined });
   const [input, setInput] = useState('');
   const [banner, setBanner] = useState(null);
   const [authFlow, setAuthFlow] = useState(null);
@@ -261,6 +261,25 @@ function ChatApp() {
 
   const authCard = authFlow?.kind === 'deviceCode' && authFlow.payload;
 
+  const resolveVerificationUrl = () => {
+    const fromApi = authCard?.verification_uri;
+    if (fromApi && !String(fromApi).includes('undefined')) {
+      try {
+        const parsed = new URL(fromApi);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+          return parsed.toString();
+        }
+      } catch {
+        // fall through to constructed URL
+      }
+    }
+    const base = (config.analyzerUrl || config.apiUrl || 'http://localhost:3000').replace(/\/$/, '');
+    if (!base || base.includes('undefined')) {
+      return `http://localhost:3000/device?code=${encodeURIComponent(authCard?.user_code || '')}`;
+    }
+    return `${base}/device?code=${encodeURIComponent(authCard?.user_code || '')}`;
+  };
+
   return (
     React.createElement('div', { className: 'chat-app' },
       React.createElement('div', { className: 'chat-header' },
@@ -274,7 +293,7 @@ function ChatApp() {
           React.createElement('div', { style: { fontSize: '0.8rem', color: 'var(--vscode-descriptionForeground)' } }, 'Enter this code on the verification page:'),
           React.createElement('code', { style: { fontSize: '1.2rem', letterSpacing: '0.2rem', fontWeight: 600, padding: '8px 12px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '6px', display: 'block', textAlign: 'center' } }, authCard.user_code),
           React.createElement('div', { className: 'quick-actions' },
-            React.createElement('button', { onClick: () => vscode.postMessage({ type: 'openUrl', url: authCard.verification_uri }) }, 'Open Verification'),
+            React.createElement('button', { onClick: () => vscode.postMessage({ type: 'openUrl', url: resolveVerificationUrl() }) }, 'Open Verification'),
             React.createElement('button', { onClick: () => copyToClipboard(authCard.user_code) }, 'Copy Code')
           ),
           session.status === 'authenticating' && React.createElement('div', { style: { fontSize: '0.8rem', color: '#38bdf8', marginTop: 8 } }, 'Waiting for approval...')

@@ -7,6 +7,7 @@ import chalk from 'chalk';
 import { loadAuthConfig, saveAuthConfig, isTokenExpired, deriveExpiryFromToken } from './auth-config.js';
 import { AnalyzerApiClient } from './analyzer-api-client.js';
 import type { AuthConfig } from './auth-config.js';
+import { resolveDashboardUrl } from '../utils/dashboard-url.js';
 
 // Dependency injection for testing
 let deps = {
@@ -34,18 +35,6 @@ export function __resetAuthCheckDeps(): void {
 }
 
 /**
- * Get dashboard URL from environment or default
- * Authentication endpoints are in the dashboard, not a separate analyzer service
- */
-function getDashboardUrl(): string {
-  return process.env.DASHBOARD_URL || 
-         process.env.NEXT_PUBLIC_DASHBOARD_URL || 
-         process.env.ANALYZER_URL ||  // Fallback: some setups might use ANALYZER_URL for dashboard
-         process.env.NEXT_PUBLIC_ANALYZER_URL || 
-         'http://localhost:3000';
-}
-
-/**
  * Require authenticated CLI session
  * Returns auth config if valid, refreshes if expired, or exits if not authenticated
  */
@@ -66,7 +55,7 @@ export async function requireAuthenticatedCli(): Promise<AuthConfig> {
   // For fresh tokens, we don't want to trigger unnecessary refreshes
   const now = Date.now() / 1000;
   const timeUntilExpiry = existing.expiresAt - now;
-  const actuallyExpired = timeUntilExpiry <= 0;
+  const actuallyExpired = deps.isTokenExpired(existing.expiresAt, 0);
   
   // Debug logging to help diagnose issues
   if (!silent && process.env.DEVSYNC_DEBUG === '1') {
@@ -107,7 +96,7 @@ export async function requireAuthenticatedCli(): Promise<AuthConfig> {
   log(deps.chalk.gray('🔄 Access token expired, refreshing...'));
 
   try {
-    const dashboardUrl = getDashboardUrl();
+    const dashboardUrl = resolveDashboardUrl();
     const client = new deps.AnalyzerApiClient(dashboardUrl, {
       timeoutMs: 60000, // Increased to 1 minute for better reliability
       retryAttempts: 3,
@@ -118,7 +107,7 @@ export async function requireAuthenticatedCli(): Promise<AuthConfig> {
     // Check if refresh token is also expired
     if (refreshed.refresh_expires_in) {
       const refreshExpiresAt = Math.floor(Date.now() / 1000) + refreshed.refresh_expires_in;
-      if (deps.isTokenExpired(refreshExpiresAt)) {
+      if (refreshExpiresAt <= Math.floor(Date.now() / 1000)) {
         log(deps.chalk.red('❌ Refresh token expired. Please log in again.'));
         log(deps.chalk.gray('   Run `devsync login` to re-authenticate.\n'));
         process.exit(1);

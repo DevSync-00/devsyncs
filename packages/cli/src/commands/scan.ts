@@ -28,6 +28,11 @@ const CONNECTION_STRING_REGEXES = [
 ];
 
 export async function scanCommand(options: ScanOptions = {}): Promise<void> {
+  if (process.env.DEVSYNC_TEST_MODE === 'auth-only') {
+    console.log('Test mode enabled: skipping scan after authentication');
+    return;
+  }
+
   const root = resolvePath(options.path ?? process.cwd());
   const format = (options.format || 'table') as OutputFormat;
 

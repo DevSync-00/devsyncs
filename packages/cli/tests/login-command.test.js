@@ -6,6 +6,7 @@ import { join } from 'node:path';
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_LOG = console.log;
+const ORIGINAL_ERROR = console.error;
 const ORIGINAL_ENV = {
   ANALYZER_URL: process.env.ANALYZER_URL,
   DASHBOARD_URL: process.env.DASHBOARD_URL,
@@ -92,6 +93,7 @@ test('loginCommand completes successfully and saves credentials', async () => {
   } finally {
     globalThis.fetch = ORIGINAL_FETCH;
     console.log = ORIGINAL_LOG;
+    console.error = ORIGINAL_ERROR;
     rmSync(tmpDir, { recursive: true, force: true });
     Object.assign(process.env, ORIGINAL_ENV);
   }
@@ -110,12 +112,14 @@ test('loginCommand handles connection errors gracefully', async () => {
   };
 
   const lines = [];
-  console.log = (message, ...rest) => {
+  const captureOutput = (message, ...rest) => {
     if (typeof message === 'string') {
       lines.push(message);
     }
     ORIGINAL_LOG.call(console, message, ...rest);
   };
+  console.log = captureOutput;
+  console.error = captureOutput;
 
   try {
     const { setAuthConfigPath } = await import('../dist/lib/config.js');
@@ -143,7 +147,8 @@ test('loginCommand handles connection errors gracefully', async () => {
     assert.ok(
       errorMessage.includes('Failed to connect') || 
       errorMessage.includes('ECONNREFUSED') ||
-      errorMessage.includes('Troubleshooting'),
+      errorMessage.includes('Troubleshooting') ||
+      errorMessage.includes('dashboard'),
       'Should show helpful error message'
     );
 
@@ -151,6 +156,7 @@ test('loginCommand handles connection errors gracefully', async () => {
   } finally {
     globalThis.fetch = ORIGINAL_FETCH;
     console.log = ORIGINAL_LOG;
+    console.error = ORIGINAL_ERROR;
     rmSync(tmpDir, { recursive: true, force: true });
     Object.assign(process.env, ORIGINAL_ENV);
   }
@@ -184,12 +190,14 @@ test('loginCommand handles device flow timeout', async () => {
   };
 
   const lines = [];
-  console.log = (message, ...rest) => {
+  const captureOutput = (message, ...rest) => {
     if (typeof message === 'string') {
       lines.push(message);
     }
     ORIGINAL_LOG.call(console, message, ...rest);
   };
+  console.log = captureOutput;
+  console.error = captureOutput;
 
   try {
     const { setAuthConfigPath } = await import('../dist/lib/config.js');
@@ -214,7 +222,8 @@ test('loginCommand handles device flow timeout', async () => {
     const errorMessage = lines.join(' ');
     assert.ok(
       errorMessage.includes('expired') || 
-      errorMessage.includes('timeout'),
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('timed out'),
       'Should show timeout/expiry error'
     );
 
@@ -222,6 +231,7 @@ test('loginCommand handles device flow timeout', async () => {
   } finally {
     globalThis.fetch = ORIGINAL_FETCH;
     console.log = ORIGINAL_LOG;
+    console.error = ORIGINAL_ERROR;
     rmSync(tmpDir, { recursive: true, force: true });
     Object.assign(process.env, ORIGINAL_ENV);
   }
@@ -283,6 +293,7 @@ test('loginCommand handles invalid token response', async () => {
   } finally {
     globalThis.fetch = ORIGINAL_FETCH;
     console.log = ORIGINAL_LOG;
+    console.error = ORIGINAL_ERROR;
     rmSync(tmpDir, { recursive: true, force: true });
     Object.assign(process.env, ORIGINAL_ENV);
   }
@@ -291,6 +302,7 @@ test('loginCommand handles invalid token response', async () => {
 test.after(() => {
   globalThis.fetch = ORIGINAL_FETCH;
   console.log = ORIGINAL_LOG;
+  console.error = ORIGINAL_ERROR;
   Object.assign(process.env, ORIGINAL_ENV);
 });
 

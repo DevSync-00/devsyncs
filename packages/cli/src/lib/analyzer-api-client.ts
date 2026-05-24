@@ -41,6 +41,22 @@ export interface AnalyzerApiClientOptions {
   retryDelay?: number;
 }
 
+function enhanceConnectionError(error: Error, baseUrl: string): Error {
+  const message = error.message;
+  if (
+    message.includes('ECONNREFUSED') ||
+    message.includes('fetch failed') ||
+    message.includes('ENOTFOUND') ||
+    message.includes('ECONNRESET')
+  ) {
+    return new Error(
+      `${message}. Ensure the DevSync dashboard is running at ${baseUrl}. ` +
+      'Check that the dashboard is started and accessible.'
+    );
+  }
+  return error;
+}
+
 export class AnalyzerApiClient {
   private baseUrl: string;
   private timeoutMs: number;
@@ -59,7 +75,8 @@ export class AnalyzerApiClient {
    * Returns device code and user code for user to authorize
    */
   async startDeviceFlow(clientId: string): Promise<DeviceFlowStartResponse> {
-    return retry(
+    try {
+      return await retry(
       async () => {
         const response = await withTimeout(
           fetch(`${this.baseUrl}/api/auth/device/start`, {
@@ -123,6 +140,12 @@ export class AnalyzerApiClient {
         ]
       }
     );
+    } catch (error) {
+      throw enhanceConnectionError(
+        error instanceof Error ? error : new Error(String(error)),
+        this.baseUrl
+      );
+    }
   }
 
   /**

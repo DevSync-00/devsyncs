@@ -43,10 +43,8 @@ export async function POST(request: NextRequest) {
       approved: false,
     });
 
-    // Get the base URL for verification URI - use the dashboard origin
-    // This ensures the verification URL points to the dashboard, not Supabase
-    const baseUrl = request.nextUrl.origin;
-    const verificationUri = `${baseUrl}/device?code=${userCode}`;
+    const baseUrl = resolveDashboardOrigin(request);
+    const verificationUri = `${baseUrl}/device?code=${encodeURIComponent(userCode)}`;
 
     const response: DeviceStartResponse = {
       device_code: deviceCode,
@@ -63,6 +61,56 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to start device flow' },
       { status: 500 }
     );
+  }
+}
+
+function resolveDashboardOrigin(request: NextRequest): string {
+  const origin = request.nextUrl.origin;
+  if (isValidOrigin(origin)) {
+    return origin;
+  }
+
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const forwardedProto = request.headers.get('x-forwarded-proto') ?? 'https';
+  if (forwardedHost) {
+    const candidate = `${forwardedProto}://${forwardedHost.split(',')[0].trim()}`;
+    if (isValidOrigin(candidate)) {
+      return candidate;
+    }
+  }
+
+  const host = request.headers.get('host');
+  if (host) {
+    const proto =
+      request.headers.get('x-forwarded-proto') ??
+      (host.includes('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https');
+    const candidate = `${proto}://${host}`;
+    if (isValidOrigin(candidate)) {
+      return candidate;
+    }
+  }
+
+  const envUrl =
+    process.env.NEXT_PUBLIC_ANALYZER_URL ||
+    process.env.NEXT_PUBLIC_DASHBOARD_URL ||
+    'http://localhost:3000';
+
+  try {
+    return new URL(envUrl).origin;
+  } catch {
+    return 'http://localhost:3000';
+  }
+}
+
+function isValidOrigin(origin: string): boolean {
+  if (!origin || origin === 'null' || origin.includes('undefined')) {
+    return false;
+  }
+  try {
+    const parsed = new URL(origin);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
   }
 }
 

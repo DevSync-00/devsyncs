@@ -139,7 +139,11 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Chat assistant setup
   const chatManager = new ChatPanelManager(context, authManager, chatApiClient, cliRunner, pluginRegistry);
-  chatManager.updateConfiguration({ apiUrl: config.apiUrl, projectId: config.projectId || undefined });
+  chatManager.updateConfiguration({
+    apiUrl: config.apiUrl,
+    analyzerUrl: config.analyzerUrl,
+    projectId: config.projectId || undefined,
+  });
   const chatViewProvider = new ChatViewProvider(context, chatManager);
 
   context.subscriptions.push(
@@ -615,9 +619,10 @@ export async function activate(context: vscode.ExtensionContext) {
     const updatedConfig = configManager.getAll();
     
     // Update chat manager with new configuration
-    chatManager.updateConfiguration({ 
-      apiUrl: updatedConfig.apiUrl, 
-      projectId: updatedConfig.projectId || undefined 
+    chatManager.updateConfiguration({
+      apiUrl: updatedConfig.apiUrl,
+      analyzerUrl: updatedConfig.analyzerUrl,
+      projectId: updatedConfig.projectId || undefined,
     });
   });
   context.subscriptions.push(configChangeListener);

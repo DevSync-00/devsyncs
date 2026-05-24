@@ -52,6 +52,7 @@ export class ChatPanelManager {
     this.codeBlockActions = new CodeBlockActions(editorService);
     this.config = {
       apiUrl: '',
+      analyzerUrl: 'http://localhost:3000',
       projectId: undefined,
     };
 
@@ -160,9 +161,25 @@ export class ChatPanelManager {
       case 'openFile':
         await this.openFile(message.path);
         return;
-      case 'openUrl':
-        await vscode.env.openExternal(vscode.Uri.parse(message.url));
+      case 'openUrl': {
+        const url = message.url?.trim();
+        if (!url || url.includes('undefined') || url.includes('null/')) {
+          this.sendError(
+            'Invalid verification URL. Set "devsync.analyzerUrl" to your dashboard (e.g. http://localhost:3000) and run login again.'
+          );
+          return;
+        }
+        try {
+          const parsed = new URL(url);
+          if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+            throw new Error('URL must use http or https');
+          }
+          await vscode.env.openExternal(vscode.Uri.parse(parsed.toString()));
+        } catch {
+          this.sendError(`Could not open verification URL: ${url}`);
+        }
         return;
+      }
       case 'insertCode':
         await this.insertCode(message.code);
         return;
