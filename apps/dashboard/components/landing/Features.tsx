@@ -1,68 +1,114 @@
-import { Database, Wrench, Code2, GitMerge, Shield, Users } from "lucide-react";
+import {
+  Database,
+  GitBranch,
+  Terminal,
+  LayoutDashboard,
+  Shield,
+  Sparkles,
+} from "lucide-react";
 
 const features = [
   {
     icon: Database,
-    title: "AI-Powered Schema Syncing",
-    description: "Detects and corrects mismatches in seconds with intelligent analysis.",
-  },
-  {
-    icon: Wrench,
-    title: "Smart Migration Suggestions",
-    description: "Generates SQL or Prisma migration scripts automatically.",
-  },
-  {
-    icon: Code2,
-    title: "Code–DB Auto-Refactor",
-    description: "Keeps your codebase consistent with your schema at all times.",
-  },
-  {
-    icon: GitMerge,
-    title: "CI/CD Integration",
-    description: "Sync logic built into your pipelines for seamless deployment.",
+    title: "Multi-schema detection",
+    description:
+      "Prisma, Supabase, TypeORM, Drizzle, Django, SQLAlchemy, and raw SQL — normalized into one canonical view.",
+    span: "lg:col-span-2",
+    featured: true,
   },
   {
     icon: Shield,
-    title: "Error Prevention Engine",
-    description: "Stops breaking changes before deployment with smart validation.",
+    title: "Migration safety checks",
+    description:
+      "Preview SQL before apply. Block destructive changes unless you explicitly opt in.",
+    span: "",
+    featured: false,
   },
   {
-    icon: Users,
-    title: "Team Insights Dashboard",
-    description: "Collaboration view for teams with detailed CI logs and analytics.",
+    icon: Terminal,
+    title: "CLI workflow",
+    description:
+      "init, scan, status, fix, migrate — built for scripts and CI pipelines.",
+    span: "",
+    featured: false,
+  },
+  {
+    icon: LayoutDashboard,
+    title: "Team dashboard",
+    description:
+      "Projects, scan history, mismatches, and migration timelines in one place.",
+    span: "",
+    featured: false,
+  },
+  {
+    icon: GitBranch,
+    title: "VS Code extension",
+    description:
+      "Run scans and review fixes without leaving your editor. Secure token storage built in.",
+    span: "",
+    featured: false,
+  },
+  {
+    icon: Sparkles,
+    title: "AI-assisted reasoning",
+    description:
+      "Structured explanations and fix suggestions — reviewable, not auto-applied.",
+    span: "lg:col-span-2",
+    featured: true,
   },
 ];
 
 const Features = () => {
   return (
-    <section className="py-24 px-6 bg-secondary/30">
-      <div className="container mx-auto max-w-7xl">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Built for <span className="text-gradient">Modern Teams</span>
+    <section id="features" className="py-28 px-6 bg-secondary/15 relative">
+      <div className="container mx-auto max-w-6xl">
+        <div className="text-center mb-16 max-w-2xl mx-auto">
+          <p className="text-sm font-medium text-primary mb-3 tracking-wide uppercase">
+            Capabilities
+          </p>
+          <h2 className="font-display text-4xl md:text-5xl font-bold mb-4">
+            Everything you need to{" "}
+            <span className="text-gradient">stay aligned</span>
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Everything you need to keep your development workflow in perfect harmony
+          <p className="text-lg text-muted-foreground">
+            From local development to team review — one toolchain for schema truth.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="group p-8 rounded-2xl border border-border bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-all duration-300 hover:glow-primary"
+              className={`group relative p-7 rounded-2xl border transition-all duration-300 overflow-hidden ${
+                feature.featured
+                  ? "gradient-card border-primary/20 hover:border-primary/40 hover:glow-primary"
+                  : "glass hover:border-primary/30"
+              } ${feature.span}`}
             >
-              <div className="mb-5">
-                <div className="w-14 h-14 rounded-xl gradient-primary flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                  <feature.icon className="w-7 h-7 text-primary-foreground" />
+              {feature.featured && (
+                <div className="absolute -top-12 -right-12 w-40 h-40 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/15 transition-colors" />
+              )}
+              <div className="relative">
+                <div
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center mb-5 ${
+                    feature.featured
+                      ? "gradient-primary"
+                      : "bg-primary/10 border border-primary/20"
+                  }`}
+                >
+                  <feature.icon
+                    className={`w-6 h-6 ${
+                      feature.featured ? "text-primary-foreground" : "text-primary"
+                    }`}
+                  />
                 </div>
+                <h3 className="font-display text-xl font-bold mb-2 group-hover:text-primary transition-colors">
+                  {feature.title}
+                </h3>
+                <p className="text-muted-foreground leading-relaxed text-sm">
+                  {feature.description}
+                </p>
               </div>
-              <h3 className="text-xl font-bold mb-3 group-hover:text-primary transition-colors">
-                {feature.title}
-              </h3>
-              <p className="text-muted-foreground leading-relaxed">
-                {feature.description}
-              </p>
             </div>
           ))}
         </div>
@@ -72,4 +118,3 @@ const Features = () => {
 };
 
 export default Features;
-

@@ -1,98 +1,94 @@
-import { Terminal } from "lucide-react";
+import Link from "next/link";
+import { Terminal, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const DeveloperExperience = () => {
   return (
-    <section className="py-24 px-6 relative overflow-hidden">
+    <section className="py-28 px-6 relative overflow-hidden">
+      <div className="absolute inset-0 mesh-grid opacity-30 pointer-events-none" />
+
       <div className="container mx-auto max-w-5xl relative z-10">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            Developer <span className="text-gradient">Experience</span>
-          </h2>
-          <p className="text-xl text-muted-foreground">
-            Command-line simplicity. AI-level intelligence.
-          </p>
-        </div>
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <div>
+            <p className="text-sm font-medium text-primary mb-3 tracking-wide uppercase">
+              Developer experience
+            </p>
+            <h2 className="font-display text-4xl md:text-5xl font-bold mb-5 leading-tight">
+              Your terminal,{" "}
+              <span className="text-gradient">your rules</span>
+            </h2>
+            <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
+              Run scans locally, pipe into CI, or trigger from VS Code. Every
+              command follows the same safety model: inspect first, apply only
+              when you mean to.
+            </p>
+            <Link href="/docs">
+              <Button variant="outline" className="group border-primary/30">
+                CLI quickstart
+                <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
+              </Button>
+            </Link>
+          </div>
 
-        <div className="relative">
-          {/* Terminal window */}
-          <div className="relative rounded-2xl border border-primary/30 bg-card/80 backdrop-blur-sm shadow-2xl glow-primary overflow-hidden">
-            {/* Terminal header */}
-            <div className="flex items-center gap-2 px-4 py-3 bg-secondary/50 border-b border-border">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-destructive" />
-                <div className="w-3 h-3 rounded-full bg-accent" />
-                <div className="w-3 h-3 rounded-full bg-primary" />
+          <div className="relative">
+            <div className="absolute -inset-4 bg-primary/10 rounded-3xl blur-2xl opacity-50" />
+            <div className="relative rounded-2xl border border-white/10 glass-strong shadow-elevated overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-border/60 bg-secondary/40">
+                <div className="flex gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-destructive/80" />
+                  <div className="w-3 h-3 rounded-full bg-amber-500/80" />
+                  <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
+                </div>
+                <div className="flex items-center gap-2 ml-3">
+                  <Terminal className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-xs font-mono text-muted-foreground">zsh</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 ml-4">
-                <Terminal className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground font-mono">terminal</span>
-              </div>
-            </div>
 
-            {/* Terminal content */}
-            <div className="p-6 font-mono text-sm space-y-4">
-              {/* Command 1 */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
+              <div className="p-5 sm:p-6 font-mono text-xs sm:text-sm space-y-5 bg-background/60">
+                <div className="space-y-1.5">
+                  <div>
+                    <span className="text-primary">$</span>{" "}
+                    <span className="text-foreground">devsync scan --path ./api</span>
+                  </div>
+                  <div className="pl-4 text-muted-foreground">→ 2 mismatches · preview saved</div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div>
+                    <span className="text-primary">$</span>{" "}
+                    <span className="text-foreground">
+                      devsync fix --path ./api --db $DATABASE_URL
+                    </span>
+                  </div>
+                  <div className="pl-4 text-muted-foreground">
+                    → Migration SQL generated (not applied)
+                  </div>
+                  <div className="pl-4 text-amber-400/90">
+                    ⚠ Review output before apply
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div>
+                    <span className="text-primary">$</span>{" "}
+                    <span className="text-foreground">devsync apply</span>
+                  </div>
+                  <div className="pl-4 text-muted-foreground">
+                    → Blocked until explicitly confirmed
+                  </div>
+                  <div className="pl-4 text-emerald-400/90 flex items-center gap-1.5">
+                    <span>✓</span> Applied after team approval
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-border/40">
                   <span className="text-primary">$</span>
-                  <span className="text-foreground">devsync scan</span>
+                  <span className="inline-block w-2 h-4 bg-primary animate-pulse rounded-sm" />
                 </div>
-                <div className="pl-4 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-accent">→</span>
-                    <span className="text-muted-foreground">Scanning IDE and database...</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-accent">→</span>
-                    <span className="text-foreground">2 mismatched models found</span>
-                  </div>
-                  <div className="pl-4 space-y-1 text-muted-foreground">
-                    <div>• User.profile (missing in DB)</div>
-                    <div>• Post.publishedAt (type mismatch)</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Command 2 */}
-              <div className="space-y-2 pt-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-primary">$</span>
-                  <span className="text-foreground">devsync fix --apply</span>
-                </div>
-                <div className="pl-4 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-accent">→</span>
-                    <span className="text-muted-foreground">Generating migration script...</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-accent">→</span>
-                    <span className="text-muted-foreground">Applying changes...</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-primary">✓</span>
-                    <span className="text-primary font-semibold">Schema and models synced successfully</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Cursor blink */}
-              <div className="flex items-center gap-2 pt-4">
-                <span className="text-primary">$</span>
-                <span className="inline-block w-2 h-4 bg-primary animate-pulse" />
               </div>
             </div>
           </div>
-
-          {/* Code snippet decoration */}
-          <div className="absolute -top-8 -right-8 w-32 h-32 bg-primary/20 rounded-full blur-3xl animate-pulse-slow pointer-events-none" />
-          <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-accent/20 rounded-full blur-3xl animate-pulse-slow delay-1000 pointer-events-none" />
-        </div>
-
-        {/* Bottom tagline */}
-        <div className="text-center mt-12">
-          <p className="text-lg text-muted-foreground italic">
-            "Your AI DevOps teammate that never sleeps."
-          </p>
         </div>
       </div>
     </section>
@@ -100,4 +96,3 @@ const DeveloperExperience = () => {
 };
 
 export default DeveloperExperience;
-

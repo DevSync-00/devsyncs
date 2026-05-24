@@ -1,85 +1,82 @@
-import { Search, Stethoscope, RefreshCw } from "lucide-react";
+import { Search, FileSearch, CheckSquare } from "lucide-react";
 
 const steps = [
   {
     icon: Search,
-    title: "Detect",
-    description: "DevSync.ai scans your IDE and database connections in real-time, identifying potential mismatches.",
+    title: "Scan",
+    description:
+      "Point DevSync at your project. It reads schema definitions (Prisma, Supabase, TypeORM, and more) and compares them to your live or inferred database.",
+    command: "devsync scan",
   },
   {
-    icon: Stethoscope,
+    icon: FileSearch,
     title: "Diagnose",
-    description: "Finds mismatches, outdated migrations, or missing fields before they cause production issues.",
+    description:
+      "Get a structured report of mismatches — missing columns, type drift, outdated migrations — with enough context to act, not guess.",
+    command: "devsync status",
   },
   {
-    icon: RefreshCw,
-    title: "Sync",
-    description: "Auto-generates fix suggestions or executes safe sync operations to keep everything aligned.",
+    icon: CheckSquare,
+    title: "Fix & apply",
+    description:
+      "Generate migration previews, review in CLI or dashboard, then apply only when your team explicitly approves. No silent writes.",
+    command: "devsync fix → apply",
   },
 ];
 
 const HowItWorks = () => {
   return (
-    <section className="py-24 px-6 relative overflow-hidden">
+    <section id="how-it-works" className="py-28 px-6 relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/[0.02] to-transparent pointer-events-none" />
+
       <div className="container mx-auto max-w-6xl relative z-10">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            How It <span className="text-gradient">Works</span>
+        <div className="text-center mb-20 max-w-2xl mx-auto">
+          <p className="text-sm font-medium text-primary mb-3 tracking-wide uppercase">
+            Workflow
+          </p>
+          <h2 className="font-display text-4xl md:text-5xl font-bold mb-4">
+            Three steps to <span className="text-gradient">confident sync</span>
           </h2>
-          <p className="text-xl text-muted-foreground">
-            Three simple steps to perfect sync
+          <p className="text-lg text-muted-foreground">
+            A deliberate pipeline — not a black box that mutates your database.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
           {steps.map((step, index) => (
-            <div
-              key={step.title}
-              className="relative group"
-            >
-              <div className="relative p-8 rounded-2xl border border-primary/30 bg-card/50 backdrop-blur-sm hover:border-primary/60 transition-all duration-300 hover:glow-primary h-full">
-                {/* Step number */}
-                <div className="absolute -top-4 -left-4 w-12 h-12 rounded-full gradient-primary flex items-center justify-center font-bold text-primary-foreground text-xl shadow-lg">
-                  {index + 1}
-                </div>
+            <div key={step.title} className="relative group">
+              {index < steps.length - 1 && (
+                <div
+                  className="hidden lg:block absolute top-16 -right-4 w-8 h-px bg-gradient-to-r from-primary/50 to-transparent z-10"
+                  aria-hidden
+                />
+              )}
 
-                {/* Icon */}
-                <div className="mb-6 mt-4">
-                  <div className="w-16 h-16 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                    <step.icon className="w-8 h-8 text-primary animate-pulse-slow" />
+              <div className="h-full p-8 rounded-2xl gradient-card border border-border/80 hover:border-primary/40 transition-all duration-300 hover:shadow-elevated">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shadow-lg">
+                    <step.icon className="w-7 h-7 text-primary-foreground" />
                   </div>
+                  <span className="font-display text-5xl font-bold text-muted/30 text-muted-foreground/20">
+                    0{index + 1}
+                  </span>
                 </div>
 
-                {/* Content */}
-                <h3 className="text-2xl font-bold mb-3">{step.title}</h3>
-                <p className="text-muted-foreground leading-relaxed">
+                <h3 className="font-display text-2xl font-bold mb-3">{step.title}</h3>
+                <p className="text-muted-foreground leading-relaxed mb-6">
                   {step.description}
                 </p>
 
-                {/* Animated arrow for non-last items */}
-                {index < steps.length - 1 && (
-                  <div className="hidden md:block absolute top-1/2 -right-4 transform -translate-y-1/2 z-20">
-                    <div className="text-primary animate-pulse">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </div>
-                  </div>
-                )}
+                <code className="inline-block font-mono text-xs px-3 py-1.5 rounded-lg bg-background/80 border border-border text-primary">
+                  {step.command}
+                </code>
               </div>
             </div>
           ))}
         </div>
-      </div>
-
-      {/* Background decoration */}
-      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-4xl opacity-20 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary to-transparent" />
-        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-accent to-transparent" />
       </div>
     </section>
   );
 };
 
 export default HowItWorks;
-
