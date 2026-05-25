@@ -1,0 +1,12 @@
+# Build outputs and dependencies (not source secrets)
+node_modules/
+.next/
+out/
+dist/
+coverage/
+*.min.js
+package-lock.json
+npm-shrinkwrap.json
+
+# Placeholder keys used in CI builds
+**/placeholder*

@@ -403,9 +403,48 @@ async function validateMigrationSQL(sql: string, connectionString: string): Prom
   const startTime = Date.now();
   
   try {
-    // Use comprehensive migration validator
-    const { validateMigration } = await import('@devsync/cli/services/migration-validator');
-    
+    let validateMigration: (
+      sql: string,
+      options: Record<string, unknown>
+    ) => Promise<{
+      valid: boolean;
+      errors: Array<{ message: string }>;
+      warnings: unknown[];
+      breakingChanges: unknown[];
+      summary: unknown;
+    }>;
+
+    try {
+      const validatorPath =
+        process.env.NODE_ENV === 'production'
+          ? '@devsync/cli/services/migration-validator'
+          : '../../../../../../packages/cli/src/services/migration-validator.js';
+      const validatorModule = await import(validatorPath);
+      validateMigration = validatorModule.validateMigration;
+    } catch {
+      // Fallback: basic EXPLAIN-based validation when CLI package is unavailable
+      const pool = new Pool({ connectionString });
+      const client = await pool.connect();
+      try {
+        await client.query(`EXPLAIN ${sql}`);
+        await pool.end();
+        return {
+          success: true,
+          executionTime: Date.now() - startTime,
+          validation: { mode: 'explain-fallback' },
+        };
+      } catch (explainError: unknown) {
+        await pool.end();
+        const message =
+          explainError instanceof Error ? explainError.message : 'Failed to validate SQL';
+        return {
+          success: false,
+          error: message,
+          executionTime: Date.now() - startTime,
+        };
+      }
+    }
+
     const validation = await validateMigration(sql, {
       connectionString,
       strictMode: false,

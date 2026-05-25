@@ -14,7 +14,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Prefer RELEASE_PLEASE_TOKEN when org policy blocks GITHUB_TOKEN PR creation
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+      - name: Release Please permissions hint
+        if: failure()
+        run: |
+          echo "::error::Release Please could not open/update release PRs."
+          echo "For org repos, enable: Settings → Actions → Allow GitHub Actions to create and approve pull requests"
+          echo "Or add a PAT as repository secret RELEASE_PLEASE_TOKEN. See .github/RELEASING.md"
+          exit 1

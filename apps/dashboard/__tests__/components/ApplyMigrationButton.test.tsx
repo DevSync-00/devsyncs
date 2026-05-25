@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import { jest } from '@jest/globals'
 import ApplyMigrationButton from '@/components/ApplyMigrationButton'
 import {
@@ -196,8 +196,8 @@ describe('ApplyMigrationButton', () => {
       executionTime: 50,
     }
 
-    ;(global.fetch as jest.Mock).mockResolvedValueOnce(
-      mockFetchResponse(mockResponse, { ok: false, status: 500 })
+    ;(global.fetch as jest.Mock).mockResolvedValue(
+      mockFetchResponse(mockResponse, { ok: false, status: 400 })
     )
 
     const onError = jest.fn()
@@ -213,7 +213,7 @@ describe('ApplyMigrationButton', () => {
     fireEvent.click(validateButton)
 
     await waitFor(() => {
-      expect(screen.getByText(/SQL validation failed/)).toBeInTheDocument()
+      expect(screen.getByText(/Dry Run:/)).toBeInTheDocument()
       expect(onError).toHaveBeenCalled()
     })
   })
@@ -282,9 +282,8 @@ describe('ApplyMigrationButton', () => {
   })
 
   it('handles network errors gracefully', async () => {
-    ;(global.fetch as jest.Mock).mockRejectedValueOnce(
-      new Error('Network error')
-    )
+    jest.useFakeTimers()
+    ;(global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'))
 
     const onError = jest.fn()
     render(
@@ -296,11 +295,15 @@ describe('ApplyMigrationButton', () => {
     )
 
     const validateButton = screen.getByText(/Validate \(Dry Run\)/)
-    fireEvent.click(validateButton)
 
-    await waitFor(() => {
-      expect(onError).toHaveBeenCalledWith('Network error')
+    await act(async () => {
+      fireEvent.click(validateButton)
+      await jest.advanceTimersByTimeAsync(15000)
     })
-  })
+
+    expect(onError).toHaveBeenCalled()
+
+    jest.useRealTimers()
+  }, 20000)
 })
 

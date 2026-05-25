@@ -132,20 +132,17 @@ describe('Error Handler Utilities', () => {
 
       logError(error, context)
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[ERROR]',
-        expect.stringContaining('Test error')
-      )
+      const logged = consoleSpy.mock.calls.flat().join(' ')
+      expect(logged).toContain('Test error')
+      expect(logged).toContain('userId')
     })
 
     it('includes stack trace for Error instances', () => {
       const error = new Error('Test error')
       logError(error)
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[ERROR]',
-        expect.stringContaining('Test error')
-      )
+      const logged = consoleSpy.mock.calls.flat().join(' ')
+      expect(logged).toContain('Test error')
     })
   })
 

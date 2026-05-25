@@ -1,0 +1,15 @@
+title = "DevSync gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ignore build artifacts and dependency trees"
+paths = [
+  '''node_modules''',
+  '''\.next/''',
+  '''/out/''',
+  '''/dist/''',
+  '''package-lock\.json''',
+  '''\.min\.js$''',
+]

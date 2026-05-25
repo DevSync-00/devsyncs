@@ -73,14 +73,23 @@ export const createMockMigration = (overrides = {}) => ({
   ...overrides,
 })
 
-export const mockFetchResponse = (data: any, options = {}) => {
-  const response = {
-    ok: true,
-    status: 200,
-    json: jest.fn().mockResolvedValue(data),
-    text: jest.fn().mockResolvedValue(JSON.stringify(data)),
-    ...options,
-  }
-  return response
-}
+export const mockFetchResponse = (
+  data: unknown,
+  options: { ok?: boolean; status?: number } = {}
+) => {
+  const status = options.status ?? (options.ok === false ? 400 : 200)
+  const ok = options.ok ?? (status >= 200 && status < 300)
+  const body = JSON.stringify(data)
 
+  return {
+    ok,
+    status,
+    statusText: ok ? 'OK' : 'Error',
+    headers: {
+      get: (name: string) =>
+        name.toLowerCase() === 'content-type' ? 'application/json' : null,
+    },
+    json: async () => JSON.parse(body),
+    text: async () => body,
+  }
+}

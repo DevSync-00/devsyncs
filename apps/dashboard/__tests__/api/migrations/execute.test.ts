@@ -1,4 +1,8 @@
 /**
+ * @jest-environment node
+ */
+
+/**
  * Integration tests for migration execution API
  * 
  * These tests verify the migration execution API endpoint behavior,
@@ -7,6 +11,8 @@
 
 import { POST } from '@/app/api/migrations/[id]/execute/route'
 import { createClient } from '@/lib/supabase/server'
+import { NextRequest } from 'next/server'
+import { createSupabaseServerMock } from '../../helpers/supabase-server-mock'
 
 // Mock Supabase server client
 jest.mock('@/lib/supabase/server', () => ({
@@ -22,37 +28,16 @@ jest.mock('pg', () => ({
 }))
 
 describe('/api/migrations/[id]/execute', () => {
-  let mockSupabaseClient: any
-  let mockPool: any
-  let mockClient: any
+  let supabaseMock: ReturnType<typeof createSupabaseServerMock>
+  let mockPool: { connect: jest.Mock; end: jest.Mock }
+  let mockClient: { query: jest.Mock; release: jest.Mock }
 
   beforeEach(() => {
-    // Reset mocks
     jest.clearAllMocks()
 
-    // Setup Supabase client mock
-    mockSupabaseClient = {
-      auth: {
-        getUser: jest.fn(),
-      },
-      from: jest.fn(() => ({
-        select: jest.fn(() => ({
-          eq: jest.fn(() => ({
-            single: jest.fn(),
-          })),
-        })),
-        update: jest.fn(() => ({
-          eq: jest.fn(),
-        })),
-        insert: jest.fn(() => ({
-          select: jest.fn(() => ({
-            single: jest.fn(),
-          })),
-        })),
-      })),
-    }
+    supabaseMock = createSupabaseServerMock()
+    ;(createClient as jest.Mock).mockReturnValue(supabaseMock.client)
 
-    // Setup pg client mock
     mockClient = {
       query: jest.fn(),
       release: jest.fn(),
@@ -63,27 +48,24 @@ describe('/api/migrations/[id]/execute', () => {
       end: jest.fn().mockResolvedValue(undefined),
     }
 
-    ;(createClient as jest.Mock).mockReturnValue(mockSupabaseClient)
-    
-    // Import Pool dynamically to use mocked version
-    const { Pool } = require('pg')
-    jest.spyOn({ Pool }, 'constructor').mockImplementation(() => mockPool)
+    const { Pool } = require('pg') as { Pool: jest.Mock }
+    Pool.mockImplementation(() => mockPool)
   })
 
   describe('Authentication', () => {
     it('returns 401 when user is not authenticated', async () => {
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
+      supabaseMock.client.auth.getUser.mockResolvedValue({
         data: { user: null },
         error: new Error('Not authenticated'),
       })
 
-      const request = new Request('http://localhost:3000/api/migrations/test-id/execute', {
+      const request = new NextRequest('http://localhost:3000/api/migrations/test-id/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ dryRun: true, confirm: false }),
-      }) as any
+      })
 
       const response = await POST(request, { params: { id: 'test-id' } })
       const data = await response.json()
@@ -94,13 +76,13 @@ describe('/api/migrations/[id]/execute', () => {
 
     it('allows authenticated users', async () => {
       const mockUser = { id: 'user-id', email: 'test@example.com' }
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
+      supabaseMock.client.auth.getUser.mockResolvedValue({
         data: { user: mockUser },
         error: null,
       })
 
       // Mock migration fetch
-      mockSupabaseClient.from().select().eq().single.mockResolvedValue({
+      supabaseMock.setSingleResult({
         data: {
           id: 'test-id',
           content: 'SELECT 1;',
@@ -117,21 +99,21 @@ describe('/api/migrations/[id]/execute', () => {
         error: null,
       })
 
-      mockSupabaseClient.from().update().eq.mockResolvedValue({ error: null })
-      mockSupabaseClient.from().insert().select().single.mockResolvedValue({
+      supabaseMock.mocks.updateEq.mockResolvedValue({ error: null })
+      supabaseMock.mocks.insertSingle.mockResolvedValue({
         data: { id: 'history-id' },
         error: null,
       })
 
       mockClient.query.mockResolvedValue({ rowCount: 0 })
 
-      const request = new Request('http://localhost:3000/api/migrations/test-id/execute', {
+      const request = new NextRequest('http://localhost:3000/api/migrations/test-id/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ dryRun: true, confirm: false }),
-      }) as any
+      })
 
       const response = await POST(request, { params: { id: 'test-id' } })
 
@@ -142,12 +124,12 @@ describe('/api/migrations/[id]/execute', () => {
   describe('Authorization', () => {
     it('returns 403 when user does not own the project', async () => {
       const mockUser = { id: 'user-id', email: 'test@example.com' }
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
+      supabaseMock.client.auth.getUser.mockResolvedValue({
         data: { user: mockUser },
         error: null,
       })
 
-      mockSupabaseClient.from().select().eq().single.mockResolvedValue({
+      supabaseMock.setSingleResult({
         data: {
           id: 'test-id',
           scan_reports: {
@@ -159,13 +141,13 @@ describe('/api/migrations/[id]/execute', () => {
         error: null,
       })
 
-      const request = new Request('http://localhost:3000/api/migrations/test-id/execute', {
+      const request = new NextRequest('http://localhost:3000/api/migrations/test-id/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ dryRun: true, confirm: false }),
-      }) as any
+      })
 
       const response = await POST(request, { params: { id: 'test-id' } })
       const data = await response.json()
@@ -178,12 +160,12 @@ describe('/api/migrations/[id]/execute', () => {
   describe('Validation', () => {
     it('requires confirmation for production runs', async () => {
       const mockUser = { id: 'user-id' }
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
+      supabaseMock.client.auth.getUser.mockResolvedValue({
         data: { user: mockUser },
         error: null,
       })
 
-      mockSupabaseClient.from().select().eq().single.mockResolvedValue({
+      supabaseMock.setSingleResult({
         data: {
           id: 'test-id',
           scan_reports: {
@@ -196,13 +178,13 @@ describe('/api/migrations/[id]/execute', () => {
         error: null,
       })
 
-      const request = new Request('http://localhost:3000/api/migrations/test-id/execute', {
+      const request = new NextRequest('http://localhost:3000/api/migrations/test-id/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ dryRun: false, confirm: false }), // No confirmation
-      }) as any
+      })
 
       const response = await POST(request, { params: { id: 'test-id' } })
       const data = await response.json()
@@ -213,12 +195,12 @@ describe('/api/migrations/[id]/execute', () => {
 
     it('prevents executing already applied migrations', async () => {
       const mockUser = { id: 'user-id' }
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
+      supabaseMock.client.auth.getUser.mockResolvedValue({
         data: { user: mockUser },
         error: null,
       })
 
-      mockSupabaseClient.from().select().eq().single.mockResolvedValue({
+      supabaseMock.setSingleResult({
         data: {
           id: 'test-id',
           applied: true, // Already applied
@@ -247,12 +229,12 @@ describe('/api/migrations/[id]/execute', () => {
 
     it('requires database connection string', async () => {
       const mockUser = { id: 'user-id' }
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
+      supabaseMock.client.auth.getUser.mockResolvedValue({
         data: { user: mockUser },
         error: null,
       })
 
-      mockSupabaseClient.from().select().eq().single.mockResolvedValue({
+      supabaseMock.setSingleResult({
         data: {
           id: 'test-id',
           applied: false,
@@ -267,13 +249,13 @@ describe('/api/migrations/[id]/execute', () => {
         error: null,
       })
 
-      const request = new Request('http://localhost:3000/api/migrations/test-id/execute', {
+      const request = new NextRequest('http://localhost:3000/api/migrations/test-id/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ dryRun: true, confirm: false }),
-      }) as any
+      })
 
       const response = await POST(request, { params: { id: 'test-id' } })
       const data = await response.json()
@@ -286,7 +268,7 @@ describe('/api/migrations/[id]/execute', () => {
   describe('Dry Run Execution', () => {
     it('validates SQL without executing (dry run)', async () => {
       const mockUser = { id: 'user-id' }
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
+      supabaseMock.client.auth.getUser.mockResolvedValue({
         data: { user: mockUser },
         error: null,
       })
@@ -304,13 +286,13 @@ describe('/api/migrations/[id]/execute', () => {
         },
       }
 
-      mockSupabaseClient.from().select().eq().single.mockResolvedValue({
+      supabaseMock.setSingleResult({
         data: mockMigration,
         error: null,
       })
 
-      mockSupabaseClient.from().update().eq.mockResolvedValue({ error: null })
-      mockSupabaseClient.from().insert().select().single.mockResolvedValue({
+      supabaseMock.mocks.updateEq.mockResolvedValue({ error: null })
+      supabaseMock.mocks.insertSingle.mockResolvedValue({
         data: { id: 'history-id' },
         error: null,
       })
@@ -318,13 +300,13 @@ describe('/api/migrations/[id]/execute', () => {
       // Mock EXPLAIN query for validation
       mockClient.query.mockResolvedValue({ rows: [], rowCount: 0 })
 
-      const request = new Request('http://localhost:3000/api/migrations/test-id/execute', {
+      const request = new NextRequest('http://localhost:3000/api/migrations/test-id/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ dryRun: true, confirm: false }),
-      }) as any
+      })
 
       const response = await POST(request, { params: { id: 'test-id' } })
       const data = await response.json()
@@ -339,7 +321,7 @@ describe('/api/migrations/[id]/execute', () => {
   describe('Actual Execution', () => {
     it('executes SQL migration successfully', async () => {
       const mockUser = { id: 'user-id' }
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
+      supabaseMock.client.auth.getUser.mockResolvedValue({
         data: { user: mockUser },
         error: null,
       })
@@ -357,13 +339,13 @@ describe('/api/migrations/[id]/execute', () => {
         },
       }
 
-      mockSupabaseClient.from().select().eq().single.mockResolvedValue({
+      supabaseMock.setSingleResult({
         data: mockMigration,
         error: null,
       })
 
-      mockSupabaseClient.from().update().eq.mockResolvedValue({ error: null })
-      mockSupabaseClient.from().insert().select().single.mockResolvedValue({
+      supabaseMock.mocks.updateEq.mockResolvedValue({ error: null })
+      supabaseMock.mocks.insertSingle.mockResolvedValue({
         data: { id: 'history-id' },
         error: null,
       })
@@ -387,7 +369,7 @@ describe('/api/migrations/[id]/execute', () => {
 
     it('handles SQL execution errors', async () => {
       const mockUser = { id: 'user-id' }
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
+      supabaseMock.client.auth.getUser.mockResolvedValue({
         data: { user: mockUser },
         error: null,
       })
@@ -405,13 +387,13 @@ describe('/api/migrations/[id]/execute', () => {
         },
       }
 
-      mockSupabaseClient.from().select().eq().single.mockResolvedValue({
+      supabaseMock.setSingleResult({
         data: mockMigration,
         error: null,
       })
 
-      mockSupabaseClient.from().update().eq.mockResolvedValue({ error: null })
-      mockSupabaseClient.from().insert().select().single.mockResolvedValue({
+      supabaseMock.mocks.updateEq.mockResolvedValue({ error: null })
+      supabaseMock.mocks.insertSingle.mockResolvedValue({
         data: { id: 'history-id' },
         error: null,
       })
@@ -436,7 +418,7 @@ describe('/api/migrations/[id]/execute', () => {
   describe('Status Tracking', () => {
     it('updates migration status to running', async () => {
       const mockUser = { id: 'user-id' }
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
+      supabaseMock.client.auth.getUser.mockResolvedValue({
         data: { user: mockUser },
         error: null,
       })
@@ -454,33 +436,30 @@ describe('/api/migrations/[id]/execute', () => {
         },
       }
 
-      mockSupabaseClient.from().select().eq().single.mockResolvedValue({
+      supabaseMock.setSingleResult({
         data: mockMigration,
         error: null,
       })
 
-      const updateMock = mockSupabaseClient.from().update().eq
-      updateMock.mockResolvedValue({ error: null })
-
-      mockSupabaseClient.from().insert().select().single.mockResolvedValue({
+      supabaseMock.mocks.updateEq.mockResolvedValue({ error: null })
+      supabaseMock.mocks.insertSingle.mockResolvedValue({
         data: { id: 'history-id' },
         error: null,
       })
 
       mockClient.query.mockResolvedValue({ rowCount: 0 })
 
-      const request = new Request('http://localhost:3000/api/migrations/test-id/execute', {
+      const request = new NextRequest('http://localhost:3000/api/migrations/test-id/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ dryRun: true, confirm: false }),
-      }) as any
+      })
 
       await POST(request, { params: { id: 'test-id' } })
 
-      // Verify status was updated to running
-      expect(updateMock).toHaveBeenCalledWith(
+      expect(supabaseMock.mocks.update).toHaveBeenCalledWith(
         expect.objectContaining({
           execution_status: 'running',
           dry_run: true,
@@ -490,7 +469,7 @@ describe('/api/migrations/[id]/execute', () => {
 
     it('creates migration history entry', async () => {
       const mockUser = { id: 'user-id' }
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
+      supabaseMock.client.auth.getUser.mockResolvedValue({
         data: { user: mockUser },
         error: null,
       })
@@ -508,33 +487,30 @@ describe('/api/migrations/[id]/execute', () => {
         },
       }
 
-      mockSupabaseClient.from().select().eq().single.mockResolvedValue({
+      supabaseMock.setSingleResult({
         data: mockMigration,
         error: null,
       })
 
-      mockSupabaseClient.from().update().eq.mockResolvedValue({ error: null })
-
-      const insertMock = mockSupabaseClient.from().insert().select().single
-      insertMock.mockResolvedValue({
+      supabaseMock.mocks.updateEq.mockResolvedValue({ error: null })
+      supabaseMock.mocks.insertSingle.mockResolvedValue({
         data: { id: 'history-id' },
         error: null,
       })
 
       mockClient.query.mockResolvedValue({ rowCount: 0 })
 
-      const request = new Request('http://localhost:3000/api/migrations/test-id/execute', {
+      const request = new NextRequest('http://localhost:3000/api/migrations/test-id/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ dryRun: true, confirm: false }),
-      }) as any
+      })
 
       await POST(request, { params: { id: 'test-id' } })
 
-      // Verify history entry was created
-      expect(insertMock).toHaveBeenCalledWith(
+      expect(supabaseMock.mocks.insert).toHaveBeenCalledWith(
         expect.objectContaining({
           migration_id: 'test-id',
           executed_by: 'user-id',

@@ -92,7 +92,7 @@ jobs:
           sudo install -m 755 /tmp/gitleaks /usr/local/bin/gitleaks
           gitleaks version
       - name: Secret scanning
-        run: gitleaks detect --source . --verbose --redact
+        run: gitleaks detect --source . --config .gitleaks.toml --verbose --redact --no-git
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
