@@ -69,7 +69,7 @@ export class PuterClient {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://devsync.ai', // Optional: identify your app
+        'HTTP-Referer': 'https://Dev-Sync.dev', // Optional: identify your app
         'X-Title': 'DevSync', // Optional: identify your app
         // No Authorization header needed - user-pays model
       },

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Comprehensive testing infrastructure has been set up for the DevSync.AI dashboard using Jest and React Testing Library.
+Comprehensive testing infrastructure has been set up for the Dev-Sync.dev dashboard using Jest and React Testing Library.
 
 ## ✅ What's Been Set Up
 

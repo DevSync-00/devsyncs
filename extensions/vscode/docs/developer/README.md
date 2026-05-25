@@ -149,5 +149,5 @@ Found an error or want to improve the documentation?
 
 ---
 
-**Need Help?** Check our [Contribution Guidelines](CONTRIBUTING.md) or [Contact the Team](https://devsync.ai/contact).
+**Need Help?** Check our [Contribution Guidelines](CONTRIBUTING.md) or [Contact the Team](https://Dev-Sync.dev/contact).
 

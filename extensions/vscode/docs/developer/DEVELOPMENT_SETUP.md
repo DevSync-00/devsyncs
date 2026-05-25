@@ -420,5 +420,5 @@ For webview changes:
 
 ---
 
-**Need Help?** Check [Troubleshooting](#troubleshooting) or [Contact the Team](https://devsync.ai/contact).
+**Need Help?** Check [Troubleshooting](#troubleshooting) or [Contact the Team](https://Dev-Sync.dev/contact).
 

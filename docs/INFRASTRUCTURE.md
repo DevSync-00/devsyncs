@@ -1,4 +1,4 @@
-# 🏗️ DevSync.AI — Infrastructure Requirements & Scaling Plan
+# 🏗️ Dev-Sync.dev — Infrastructure Requirements & Scaling Plan
 
 > Detailed infrastructure needs, costs, and scaling strategy by development phase
 
@@ -90,7 +90,7 @@
 
 #### Optional Services
 
-- **Domain** (e.g., `devsync.ai`)
+- **Domain** (e.g., `Dev-Sync.dev`)
   - **Cost**: ~$10–15/year (Namecheap, Cloudflare)
 
 #### Total Cost: **$0–15/month**

@@ -72,13 +72,13 @@ DevSync is an AI-powered VS Code extension that helps you keep your Prisma schem
 
 | Setting | Description | Default |
 |---------|-------------|---------|
-| `devsync.apiUrl` | DevSync API URL | `https://api.devsync.ai` |
+| `devsync.apiUrl` | DevSync API URL | `https://api.Dev-Sync.dev` |
 | `devsync.apiKey` | Your API key | - |
 | `devsync.projectId` | Your project ID | - |
 | `devsync.databaseConnection` | Database connection string | - |
 | `devsync.enableDiagnostics` | Show inline diagnostics | `true` |
 | `devsync.autoScan` | Auto-scan on file changes | `false` |
-| `devsync.aiAnalysis` | Enable AI analysis | `true` |
+| `Dev-Sync.devAnalysis` | Enable AI analysis | `true` |
 
 ## Basic Usage
 
@@ -236,5 +236,5 @@ See [FAQ.md](FAQ.md) for frequently asked questions.
 
 ---
 
-**Need Help?** Check out our [Troubleshooting Guide](TROUBLESHOOTING.md) or [Contact Support](https://devsync.ai/support).
+**Need Help?** Check out our [Troubleshooting Guide](TROUBLESHOOTING.md) or [Contact Support](https://Dev-Sync.dev/support).
 

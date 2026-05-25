@@ -1,10 +1,10 @@
-# DevSync.AI Dashboard - User Guide
+# Dev-Sync.dev Dashboard - User Guide
 
-Complete guide to using the DevSync.AI dashboard for schema synchronization.
+Complete guide to using the Dev-Sync.dev dashboard for schema synchronization.
 
 ## Overview
 
-DevSync.AI dashboard helps you:
+Dev-Sync.dev dashboard helps you:
 - 🔍 **Detect** schema mismatches between code and database
 - 📊 **Visualize** differences with detailed reports
 - 🔄 **Generate** safe migrations automatically

@@ -19,7 +19,7 @@ export default function BestPracticesPage() {
 
       <DocsContent
         title="Best Practices Guide"
-        description="Best practices for using DevSync.AI Dashboard effectively and safely."
+        description="Best practices for using Dev-Sync.dev Dashboard effectively and safely."
       >
         <Section title="Migration Execution">
           <Subsection title="1. Always Validate First">

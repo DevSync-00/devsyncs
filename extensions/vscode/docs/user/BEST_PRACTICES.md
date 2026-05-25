@@ -414,5 +414,5 @@ Recommended practices for using DevSync effectively.
 
 **Remember**: Best practices evolve. Adapt these to your team's needs and update as you learn.
 
-**Need Help?** Check out our [User Guide](USER_GUIDE.md) or [Contact Support](https://devsync.ai/support).
+**Need Help?** Check out our [User Guide](USER_GUIDE.md) or [Contact Support](https://Dev-Sync.dev/support).
 

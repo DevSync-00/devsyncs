@@ -1,10 +1,10 @@
 # Migration Execution Guide
 
-Learn how to apply migrations directly from the DevSync.AI dashboard.
+Learn how to apply migrations directly from the Dev-Sync.dev dashboard.
 
 ## Overview
 
-DevSync.AI allows you to execute database migrations directly from the dashboard with safety checks, validation, and full execution history tracking.
+Dev-Sync.dev allows you to execute database migrations directly from the dashboard with safety checks, validation, and full execution history tracking.
 
 ## Features
 

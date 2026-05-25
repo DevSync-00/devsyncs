@@ -141,7 +141,7 @@ function SignupForm() {
         <div className="text-center">
           <h1 className="text-3xl font-bold">Create account</h1>
           <p className="text-muted-foreground mt-2">
-            Sign up for DevSync.ai to get started
+            Sign up for Dev-Sync.dev to get started
           </p>
         </div>
 

@@ -1,6 +1,6 @@
 # 🔐 Complete Environment Variables Reference
 
-This document lists **all** environment variables needed for DevSync.AI deployment.
+This document lists **all** environment variables needed for Dev-Sync.dev deployment.
 
 ---
 
@@ -106,7 +106,7 @@ https://your-analyzer-url.com  (production)
 NEXT_PUBLIC_ANALYZER_URL=http://localhost:4000
 
 # Production
-NEXT_PUBLIC_ANALYZER_URL=https://analyzer.devsync.ai
+NEXT_PUBLIC_ANALYZER_URL=https://analyzer.Dev-Sync.dev
 ```
 
 **Used in:**
@@ -366,7 +366,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://lzvaidnvedhzpaczpxlk.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dmFpZG52ZWRoenBhY3pweGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDk4NzY1MjAsImV4cCI6MjAyNTQ1MjUyMH0.xxxxx
 
 # Analyzer Service URL
-NEXT_PUBLIC_ANALYZER_URL=https://analyzer.devsync.ai
+NEXT_PUBLIC_ANALYZER_URL=https://analyzer.Dev-Sync.dev
 
 # ============================================
 # OPTIONAL: AI FEATURES
@@ -519,5 +519,5 @@ After setting up environment variables:
 ---
 
 **Last Updated**: 2024  
-**Project**: DevSync.AI
+**Project**: Dev-Sync.dev
 

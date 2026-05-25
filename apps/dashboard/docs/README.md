@@ -1,6 +1,6 @@
-# DevSync.AI Dashboard Documentation
+# Dev-Sync.dev Dashboard Documentation
 
-Welcome to the DevSync.AI Dashboard documentation! This guide will help you understand and use all features of the dashboard.
+Welcome to the Dev-Sync.dev Dashboard documentation! This guide will help you understand and use all features of the dashboard.
 
 ## 📚 Documentation Index
 

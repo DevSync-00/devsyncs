@@ -21,7 +21,7 @@ export class HelpContent {
    * Gets documentation link.
    */
   static getDocLink(key: string): string {
-    const baseUrl = 'https://docs.devsync.ai';
+    const baseUrl = 'https://docs.Dev-Sync.dev';
     const paths: Record<string, string> = {
       scanning: '/scanning',
       migrations: '/migrations',
@@ -38,7 +38,7 @@ export class HelpContent {
    * Gets video guide link.
    */
   static getVideoLink(key: string): string {
-    const baseUrl = 'https://docs.devsync.ai/videos';
+    const baseUrl = 'https://docs.Dev-Sync.dev/videos';
     const paths: Record<string, string> = {
       scanning: '/scanning',
       migrations: '/migrations',
@@ -52,7 +52,7 @@ export class HelpContent {
    * Gets community forum link.
    */
   static getForumLink(): string {
-    return 'https://community.devsync.ai';
+    return 'https://community.Dev-Sync.dev';
   }
 
   /**

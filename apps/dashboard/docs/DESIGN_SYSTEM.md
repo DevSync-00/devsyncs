@@ -1,6 +1,6 @@
 # Design System Documentation
 
-This document outlines the design system, UI components, and styling guidelines for the DevSync.AI dashboard.
+This document outlines the design system, UI components, and styling guidelines for the Dev-Sync.dev dashboard.
 
 ## Table of Contents
 

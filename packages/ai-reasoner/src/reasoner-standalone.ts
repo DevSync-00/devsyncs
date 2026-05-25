@@ -201,7 +201,7 @@ Provide a clear, helpful answer.`;
         // Puter.js uses OpenRouter with Codex models
         model = 'openai/gpt-5.1-codex-max';
         // No API key needed for Puter.js (user-pays model)
-        headers['HTTP-Referer'] = 'https://devsync.ai';
+        headers['HTTP-Referer'] = 'https://Dev-Sync.dev';
         headers['X-Title'] = 'DevSync';
         break;
       case 'deepseek':

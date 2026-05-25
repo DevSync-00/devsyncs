@@ -78,13 +78,13 @@ Common issues and their solutions.
    - Verify project ID matches
 
 2. **Check API URL**:
-   - Default: `https://api.devsync.ai`
+   - Default: `https://api.Dev-Sync.dev`
    - Verify URL is accessible
    - Check for typos
 
 3. **Test Connection**:
    ```bash
-   curl https://api.devsync.ai/health
+   curl https://api.Dev-Sync.dev/health
    ```
 
 4. **Regenerate API Key**:
@@ -441,7 +441,7 @@ Common issues and their solutions.
    - Report new issues
 
 3. **Contact Support**:
-   - Email: support@devsync.ai
+   - Email: support@Dev-Sync.dev
    - Include error logs and steps to reproduce
 
 4. **Community Forum**:

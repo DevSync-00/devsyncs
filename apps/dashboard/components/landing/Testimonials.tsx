@@ -2,7 +2,7 @@ import { Quote } from "lucide-react";
 
 const testimonials = [
   {
-    quote: "DevSync.ai saved us hours of debugging after every migration. It's like having a safety net for our entire database.",
+    quote: "Dev-Sync.dev saved us hours of debugging after every migration. It's like having a safety net for our entire database.",
     author: "Sarah Chen",
     role: "Lead Engineer @ TechCorp",
   },
@@ -27,7 +27,7 @@ const Testimonials = () => {
             Trusted by <span className="text-gradient">Engineering Teams</span>
           </h2>
           <p className="text-xl text-muted-foreground">
-            See what developers are saying about DevSync.ai
+            See what developers are saying about Dev-Sync.dev
           </p>
         </div>
 

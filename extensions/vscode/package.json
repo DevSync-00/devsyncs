@@ -312,7 +312,7 @@
           "default": false,
           "description": "Automatically scan on file save"
         },
-        "devsync.aiAnalysis": {
+        "Dev-Sync.devAnalysis": {
           "type": "boolean",
           "default": false,
           "description": "Use AI to analyze codebase and infer schema from code patterns"
@@ -332,7 +332,7 @@
           "default": "http://localhost:11434",
           "description": "Ollama API URL"
         },
-        "devsync.ai.provider": {
+        "Dev-Sync.dev.provider": {
           "type": "string",
           "enum": [
             "puter",

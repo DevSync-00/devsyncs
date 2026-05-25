@@ -1,6 +1,6 @@
-# 🚀 Complete Vercel Deployment Guide for DevSync.AI
+# 🚀 Complete Vercel Deployment Guide for Dev-Sync.dev
 
-This guide provides detailed step-by-step instructions for deploying your DevSync.AI project to Vercel.
+This guide provides detailed step-by-step instructions for deploying your Dev-Sync.dev project to Vercel.
 
 ---
 
@@ -387,7 +387,7 @@ See [Troubleshooting](#troubleshooting) section below.
 
 1. In Vercel dashboard, go to your project
 2. Click **"Settings"** → **"Domains"**
-3. Enter your domain: `devsync.ai` (or your domain)
+3. Enter your domain: `Dev-Sync.dev` (or your domain)
 4. Click **"Add"**
 
 ### 8.2 Configure DNS
@@ -589,14 +589,14 @@ Optional (AI features):
 
 If you've completed all steps and your app is live, congratulations! 🚀
 
-Your DevSync.AI dashboard should now be accessible at:
+Your Dev-Sync.dev dashboard should now be accessible at:
 - **Production URL**: `https://your-project.vercel.app`
 - **Custom Domain**: `https://yourdomain.com` (if configured)
 
 ---
 
 **Last Updated**: 2024
-**Project**: DevSync.AI
+**Project**: Dev-Sync.dev
 **Framework**: Next.js 14
 **Hosting**: Vercel
 

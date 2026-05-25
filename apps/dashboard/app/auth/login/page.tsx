@@ -96,7 +96,7 @@ export default function LoginPage() {
         <div className="text-center">
           <h1 className="text-3xl font-bold">Welcome back</h1>
           <p className="text-muted-foreground mt-2">
-            Sign in to your DevSync.ai account
+            Sign in to your Dev-Sync.dev account
           </p>
         </div>
 

@@ -48,7 +48,7 @@ Guides for migrating between DevSync versions and from other tools.
 **Old Format** (v0.0.x):
 ```json
 {
-  "devsync.apiUrl": "https://api.devsync.ai",
+  "devsync.apiUrl": "https://api.Dev-Sync.dev",
   "devsync.apiKey": "key",
   "devsync.projectId": "id"
 }
@@ -57,10 +57,10 @@ Guides for migrating between DevSync versions and from other tools.
 **New Format** (v0.1.0+):
 ```json
 {
-  "devsync.apiUrl": "https://api.devsync.ai",
+  "devsync.apiUrl": "https://api.Dev-Sync.dev",
   "devsync.apiKey": "key",
   "devsync.projectId": "id",
-  "devsync.analyzerUrl": "https://analyzer.devsync.ai"
+  "devsync.analyzerUrl": "https://analyzer.Dev-Sync.dev"
 }
 ```
 
@@ -340,7 +340,7 @@ If you're currently:
 
 - **Documentation**: Check migration guides
 - **GitHub Issues**: Report migration problems
-- **Support Email**: support@devsync.ai
+- **Support Email**: support@Dev-Sync.dev
 - **Community Forum**: Ask questions
 
 ### Migration Resources
@@ -352,5 +352,5 @@ If you're currently:
 
 ---
 
-**Need Help?** Contact [Support](https://devsync.ai/support) or check our [Documentation](USER_GUIDE.md).
+**Need Help?** Contact [Support](https://Dev-Sync.dev/support) or check our [Documentation](USER_GUIDE.md).
 

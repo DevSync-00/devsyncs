@@ -1,4 +1,4 @@
-# DevSync.AI - Project Progress & Roadmap
+# Dev-Sync.dev - Project Progress & Roadmap
 
 **Technical Documentation for Project Dashboards, Repositories, and Stakeholder Review**
 
@@ -18,7 +18,7 @@
 
 **Project Status**: Production-Ready MVP with Core Features Complete
 
-DevSync.AI is an AI-powered schema synchronization platform that automatically detects and resolves mismatches between codebase schemas and database schemas. The project consists of three main components: a CLI tool, a web dashboard, and a VS Code extension.
+Dev-Sync.dev is an AI-powered schema synchronization platform that automatically detects and resolves mismatches between codebase schemas and database schemas. The project consists of three main components: a CLI tool, a web dashboard, and a VS Code extension.
 
 **Overall Completion**: ~85% of MVP features complete
 - **CLI Tool**: 95% complete
@@ -1618,7 +1618,7 @@ Testing infrastructure provides automated testing capabilities for components, u
 
 ## Conclusion
 
-DevSync.AI has achieved **85% MVP completion** with all core features functional and production-ready. The CLI tool and dashboard are fully operational, while the VS Code extension requires UI enhancements. Security, performance, and documentation are comprehensive.
+Dev-Sync.dev has achieved **85% MVP completion** with all core features functional and production-ready. The CLI tool and dashboard are fully operational, while the VS Code extension requires UI enhancements. Security, performance, and documentation are comprehensive.
 
 **Key Strengths**:
 - Robust CLI tool with comprehensive features

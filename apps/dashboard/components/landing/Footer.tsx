@@ -54,7 +54,7 @@ const Footer = () => {
         </div>
 
         <div className="mt-12 pt-8 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} DevSync.ai. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Dev-Sync.dev. All rights reserved.</p>
           <p className="text-xs">
             Scan read-only by default · Apply requires explicit approval
           </p>

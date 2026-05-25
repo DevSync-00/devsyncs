@@ -20,7 +20,7 @@ export default function MigrationExecutionPage() {
 
       <DocsContent
         title="Migration Execution Guide"
-        description="Learn how to apply migrations directly from the DevSync.AI dashboard with safety checks and validation."
+        description="Learn how to apply migrations directly from the Dev-Sync.dev dashboard with safety checks and validation."
       >
         <Section title="Quick Start">
           <Subsection title="Step 1: Generate a Migration">

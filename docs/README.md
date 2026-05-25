@@ -1,6 +1,6 @@
-# 📚 DevSync.AI Documentation
+# 📚 Dev-Sync.dev Documentation
 
-Welcome to the DevSync.AI documentation! This folder contains all essential project documentation and guides.
+Welcome to the Dev-Sync.dev documentation! This folder contains all essential project documentation and guides.
 
 ## 📖 Documentation Structure
 

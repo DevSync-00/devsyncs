@@ -48,7 +48,7 @@ $ devsync scan --ai-provider puter
 ### Configuration Schema
 ```json
 {
-  "devsync.ai.provider": {
+  "Dev-Sync.dev.provider": {
     "type": "string",
     "enum": ["puter", "openai", "ollama", "deepseek"],
     "default": "puter",

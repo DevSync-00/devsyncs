@@ -10,7 +10,7 @@ DevSync is a VS Code extension that helps keep your Prisma schema and database i
 
 ### Is DevSync free?
 
-DevSync offers both free and paid plans. The free plan includes basic scanning and limited AI features. Check our [pricing page](https://devsync.ai/pricing) for details.
+DevSync offers both free and paid plans. The free plan includes basic scanning and limited AI features. Check our [pricing page](https://Dev-Sync.dev/pricing) for details.
 
 ### What databases does DevSync support?
 
@@ -58,7 +58,7 @@ See [Configuration Guide](USER_GUIDE.md#configuration) for details.
 
 ### Where do I get an API key?
 
-1. Sign up at [devsync.ai](https://devsync.ai)
+1. Sign up at [Dev-Sync.dev](https://Dev-Sync.dev)
 2. Create a project
 3. Get your API key from the dashboard
 4. Copy it to VS Code settings
@@ -269,7 +269,7 @@ Yes! You can change plans anytime from your dashboard.
 2. **FAQ**: This page
 3. **GitHub Issues**: Report bugs
 4. **Community Forum**: Ask questions
-5. **Email Support**: support@devsync.ai
+5. **Email Support**: support@Dev-Sync.dev
 
 ### How do I report a bug?
 
@@ -294,7 +294,7 @@ Yes! You can change plans anytime from your dashboard.
 - Check our [User Guide](USER_GUIDE.md)
 - Read [Tutorials](TUTORIALS.md)
 - Visit [Troubleshooting Guide](TROUBLESHOOTING.md)
-- Contact [Support](https://devsync.ai/support)
+- Contact [Support](https://Dev-Sync.dev/support)
 
 ---
 

@@ -27,7 +27,7 @@ const Testimonials = () => {
             Trusted by <span className="text-gradient">Engineering Teams</span>
           </h2>
           <p className="text-xl text-muted-foreground">
-            See what developers are saying about DevSync.ai
+            See what developers are saying about Dev-Sync.dev
           </p>
         </div>
 

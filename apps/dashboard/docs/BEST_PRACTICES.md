@@ -1,6 +1,6 @@
 # Best Practices Guide
 
-Best practices for using DevSync.AI Dashboard effectively and safely.
+Best practices for using Dev-Sync.dev Dashboard effectively and safely.
 
 ## Migration Execution
 

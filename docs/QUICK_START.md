@@ -1,6 +1,6 @@
-# 🚀 DevSync.AI — Quick Start Guide
+# 🚀 Dev-Sync.dev — Quick Start Guide
 
-> Get started building DevSync.AI from MVP to Production
+> Get started building Dev-Sync.dev from MVP to Production
 
 ---
 
@@ -376,7 +376,7 @@ export default function ProjectsPage() {
 ```typescript
 // src/services/api-client.ts
 export async function sendScanReport(projectId: string, report: any) {
-  const response = await fetch('https://api.devsync.ai/v1/scans', {
+  const response = await fetch('https://api.Dev-Sync.dev/v1/scans', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -393,7 +393,7 @@ export async function sendScanReport(projectId: string, report: any) {
 ## 📦 Recommended Project Structure
 
 ```
-devsync.ai/
+Dev-Sync.dev/
 ├── packages/
 │   ├── cli/              # CLI agent (Phase 1)
 │   │   ├── src/

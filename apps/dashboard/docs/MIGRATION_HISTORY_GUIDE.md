@@ -1,6 +1,6 @@
 # Migration History Guide
 
-Track and monitor all migration executions in DevSync.AI.
+Track and monitor all migration executions in Dev-Sync.dev.
 
 ## Overview
 

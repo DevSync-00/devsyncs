@@ -1,4 +1,4 @@
-# 🚀 DevSync.AI - Next Steps & Project Roadmap
+# 🚀 Dev-Sync.dev - Next Steps & Project Roadmap
 
 ## ✅ What We Just Completed
 

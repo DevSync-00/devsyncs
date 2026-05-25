@@ -182,7 +182,7 @@ import { IApiClient } from './interfaces';
  * @example
  * ```typescript
  * const client = new DevSyncApiClient(
- *   'https://api.devsync.ai',
+ *   'https://api.Dev-Sync.dev',
  *   'your-api-key',
  *   'project-id'
  * );

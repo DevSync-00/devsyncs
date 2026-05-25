@@ -1,4 +1,4 @@
-# 🗺️ DevSync.AI — Development Roadmap
+# 🗺️ Dev-Sync.dev — Development Roadmap
 
 > Prioritized development plan from MVP to Enterprise SaaS
 

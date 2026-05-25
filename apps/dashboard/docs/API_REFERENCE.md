@@ -1,6 +1,6 @@
 # API Reference
 
-Complete API reference for DevSync.AI Dashboard API endpoints.
+Complete API reference for Dev-Sync.dev Dashboard API endpoints.
 
 ## Base URL
 

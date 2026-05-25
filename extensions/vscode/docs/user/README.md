@@ -120,7 +120,7 @@ docs/user/
 - **API Documentation**: See `docs/api/` directory
 - **Developer Documentation**: See `docs/developer/` directory
 - **GitHub**: [devsync/issues](https://github.com/devsync/issues)
-- **Support**: support@devsync.ai
+- **Support**: support@Dev-Sync.dev
 - **Community**: [Discord Server](https://discord.gg/devsync)
 
 ## 📝 Contributing
@@ -139,5 +139,5 @@ Found an error or want to improve the documentation?
 
 ---
 
-**Need Help?** Check our [Troubleshooting Guide](TROUBLESHOOTING.md) or [Contact Support](https://devsync.ai/support).
+**Need Help?** Check our [Troubleshooting Guide](TROUBLESHOOTING.md) or [Contact Support](https://Dev-Sync.dev/support).
 

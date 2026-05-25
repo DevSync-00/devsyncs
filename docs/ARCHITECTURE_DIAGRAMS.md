@@ -1,4 +1,4 @@
-# 📐 DevSync.AI — System Architecture Diagrams
+# 📐 Dev-Sync.dev — System Architecture Diagrams
 
 > Visual representations of system architecture, data flows, and component interactions
 
@@ -310,7 +310,7 @@ No cloud infrastructure needed
 ┌──────────────────┐        ┌──────────────┐        ┌──────────────┐
 │     Vercel       │        │  Supabase    │        │   Domain     │
 │                  │        │              │        │              │
-│  ┌────────────┐  │        │  ┌────────┐  │        │ devsync.ai   │
+│  ┌────────────┐  │        │  ┌────────┐  │        │ Dev-Sync.dev   │
 │  │  Next.js   │  │◄──────►│  │  PG    │  │        │              │
 │  │  App       │  │ HTTPS  │  │  Auth  │  │        │   DNS: A     │
 │  └────────────┘  │        │  │ Storage│  │        │   record     │

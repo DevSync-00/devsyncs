@@ -20,8 +20,8 @@ import { TooltipManager } from './help';
 TooltipManager.register('command.scan', {
   text: 'Scan your Prisma schema and database for mismatches',
   markdown: HelpContent.getTooltip('scan'),
-  docLink: 'https://docs.devsync.ai/scanning',
-  videoLink: 'https://docs.devsync.ai/videos/scanning',
+  docLink: 'https://docs.Dev-Sync.dev/scanning',
+  videoLink: 'https://docs.Dev-Sync.dev/videos/scanning',
 });
 
 // Create tree item with tooltip
@@ -41,8 +41,8 @@ import { HelpPanelManager } from './help';
 await HelpPanelManager.showHelpPanel(context, 'scan-help', {
   title: 'How to Scan Your Schema',
   content: HelpContent.getTooltip('scan'),
-  docLink: 'https://docs.devsync.ai/scanning',
-  videoLink: 'https://docs.devsync.ai/videos/scanning',
+  docLink: 'https://docs.Dev-Sync.dev/scanning',
+  videoLink: 'https://docs.Dev-Sync.dev/videos/scanning',
   position: 'editor',
 });
 ```
@@ -114,7 +114,7 @@ FAQManager.registerFAQ([
     question: 'How do I scan my schema?',
     answer: 'Click the Scan button...',
     tags: ['scan', 'getting-started'],
-    docLink: 'https://docs.devsync.ai/scanning',
+    docLink: 'https://docs.Dev-Sync.dev/scanning',
   },
 ]);
 ```

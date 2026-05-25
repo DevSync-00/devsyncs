@@ -1,4 +1,4 @@
-# 🏗️ DevSync.AI — Technical Architecture Specification
+# 🏗️ Dev-Sync.dev — Technical Architecture Specification
 
 > **Mission**: Continuously synchronize, analyze, and self-heal inconsistencies between an app's codebase, database, and cloud configuration.
 
@@ -526,7 +526,7 @@ cli/
 
 ### REST API (Supabase Edge Functions)
 
-**Base URL**: `https://api.devsync.ai/v1`
+**Base URL**: `https://api.Dev-Sync.dev/v1`
 
 #### Authentication
 All requests require Bearer token:
@@ -864,5 +864,5 @@ CREATE POLICY "Users can view project scan reports"
 
 **Document Version**: 1.0  
 **Last Updated**: 2024-01-XX  
-**Maintainer**: DevSync.AI Team
+**Maintainer**: Dev-Sync.dev Team
 

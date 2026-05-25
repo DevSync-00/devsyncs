@@ -19,7 +19,7 @@ export default function MigrationHistoryPage() {
 
       <DocsContent
         title="Migration History Guide"
-        description="Track and monitor all migration executions in DevSync.AI with complete audit trails."
+        description="Track and monitor all migration executions in Dev-Sync.dev with complete audit trails."
       >
         <Section title="Accessing History">
           <ol className="list-decimal list-inside space-y-2 text-muted-foreground leading-7">

@@ -516,7 +516,7 @@ statusBarItem.command = 'devsync.scan';
       "properties": {
         "devsync.apiUrl": {
           "type": "string",
-          "default": "https://api.devsync.ai",
+          "default": "https://api.Dev-Sync.dev",
           "description": "DevSync API URL",
           "markdownDescription": "Base URL for the DevSync API. Change this if you're using a self-hosted instance."
         },
@@ -564,7 +564,7 @@ function generateHelpContent(topic: string, context?: any): string {
         <li>Or generate a migration to add it to the database</li>
       </ol>
       <h3>Learn More</h3>
-      <p>See our <a href="https://docs.devsync.ai/guides/missing-fields">guide on missing fields</a>.</p>
+      <p>See our <a href="https://docs.Dev-Sync.dev/guides/missing-fields">guide on missing fields</a>.</p>
     `,
     // More help content...
   };

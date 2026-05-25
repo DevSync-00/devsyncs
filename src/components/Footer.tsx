@@ -29,7 +29,7 @@ const Footer = () => {
         </div>
 
         <div className="mt-8 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} DevSync.ai. All rights reserved.
+          © {new Date().getFullYear()} Dev-Sync.dev. All rights reserved.
         </div>
       </div>
     </footer>

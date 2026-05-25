@@ -111,7 +111,7 @@ export class DevSyncDiagnostics implements IDiagnostics {
             if (mismatch.suggestedFix) {
               diagnostic.code = {
                 value: `devsync.${mismatch.type}`,
-                target: vscode.Uri.parse(`https://devsync.ai/docs/mismatches#${mismatch.type}`),
+                target: vscode.Uri.parse(`https://Dev-Sync.dev/docs/mismatches#${mismatch.type}`),
               };
             }
 

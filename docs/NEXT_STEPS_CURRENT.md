@@ -1,4 +1,4 @@
-# 🚀 DevSync.AI - Current Next Steps
+# 🚀 Dev-Sync.dev - Current Next Steps
 
 **Last Updated**: After Enhanced Authentication & Project Creation Flow  
 **Status**: MVP Complete, Production Ready

@@ -20,11 +20,11 @@ export default function UserGuidePage() {
 
       <DocsContent
         title="User Guide"
-        description="Complete guide to using the DevSync.AI dashboard for schema synchronization."
+        description="Complete guide to using the Dev-Sync.dev dashboard for schema synchronization."
       >
         <Section title="Overview">
           <p className="text-muted-foreground leading-7">
-            DevSync.AI dashboard helps you detect schema mismatches between your code and database,
+            Dev-Sync.dev dashboard helps you detect schema mismatches between your code and database,
             visualize differences with detailed reports, generate safe migrations automatically,
             and apply migrations directly from the dashboard.
           </p>

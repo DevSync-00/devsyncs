@@ -33,7 +33,7 @@ Open VSCode settings and configure:
   "devsync.databaseConnection": "postgresql://user:pass@localhost/db",
   "devsync.enableDiagnostics": true,
   "devsync.autoScan": false,
-  "devsync.aiAnalysis": false,
+  "Dev-Sync.devAnalysis": false,
   "devsync.useOllama": false,
   "devsync.ollamaModel": "llama3.2:3b",
   "devsync.ollamaUrl": "http://localhost:11434",

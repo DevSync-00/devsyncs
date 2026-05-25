@@ -26,7 +26,7 @@ Step-by-step tutorials to help you master DevSync.
 1. Open Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
 2. Type: `DevSync: Configure Settings`
 3. Enter your API credentials:
-   - **API URL**: `https://api.devsync.ai`
+   - **API URL**: `https://api.Dev-Sync.dev`
    - **API Key**: Your API key (get from dashboard)
    - **Project ID**: Your project ID
 
@@ -278,7 +278,7 @@ yarn global add @devsync/cli
 
 Set these in your CI/CD environment:
 ```bash
-export DEVSYNC_API_URL="https://api.devsync.ai"
+export DEVSYNC_API_URL="https://api.Dev-Sync.dev"
 export DEVSYNC_API_KEY="your-api-key"
 export DEVSYNC_PROJECT_ID="your-project-id"
 export DATABASE_URL="postgresql://..."
@@ -336,5 +336,5 @@ schema-check:
 
 ---
 
-**Need Help?** Visit our [FAQ](FAQ.md) or [Contact Support](https://devsync.ai/support).
+**Need Help?** Visit our [FAQ](FAQ.md) or [Contact Support](https://Dev-Sync.dev/support).
 

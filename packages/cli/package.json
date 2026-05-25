@@ -22,7 +22,7 @@
     "prisma",
     "postgresql"
   ],
-  "author": "DevSync.AI",
+  "author": "Dev-Sync.dev",
   "license": "MIT",
   "dependencies": {
     "commander": "^12.1.0",

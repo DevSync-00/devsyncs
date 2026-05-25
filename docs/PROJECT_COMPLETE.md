@@ -1,8 +1,8 @@
-# 🎉 DevSync.AI - Project Complete!
+# 🎉 Dev-Sync.dev - Project Complete!
 
 ## ✅ 100% MVP Complete + Production Ready
 
-DevSync.AI is now **fully complete** with all core features, polish, and security hardening!
+Dev-Sync.dev is now **fully complete** with all core features, polish, and security hardening!
 
 ---
 
@@ -123,7 +123,7 @@ Supports 9 schema types:
 ## 📁 Project Structure
 
 ```
-devsync.ai/
+Dev-Sync.dev/
 ├── apps/
 │   └── dashboard/          # Next.js dashboard
 │       ├── app/            # Pages and API routes
@@ -220,7 +220,7 @@ Professional polish:
 
 ## 🚀 Ready for Production!
 
-DevSync.AI is now **100% complete and production-ready** with:
+Dev-Sync.dev is now **100% complete and production-ready** with:
 - ✅ All core features
 - ✅ Complete UX polish
 - ✅ Enterprise-grade security

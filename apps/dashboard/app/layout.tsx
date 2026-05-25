@@ -19,7 +19,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DevSync.ai — Schema sync & migration safety",
+  title: "Dev-Sync.dev — Schema sync & migration safety",
   description:
     "Detect database schema drift, preview fixes, and apply migrations safely across CLI, VS Code, and your team dashboard.",
 };

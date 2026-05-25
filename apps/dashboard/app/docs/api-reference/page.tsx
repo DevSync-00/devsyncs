@@ -20,7 +20,7 @@ export default function APIReferencePage() {
 
       <DocsContent
         title="API Reference"
-        description="Complete API reference for DevSync.AI Dashboard API endpoints."
+        description="Complete API reference for Dev-Sync.dev Dashboard API endpoints."
       >
         <Section title="Base URL">
           <p className="text-muted-foreground mb-4">

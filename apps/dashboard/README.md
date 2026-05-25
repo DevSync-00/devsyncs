@@ -1,6 +1,6 @@
-# DevSync.ai Dashboard
+# Dev-Sync.dev Dashboard
 
-Next.js dashboard for DevSync.ai - Phase 2 implementation.
+Next.js dashboard for Dev-Sync.dev - Phase 2 implementation.
 
 ## Setup
 

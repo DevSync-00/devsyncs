@@ -170,7 +170,7 @@ Only include tables that are clearly referenced or defined in the code.`;
       // Puter.js uses Codex Max model via OpenRouter
       model = 'openai/gpt-5.1-codex-max';
       // No API key needed for Puter.js (user-pays model)
-      headers['HTTP-Referer'] = 'https://devsync.ai';
+      headers['HTTP-Referer'] = 'https://Dev-Sync.dev';
       headers['X-Title'] = 'DevSync';
       // Prepend openrouter: prefix
       if (!model.startsWith('openrouter:')) {

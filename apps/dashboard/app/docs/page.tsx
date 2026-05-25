@@ -8,7 +8,7 @@ export default function DocumentationPage() {
       <div className="text-center space-y-4">
         <h1 className="text-4xl font-bold">Documentation</h1>
         <p className="text-xl text-muted-foreground">
-          Everything you need to know about using DevSync.AI
+          Everything you need to know about using Dev-Sync.dev
         </p>
       </div>
 
@@ -23,7 +23,7 @@ export default function DocumentationPage() {
             <h2 className="text-xl font-semibold">User Guide</h2>
           </div>
           <p className="text-sm text-muted-foreground mb-4">
-            Complete guide to using the DevSync.AI dashboard. Perfect for new users.
+            Complete guide to using the Dev-Sync.dev dashboard. Perfect for new users.
           </p>
           <div className="flex items-center gap-2 text-sm text-primary group-hover:gap-3 transition-all">
             <span>Get started</span>
@@ -95,7 +95,7 @@ export default function DocumentationPage() {
             <h2 className="text-xl font-semibold">Best Practices</h2>
           </div>
           <p className="text-sm text-muted-foreground mb-4">
-            Best practices for using DevSync.AI effectively and safely.
+            Best practices for using Dev-Sync.dev effectively and safely.
           </p>
           <div className="flex items-center gap-2 text-sm text-primary group-hover:gap-3 transition-all">
             <span>Read guide</span>

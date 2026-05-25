@@ -20,7 +20,7 @@ export default function TroubleshootingPage() {
 
       <DocsContent
         title="Troubleshooting Guide"
-        description="Common issues and solutions for DevSync.AI Dashboard."
+        description="Common issues and solutions for Dev-Sync.dev Dashboard."
       >
         <Section title="Common Issues">
           <Subsection title="500 Error When Creating Project">
