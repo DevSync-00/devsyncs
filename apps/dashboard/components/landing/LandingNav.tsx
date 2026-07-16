@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import Logo from "@/components/Logo";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const navLinks = [
   { href: "#how-it-works", label: "How it works" },
@@ -31,10 +33,8 @@ export default function LandingNav() {
     >
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-              <span className="text-primary-foreground font-bold text-sm">DS</span>
-            </div>
+          <Link href="/" className="flex items-center gap-3 group">
+            <Logo variant="original" width={34} height={34} />
             <span className="font-display text-xl font-bold tracking-tight">
               DevSync<span className="text-gradient">.ai</span>
             </span>
@@ -52,7 +52,8 @@ export default function LandingNav() {
             ))}
           </nav>
 
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-4">
+            <ThemeToggle />
             <Link href="/auth/login">
               <Button variant="ghost" size="sm">
                 Sign in
@@ -87,7 +88,11 @@ export default function LandingNav() {
                 {link.label}
               </Link>
             ))}
-            <div className="flex flex-col gap-2 pt-2 border-t border-border">
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <span className="text-sm text-muted-foreground">Theme</span>
+              <ThemeToggle />
+            </div>
+            <div className="flex flex-col gap-2">
               <Link href="/auth/login" onClick={() => setMobileOpen(false)}>
                 <Button variant="outline" className="w-full">
                   Sign in

@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { LogOut, Settings, FolderKanban, Key } from 'lucide-react';
+import Logo from '@/components/Logo';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default async function DashboardLayout({
   children,
@@ -24,13 +26,16 @@ export default async function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <nav className="border-b border-border bg-card">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+      <nav className="border-b border-border bg-card sticky top-0 z-40">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-8">
-              <Link href="/dashboard" className="text-xl font-bold">
-                DevSync<span className="text-primary">.ai</span>
+              <Link href="/dashboard" className="flex items-center gap-3 group">
+                <Logo variant="original" width={32} height={32} />
+                <span className="font-display text-xl font-bold tracking-tight">
+                  DevSync<span className="text-gradient">.ai</span>
+                </span>
               </Link>
               <div className="flex items-center gap-6">
                 <Link
@@ -67,6 +72,7 @@ export default async function DashboardLayout({
               </div>
             </div>
             <div className="flex items-center gap-4">
+              <ThemeToggle />
               <span className="text-sm text-muted-foreground">{user.email}</span>
               <form action={handleSignOut}>
                 <Button type="submit" variant="ghost" size="sm">

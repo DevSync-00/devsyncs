@@ -15,6 +15,9 @@ import CallToAction from "@/components/landing/CallToAction";
 import Footer from "@/components/landing/Footer";
 import { Plus, FolderKanban, Clock, Activity, TrendingUp, Users } from 'lucide-react';
 import { fetchUserStats } from '@/lib/db-optimizations';
+import Logo from '@/components/Logo';
+import ThemeToggle from '@/components/ThemeToggle';
+import SyncAnimation from '@/components/animations/SyncAnimation';
 
 function formatSchemaType(schemaType: string): string {
   const schemaTypeMap: Record<string, string> = {
@@ -73,15 +76,19 @@ export default async function HomePage() {
     }).length || 0;
 
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
         {/* Navigation */}
         <nav className="border-b border-border bg-card sticky top-0 z-50">
           <div className="container mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
-              <Link href="/dashboard" className="text-xl font-bold">
-                DevSync<span className="text-primary">.ai</span>
+              <Link href="/dashboard" className="flex items-center gap-3 group">
+                <Logo variant="original" width={32} height={32} />
+                <span className="font-display text-xl font-bold tracking-tight">
+                  DevSync<span className="text-gradient">.ai</span>
+                </span>
               </Link>
               <div className="flex items-center gap-4">
+                <ThemeToggle />
                 <Link href="/dashboard">
                   <Button variant="ghost" size="sm">Dashboard</Button>
                 </Link>
@@ -148,6 +155,8 @@ export default async function HomePage() {
                 </p>
               </div>
             </div>
+
+            <SyncAnimation />
 
             {/* Recent Projects */}
             <div className="space-y-4">
