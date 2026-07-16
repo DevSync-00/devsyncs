@@ -3,7 +3,10 @@
  * Run with: node test-deepseek.js
  */
 
-const API_KEY = 'sk-b94e4891596740c18225421f39d61819';
+const API_KEY = process.env.DEEPSEEK_API_KEY;
+if (!API_KEY) {
+  throw new Error('Missing DEEPSEEK_API_KEY environment variable');
+}
 const API_URL = 'https://api.deepseek.com/v1';
 
 async function testDeepSeek() {

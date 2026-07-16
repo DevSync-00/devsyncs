@@ -61,9 +61,20 @@ jest.mock('@/lib/supabase/client', () => ({
 global.URL.createObjectURL = jest.fn(() => 'mocked-url')
 global.URL.revokeObjectURL = jest.fn()
 
+// Define browser globals safely for tests that use the Node environment.
+if (typeof global.navigator === 'undefined') {
+  Object.defineProperty(global, 'navigator', {
+    value: { userAgent: 'node.js' },
+    writable: true,
+    configurable: true,
+  })
+}
+
 // Mock clipboard API
-Object.assign(navigator, {
-  clipboard: {
+Object.defineProperty(global.navigator, 'clipboard', {
+  value: {
     writeText: jest.fn(() => Promise.resolve()),
   },
+  writable: true,
+  configurable: true,
 })
