@@ -42,7 +42,9 @@ export async function GET(request: NextRequest) {
     // Calculate current stability score
     const currentScore = await calculateStabilityScore(supabase, projectId);
     const history = await getStabilityScoreHistory(supabase, projectId, days);
-    const explanation = getStabilityScoreExplanation(currentScore);
+    const explanation = currentScore
+      ? getStabilityScoreExplanation(currentScore)
+      : 'Run a schema scan or migration to calculate a stability score.';
 
     return NextResponse.json({
       current: currentScore,

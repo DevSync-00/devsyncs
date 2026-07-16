@@ -44,8 +44,10 @@ export async function calculateStabilityScoresForAllProjects(
     // Calculate stability score for each project
     for (const project of projects) {
       try {
-        await calculateStabilityScore(supabase, project.id);
-        processed++;
+        const score = await calculateStabilityScore(supabase, project.id);
+        if (score) {
+          processed++;
+        }
       } catch (error) {
         console.error(`Error calculating stability for project ${project.id}:`, error);
         errors++;

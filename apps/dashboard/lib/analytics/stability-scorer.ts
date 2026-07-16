@@ -21,6 +21,7 @@ export interface StabilityScore {
     breakingChangeCount: number;
     recentFailures: number;
     driftAcceleration: number;
+    currentDriftChanges: number;
   };
 }
 
@@ -30,7 +31,7 @@ export interface StabilityScore {
 export async function calculateStabilityScore(
   supabase: SupabaseClient,
   projectId: string
-): Promise<StabilityScore> {
+): Promise<StabilityScore | null> {
   const now = new Date();
   const scoreDate = now.toISOString().split('T')[0];
 
@@ -38,11 +39,20 @@ export async function calculateStabilityScore(
   const driftTrends = await getDriftTrends(supabase, projectId, 30);
   const currentDrift = driftTrends.length > 0 ? driftTrends[driftTrends.length - 1] : null;
   const driftVelocity = currentDrift?.velocity || 0;
+  const currentDriftChanges = currentDrift?.totalChanges || 0;
 
   // Get migration stats (last 30 days)
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - 30);
   const migrationStats = await getMigrationStats(supabase, projectId, startDate, now);
+
+  // A project with no scan or migration evidence cannot have a meaningful
+  // stability score. Previously, the empty defaults happened to total 65.
+  const hasDriftEvidence = driftTrends.length > 0;
+  const hasMigrationEvidence = migrationStats.total > 0;
+  if (!hasDriftEvidence && !hasMigrationEvidence) {
+    return null;
+  }
 
   // Get recent breaking changes
   const { data: recentMigrations } = await supabase
@@ -58,7 +68,9 @@ export async function calculateStabilityScore(
   ) || 0;
 
   // Calculate component scores (0-100, higher is better)
-  const driftVelocityScore = calculateDriftVelocityScore(driftVelocity);
+  const driftVelocityScore = calculateDriftVelocityScore(
+    Math.max(driftVelocity, currentDriftChanges)
+  );
   const migrationFailureScore = calculateMigrationFailureScore(migrationStats.successRate);
   const breakingChangeScore = calculateBreakingChangeScore(breakingChangeCount);
 
@@ -69,10 +81,19 @@ export async function calculateStabilityScore(
     breaking: 0.25, // Breaking changes are concerning
   };
 
+  const weightedComponents = [
+    ...(hasDriftEvidence ? [{ score: driftVelocityScore, weight: weights.drift }] : []),
+    ...(hasMigrationEvidence ? [
+      { score: migrationFailureScore, weight: weights.failures },
+      { score: breakingChangeScore, weight: weights.breaking },
+    ] : []),
+  ];
+  const activeWeight = weightedComponents.reduce((sum, component) => sum + component.weight, 0);
   const overallScore = Math.round(
-    driftVelocityScore * weights.drift +
-    migrationFailureScore * weights.failures +
-    breakingChangeScore * weights.breaking
+    weightedComponents.reduce(
+      (sum, component) => sum + component.score * component.weight,
+      0
+    ) / activeWeight
   );
 
   // Determine trend
@@ -117,6 +138,7 @@ export async function calculateStabilityScore(
       breakingChangeCount,
       recentFailures: migrationStats.failureCount,
       driftAcceleration,
+      currentDriftChanges,
     },
   };
 

@@ -40,8 +40,8 @@ export default function ProjectAnalyticsWidget({ projectId, compact = false }: P
       const analyticsRes = await fetch(`/api/reporting/analytics?projectIds=${projectId}&period=month`);
       const analyticsData = await analyticsRes.ok ? await analyticsRes.json() : null;
 
-      const stabilityScore = stabilityData?.current?.score || null;
-      const stabilityTrend = stabilityData?.current?.trend || null;
+      const stabilityScore = stabilityData?.current?.score ?? null;
+      const stabilityTrend = stabilityData?.current?.trend ?? null;
       const driftVelocity = driftData?.trends?.[driftData.trends.length - 1]?.velocity || 0;
       const recentFailures = analyticsData?.migrationMetrics?.stats?.failureCount || 0;
       const lastScanDate = analyticsData?.scans?.total > 0 ? new Date().toISOString() : null; // Simplified

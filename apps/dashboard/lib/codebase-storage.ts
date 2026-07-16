@@ -1,9 +1,10 @@
 import fs from 'fs/promises';
 import { existsSync } from 'fs';
+import os from 'os';
 import path from 'path';
 
 export function getProjectsCloneBaseDir() {
-  return process.env.PROJECTS_CLONE_DIR || path.join(process.cwd(), '.devsync-projects');
+  return process.env.PROJECTS_CLONE_DIR || path.join(os.tmpdir(), 'devsync-projects');
 }
 
 export function getProjectCloneDir(projectId: string) {
