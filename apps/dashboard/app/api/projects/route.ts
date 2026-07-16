@@ -14,12 +14,13 @@ import { measurePerformance } from '@/lib/performance-monitor';
 import { trackError } from '@/lib/error-tracking';
 import { logger } from '@/lib/logger';
 import { withRateLimit, addRateLimitHeaders } from '@/lib/rate-limit-middleware';
-import { ensureGitClone, getProjectCloneDir } from '@/lib/codebase-storage';
+import { ensureGitClone, getProjectCloneDir, parseGitHubRepository } from '@/lib/codebase-storage';
+import { getGitHubAccessTokenForRepository } from '@/lib/github-app';
 
 export const dynamic = 'force-dynamic';
 
 // Background function to clone Git repository
-async function triggerGitClone(projectId: string, gitUrl: string, supabase: any) {
+async function triggerGitClone(projectId: string, gitUrl: string, userId: string, supabase: any) {
   try {
     const jobId = `git-clone-${projectId}-${Date.now()}`;
     
@@ -47,7 +48,9 @@ async function triggerGitClone(projectId: string, gitUrl: string, supabase: any)
       cloneDir,
     });
 
-    await ensureGitClone(projectId, gitUrl);
+    const { owner, repository } = parseGitHubRepository(gitUrl);
+    const accessToken = await getGitHubAccessTokenForRepository(userId, owner, repository);
+    await ensureGitClone(projectId, gitUrl, null, accessToken);
     
     // Store clone path in config (in production, you might upload to cloud storage)
     await supabase
@@ -235,7 +238,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      await triggerGitClone(projectId, gitUrl, adminSupabase);
+      await triggerGitClone(projectId, gitUrl, user.id, adminSupabase);
 
       return NextResponse.json({
         success: true,
@@ -424,7 +427,7 @@ export async function POST(request: NextRequest) {
     }
 
       if (codebase?.type === 'git' && codebase.url) {
-        await triggerGitClone(project.id, codebase.url, adminSupabase);
+        await triggerGitClone(project.id, codebase.url, user.id, adminSupabase);
       }
 
       logger.info('Project created successfully', {

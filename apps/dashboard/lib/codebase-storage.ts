@@ -14,7 +14,12 @@ export function getProjectCloneDir(projectId: string) {
   return path.join(getProjectsCloneBaseDir(), projectId);
 }
 
-export async function ensureGitClone(projectId: string, gitUrl: string, existingClonePath?: string | null) {
+export async function ensureGitClone(
+  projectId: string,
+  gitUrl: string,
+  existingClonePath?: string | null,
+  accessToken?: string | null
+) {
   if (existingClonePath && existsSync(existingClonePath)) {
     return existingClonePath;
   }
@@ -28,7 +33,7 @@ export async function ensureGitClone(projectId: string, gitUrl: string, existing
   await fs.mkdir(cloneDir, { recursive: true });
 
   try {
-    const archive = await downloadGitHubArchive(gitUrl);
+    const archive = await downloadGitHubArchive(gitUrl, accessToken);
     await fs.writeFile(archivePath, archive);
     await extractTar({
       cwd: cloneDir,
@@ -47,9 +52,9 @@ export async function ensureGitClone(projectId: string, gitUrl: string, existing
   return cloneDir;
 }
 
-async function downloadGitHubArchive(gitUrl: string): Promise<Buffer> {
+async function downloadGitHubArchive(gitUrl: string, accessToken?: string | null): Promise<Buffer> {
   const { owner, repository } = parseGitHubRepository(gitUrl);
-  const token = process.env.GITHUB_TOKEN?.trim();
+  const token = accessToken || process.env.GITHUB_TOKEN?.trim();
   const response = await fetch(
     `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/tarball`,
     {
@@ -65,7 +70,7 @@ async function downloadGitHubArchive(gitUrl: string): Promise<Buffer> {
 
   if (!response.ok) {
     const privateRepoHint = response.status === 401 || response.status === 403 || response.status === 404
-      ? ' If this is a private repository, configure GITHUB_TOKEN on the deployment.'
+      ? ' Connect the DevSync GitHub App and grant it access to this repository.'
       : '';
     throw new Error(
       `GitHub repository download failed (${response.status} ${response.statusText}).${privateRepoHint}`
@@ -85,7 +90,7 @@ async function downloadGitHubArchive(gitUrl: string): Promise<Buffer> {
   return archive;
 }
 
-function parseGitHubRepository(gitUrl: string): { owner: string; repository: string } {
+export function parseGitHubRepository(gitUrl: string): { owner: string; repository: string } {
   let parsed: URL;
   try {
     parsed = new URL(gitUrl);

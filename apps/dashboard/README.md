@@ -55,6 +55,23 @@ missing deployment environment variable cannot generate localhost links.
 
 See `supabase/migrations/` for database schema.
 
+### GitHub App
+
+Create a GitHub App named DevSync with:
+
+- Homepage URL: `https://dev-sync.dev`
+- Setup URL: `https://dev-sync.dev/api/github/callback`
+- Redirect on update: enabled
+- Repository permission: **Contents — Read-only**
+- Webhooks: disabled (not required for repository scans)
+- Installation target: Any account
+
+Generate a private key and configure `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, and
+`GITHUB_APP_PRIVATE_KEY` in the deployment environment. Apply migration
+`007_github_app_installations.sql` before enabling the connection button.
+DevSync persists installation IDs only and creates repository-scoped,
+short-lived installation tokens for scans.
+
 Run migrations using Supabase CLI or via Supabase Dashboard:
 
 ```bash

@@ -7,7 +7,8 @@ import {
   scanDatabaseSchema,
   scanCodebaseSchema,
 } from '@/lib/schema-scanner';
-import { ensureGitClone } from '@/lib/codebase-storage';
+import { ensureGitClone, parseGitHubRepository } from '@/lib/codebase-storage';
+import { getGitHubAccessTokenForRepository } from '@/lib/github-app';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,7 +106,13 @@ export async function POST(request: NextRequest) {
 
       try {
         if (codebase.type === 'git' && codebase.url) {
-          clonePath = await ensureGitClone(projectId, codebase.url, clonePath);
+          const { owner, repository } = parseGitHubRepository(codebase.url);
+          const accessToken = await getGitHubAccessTokenForRepository(
+            project.user_id,
+            owner,
+            repository
+          );
+          clonePath = await ensureGitClone(projectId, codebase.url, clonePath, accessToken);
 
           if (clonePath !== codebase.clonePath) {
             await adminSupabase

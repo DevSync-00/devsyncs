@@ -13,6 +13,7 @@ import { GitBranch, Upload, Loader2 } from 'lucide-react';
 import { formatErrorMessage } from '@/lib/error-utils';
 import { useToast } from '@/hooks/use-toast';
 import { fetchJSON } from '@/lib/fetch-utils';
+import GitHubAppConnection from '@/components/github/GitHubAppConnection';
 
 interface NewProjectFormProps {
   userId: string;
@@ -303,7 +304,9 @@ export default function NewProjectForm({ userId, teamId }: NewProjectFormProps) 
 
         {/* Conditional: Git URL */}
         {codebaseSource === 'git' && (
-          <div>
+          <div className="space-y-4">
+            <GitHubAppConnection />
+            <div>
             <Label htmlFor="gitUrl">
               Git Repository URL <span className="text-destructive">*</span>
             </Label>
@@ -318,8 +321,9 @@ export default function NewProjectForm({ userId, teamId }: NewProjectFormProps) 
               <p className="text-sm text-destructive mt-1">{errors.gitUrl.message}</p>
             )}
             <p className="text-xs text-muted-foreground mt-2">
-              Supports HTTPS Git URLs. Private repos require authentication.
+              Supports GitHub HTTPS URLs. Select private repositories when installing the DevSync GitHub App.
             </p>
+            </div>
           </div>
         )}
 
