@@ -22,6 +22,35 @@ cp .env.local.example .env.local
 # Edit .env.local with your Supabase credentials
 ```
 
+For email verification, verify `bitlabsbuild.com` in Resend and create a Resend
+API key. In Supabase, enable **Authentication > Providers > Email > Confirm
+email**, then configure custom SMTP under **Authentication > Email > SMTP
+Settings**:
+
+- Host: `smtp.resend.com`
+- Port: `465`
+- Username: `resend`
+- Password: your Resend API key
+- Sender name: `DevSync`
+- Sender email: `devsync@bitlabsbuild.com`
+
+Disable **click tracking** and **open tracking** for the sending domain in
+Resend. Authentication links must not be rewritten through a tracking domain.
+
+For Google authentication, create a Web OAuth client in Google Cloud, add the
+Supabase callback URL shown on its Google provider page as an authorized
+redirect URI, and add the client ID and secret under **Authentication >
+Providers > Google**. Add local and production `/auth/callback` URLs to
+Supabase's redirect allow list. Provider secrets must not be committed here.
+
+Under **Supabase Authentication > URL Configuration**, set:
+
+- Site URL: `https://dev-sync.dev`
+- Redirect URL: `https://dev-sync.dev/auth/callback`
+
+The application also defaults auth callbacks to this production URL so a
+missing deployment environment variable cannot generate localhost links.
+
 ### 3. Run Database Migrations
 
 See `supabase/migrations/` for database schema.

@@ -9,6 +9,7 @@ import { Loader2, ArrowLeft, ShieldAlert } from 'lucide-react';
 import SchemaMeshBg from '@/components/animations/SchemaMeshBg';
 import Logo from '@/components/Logo';
 import ThemeToggle from '@/components/ThemeToggle';
+import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -22,19 +23,18 @@ export default function LoginPage() {
   function formatAuthError(error: any): { message: string; details: string | null } {
     const errorMessage = error?.message || 'An error occurred';
     
-    if (errorMessage.includes('Invalid login credentials') || 
-        errorMessage.includes('Email not confirmed') ||
+    if (errorMessage.includes('Email not confirmed')) {
+      return {
+        message: 'Email not verified',
+        details: 'Please check your email and click the verification link before signing in.',
+      };
+    }
+
+    if (errorMessage.includes('Invalid login credentials') ||
         errorMessage.includes('Invalid email or password')) {
       return {
         message: 'Invalid email or password',
         details: 'Please check your credentials and try again. If you forgot your password, you can reset it.',
-      };
-    }
-    
-    if (errorMessage.includes('Email not confirmed')) {
-      return {
-        message: 'Email not confirmed',
-        details: 'Please check your email and click the confirmation link before signing in.',
       };
     }
     
@@ -65,7 +65,7 @@ export default function LoginPage() {
     setErrorDetails(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -74,6 +74,11 @@ export default function LoginPage() {
         const formatted = formatAuthError(error);
         setError(formatted.message);
         setErrorDetails(formatted.details);
+        setLoading(false);
+      } else if (!data.user?.email_confirmed_at) {
+        await supabase.auth.signOut();
+        setError('Email not verified');
+        setErrorDetails('Please check your email and click the verification link before signing in.');
         setLoading(false);
       } else {
         router.push('/dashboard');
@@ -172,6 +177,23 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+            </div>
+          </div>
+
+          <GoogleAuthButton
+            label="Sign in with Google"
+            onError={(message) => {
+              setError(message);
+              setErrorDetails(message ? 'Please try again or use your email and password.' : null);
+            }}
+          />
 
           <div className="text-center text-sm pt-2">
             <span className="text-muted-foreground">Don't have an account? </span>

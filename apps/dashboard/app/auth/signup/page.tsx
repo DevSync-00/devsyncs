@@ -9,6 +9,8 @@ import { Loader2, ArrowLeft, ShieldAlert } from 'lucide-react';
 import SchemaMeshBg from '@/components/animations/SchemaMeshBg';
 import Logo from '@/components/Logo';
 import ThemeToggle from '@/components/ThemeToggle';
+import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
+import { getAuthCallbackUrl } from '@/lib/auth/callback-url';
 
 function SignupForm() {
   const router = useRouter();
@@ -101,7 +103,7 @@ function SignupForm() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+          emailRedirectTo: getAuthCallbackUrl(),
         },
       });
 
@@ -111,7 +113,10 @@ function SignupForm() {
         setErrorDetails(formatted.details);
         setLoading(false);
       } else {
-        if (data.user && !data.session) {
+        if (data.user && !data.user.email_confirmed_at) {
+          if (data.session) {
+            await supabase.auth.signOut();
+          }
           setSuccess(true);
           setError(null);
           setErrorDetails(null);
@@ -238,6 +243,23 @@ function SignupForm() {
               )}
             </Button>
           </form>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+            </div>
+          </div>
+
+          <GoogleAuthButton
+            label="Sign up with Google"
+            onError={(message) => {
+              setError(message);
+              setErrorDetails(message ? 'Please try again or create an account with email.' : null);
+            }}
+          />
 
           <div className="text-center text-sm pt-2">
             <span className="text-muted-foreground">Already have an account? </span>
