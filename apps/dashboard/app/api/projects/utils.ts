@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { verifyJwt } from '@/lib/auth/tokens';
 
 export const DEFAULT_PROJECT_LIMIT = 50;
 
@@ -25,36 +26,6 @@ export function generateSlug(name: string): string {
     .replace(/(^-|-$)/g, '');
 }
 
-/**
- * Validate device flow token (base64url-encoded JSON)
- * Returns user object if token is valid, null otherwise
- */
-function validateDeviceFlowToken(token: string): { id: string; email?: string } | null {
-  try {
-    // Decode base64url token
-    const decoded = Buffer.from(token, 'base64url').toString('utf-8');
-    const payload = JSON.parse(decoded);
-    
-    // Check if token is expired
-    if (payload.exp && Date.now() / 1000 > payload.exp) {
-      return null;
-    }
-    
-    // Return user object from token
-    if (payload.sub) {
-      return {
-        id: payload.sub,
-        email: payload.email || '',
-      };
-    }
-    
-    return null;
-  } catch {
-    // Not a device flow token or invalid format
-    return null;
-  }
-}
-
 export async function resolveUser(
   request: NextRequest,
   supabase: Awaited<ReturnType<typeof import('@/lib/supabase/server').createClient>>
@@ -70,12 +41,12 @@ export async function resolveUser(
         return tokenUser;
       }
       
-      // Fallback: try device flow token validation
-      const deviceFlowUser = validateDeviceFlowToken(token);
-      if (deviceFlowUser) {
-        // Return the user object from the token
-        // The token contains the user ID, which is sufficient for authorization
-        return deviceFlowUser as any;
+      const devsyncToken = verifyJwt(token, 'access');
+      if (devsyncToken) {
+        return {
+          id: devsyncToken.sub,
+          email: devsyncToken.email || '',
+        } as any;
       }
     }
   }
@@ -110,6 +81,25 @@ export function formatProjectSummary(project: any, latestScan?: any) {
       mismatchCount: mismatches.length,
     },
   };
+}
+
+export function maskConnectionString(connection?: string | null): string | null {
+  if (!connection) {
+    return null;
+  }
+
+  try {
+    const url = new URL(connection);
+    if (url.password) {
+      url.password = '***';
+    }
+    if (url.username) {
+      url.username = '***';
+    }
+    return url.toString();
+  } catch {
+    return connection.replace(/\/\/([^:@/]+)(?::([^@/]*))?@/, '//***:***@');
+  }
 }
 
 export function buildCodebaseConfig(codebase: any) {

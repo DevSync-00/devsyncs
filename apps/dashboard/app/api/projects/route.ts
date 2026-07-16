@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getAdminClient } from '@/lib/supabase/admin';
 import {
   buildCodebaseConfig,
   DEFAULT_PROJECT_LIMIT,
   formatProjectSummary,
   generateSlug,
+  maskConnectionString,
   resolveUser,
   VALID_SCHEMA_TYPES,
 } from './utils';
@@ -12,6 +14,7 @@ import { measurePerformance } from '@/lib/performance-monitor';
 import { trackError } from '@/lib/error-tracking';
 import { logger } from '@/lib/logger';
 import { withRateLimit, addRateLimitHeaders } from '@/lib/rate-limit-middleware';
+import { ensureGitClone, getProjectCloneDir } from '@/lib/codebase-storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,54 +39,15 @@ async function triggerGitClone(projectId: string, gitUrl: string, supabase: any)
       })
       .eq('id', projectId);
 
-    // Import simple-git dynamically
-    const simpleGit = (await import('simple-git')).default;
-    
-    // Determine clone directory
-    // In production, use a proper storage location (e.g., /tmp/projects or cloud storage)
-    const baseDir = process.env.PROJECTS_CLONE_DIR || `/tmp/devsync-projects`;
-    const cloneDir = `${baseDir}/${projectId}`;
-    
-    // Import file system utilities
-    const fs = await import('fs/promises');
-    const path = await import('path');
-    
-    // Check if directory exists and clean it up if needed
-    try {
-      const stats = await fs.stat(cloneDir);
-      if (stats.isDirectory()) {
-        // Directory exists - check if it's empty
-        const contents = await fs.readdir(cloneDir);
-        if (contents.length > 0) {
-          // Directory is not empty - remove it to allow fresh clone
-          logger.info(`Removing existing non-empty directory: ${cloneDir}`, {
-            projectId,
-            contentsCount: contents.length,
-          });
-          await fs.rm(cloneDir, { recursive: true, force: true });
-        }
-      }
-    } catch (err: any) {
-      // Directory doesn't exist - that's fine, we'll create it
-      if (err.code !== 'ENOENT') {
-        throw err;
-      }
-    }
-    
-    // Ensure parent directory exists
-    await fs.mkdir(baseDir, { recursive: true });
-    
-    // Clone the repository
+    const cloneDir = getProjectCloneDir(projectId);
+
     logger.info(`Cloning Git repository for project ${projectId}`, {
       projectId,
       gitUrl,
       cloneDir,
     });
-    const git = simpleGit();
-    
-    await git.clone(gitUrl, cloneDir, {
-      '--depth': '1', // Shallow clone for faster cloning
-    });
+
+    await ensureGitClone(projectId, gitUrl);
     
     // Store clone path in config (in production, you might upload to cloud storage)
     await supabase
@@ -249,7 +213,9 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const { data: project, error: projectError } = await supabase
+      const adminSupabase = getAdminClient() as any;
+
+      const { data: project, error: projectError } = await adminSupabase
         .from('projects')
         .select('id, user_id')
         .eq('id', projectId)
@@ -269,7 +235,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      triggerGitClone(projectId, gitUrl, supabase).catch((error) => {
+      triggerGitClone(projectId, gitUrl, adminSupabase).catch((error) => {
         logger.error('Error triggering Git clone', error, {
           userId: user.id,
           projectId,
@@ -310,7 +276,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const projectSlug = (slug?.trim() || generateSlug(name));
+    const requestedSlug = (slug?.trim() || generateSlug(name));
 
     const { codebaseConfig, validationError } = buildCodebaseConfig(codebase);
 
@@ -321,7 +287,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: project, error: insertError } = await supabase
+    const adminSupabase = getAdminClient() as any;
+    let projectSlug = requestedSlug;
+    let slugAvailable = false;
+
+    for (let attempt = 0; attempt < 25; attempt += 1) {
+      const candidate = attempt === 0 ? requestedSlug : `${requestedSlug}-${attempt + 1}`;
+      const { data: existingProject, error: slugCheckError } = await adminSupabase
+        .from('projects')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('slug', candidate)
+        .maybeSingle();
+
+      if (slugCheckError) {
+        logger.error('Error checking project slug availability', slugCheckError, {
+          userId: user.id,
+          slug: candidate,
+        });
+        trackError(slugCheckError, {
+          operation: 'POST /api/projects - check slug',
+          userId: user.id,
+          metadata: { slug: candidate },
+        });
+        return NextResponse.json(
+          {
+            error: 'Failed to create project',
+            details: slugCheckError.message,
+          },
+          { status: 500 }
+        );
+      }
+
+      if (!existingProject) {
+        projectSlug = candidate;
+        slugAvailable = true;
+        break;
+      }
+    }
+
+    if (!slugAvailable) {
+      return NextResponse.json(
+        {
+          error: 'Failed to create project',
+          details: 'Too many projects already use this slug. Please choose a more specific project name.',
+        },
+        { status: 409 }
+      );
+    }
+
+    const { data: project, error: insertError } = await adminSupabase
       .from('projects')
       .insert({
         name,
@@ -358,10 +373,13 @@ export async function POST(request: NextRequest) {
 
     if (codebase?.type === 'upload' && codebase.files) {
       try {
-        const storage = supabase.storage.from('project-files');
+        const storage = adminSupabase.storage.from('project-files');
         const uploadedFiles: string[] = [];
 
         for (const file of codebase.files) {
+          if (!file || typeof file.arrayBuffer !== 'function') {
+            continue;
+          }
           const filePath = `${project.id}/${file.name}`;
           const arrayBuffer = await file.arrayBuffer();
           const { error: uploadError } = await storage.upload(filePath, arrayBuffer, {
@@ -381,7 +399,7 @@ export async function POST(request: NextRequest) {
           (codebaseConfig as any).uploadedFiles = uploadedFiles;
         }
 
-        await supabase
+        await adminSupabase
           .from('projects')
           .update({
             config: {
@@ -404,7 +422,7 @@ export async function POST(request: NextRequest) {
           (codebaseConfig as any).error = error.message;
         }
 
-        await supabase
+        await adminSupabase
           .from('projects')
           .update({
             config: {
@@ -416,7 +434,7 @@ export async function POST(request: NextRequest) {
     }
 
       if (codebase?.type === 'git' && codebase.url) {
-        triggerGitClone(project.id, codebase.url, supabase).catch((error) => {
+        triggerGitClone(project.id, codebase.url, adminSupabase).catch((error) => {
           logger.error('Error triggering Git clone', error, {
             userId: user.id,
             projectId: project.id,
@@ -438,8 +456,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         project: {
-          ...project,
+          ...formatProjectSummary(project),
           slug: projectSlug,
+          dbConnectionConfigured: !!project.db_connection_string,
+          dbConnectionPreview: maskConnectionString(project.db_connection_string),
           config: {
             ...project.config,
             codebase: codebaseConfig,

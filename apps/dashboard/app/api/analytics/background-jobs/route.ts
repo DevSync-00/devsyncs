@@ -1,6 +1,6 @@
-import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { runAnalyticsBackgroundJobs } from '@/lib/analytics/background-jobs';
+import { getAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get admin Supabase client (service role)
-    const supabase = createClient();
+    const supabase = getAdminClient();
     
     // Parse request body for job selection
     const body = await request.json().catch(() => ({}));

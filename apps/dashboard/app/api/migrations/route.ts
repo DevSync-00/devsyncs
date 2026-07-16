@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
+import { getAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveUser } from '@/app/api/projects/utils';
+import { Pool } from 'pg';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,24 +10,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     
-    // Check authentication (supports both session and API key)
-    const authHeader = request.headers.get('authorization');
-    let user = null;
-
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user: tokenUser }, error: tokenError } = await supabase.auth.getUser(token);
-      
-      if (!tokenError && tokenUser) {
-        user = tokenUser;
-      }
-    } else {
-      const { data: { user: sessionUser }, error: authError } = await supabase.auth.getUser();
-      
-      if (!authError && sessionUser) {
-        user = sessionUser;
-      }
-    }
+    const user = await resolveUser(request, supabase);
 
     if (!user) {
       return NextResponse.json(
@@ -44,10 +30,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const adminSupabase = getAdminClient() as any;
+
     // Fetch scan report
-    const { data: scanReport, error: scanError } = await supabase
+    const { data: scanReport, error: scanError } = await adminSupabase
       .from('scan_reports')
-      .select('*, projects(id, name, user_id)')
+      .select('*, projects(id, name, user_id, db_connection_string)')
       .eq('id', scanReportId)
       .single();
 
@@ -86,38 +74,8 @@ export async function POST(request: NextRequest) {
     
     if (dbConnectionString && typeof dbConnectionString === 'string') {
       try {
-        // Use comprehensive validation
-        // Import the validator - using relative path for monorepo structure
-        // If not available, will fall back to basic validation
-        let validatorAvailable = false;
-        let validateMigration: any = null;
-        
-        try {
-          // Try to import from CLI package (monorepo structure)
-          const validatorPath = process.env.NODE_ENV === 'production'
-            ? '@devsync/cli/services/migration-validator'
-            : '../../../../packages/cli/src/services/migration-validator.js';
-          
-          const validatorModule = await import(validatorPath);
-          validateMigration = validatorModule.validateMigration;
-          validatorAvailable = true;
-        } catch (importError) {
-          // Validator not available - will use basic validation
-          console.warn('CLI validator not available, using basic validation');
-        }
-        
-        if (validatorAvailable && validateMigration) {
-          // Use comprehensive validator
-          validationResult = await validateMigration(migrationSQL, {
-            connectionString: dbConnectionString,
-            currentSchema: dbSchema?.tables || [],
-            strictMode: false,
-            checkPermissions: true,
-            checkBreakingChanges: true
-          });
-        } else {
-          // Fallback: Basic validation using PostgreSQL EXPLAIN
-          const { Pool } = await import('pg');
+        {
+          // Basic validation using PostgreSQL EXPLAIN and destructive-operation detection.
           const pool = new Pool({ connectionString: dbConnectionString });
           const client = await pool.connect();
           
@@ -144,6 +102,22 @@ export async function POST(request: NextRequest) {
                   message: `Potentially destructive operation detected: ${trimmed.substring(0, 50)}...`,
                   suggestion: 'Review carefully - this may cause data loss'
                 });
+              }
+
+              if (
+                upperSQL.startsWith('ALTER TABLE') ||
+                upperSQL.startsWith('CREATE TABLE') ||
+                upperSQL.startsWith('DROP TABLE') ||
+                upperSQL.startsWith('CREATE INDEX') ||
+                upperSQL.startsWith('DROP INDEX')
+              ) {
+                warnings.push({
+                  type: 'ddl_validation_skipped',
+                  severity: 'info',
+                  message: `DDL validation is deferred to dry run: ${trimmed.substring(0, 50)}...`,
+                  suggestion: 'Use dry run before applying this migration.'
+                });
+                continue;
               }
               
               // Validate syntax
@@ -205,7 +179,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create migration record
-    const { data: migration, error: insertError } = await supabase
+    const { data: migration, error: insertError } = await adminSupabase
       .from('migrations')
       .insert({
         scan_report_id: scanReportId,
@@ -263,24 +237,7 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     
-    // Check authentication
-    const authHeader = request.headers.get('authorization');
-    let user = null;
-
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user: tokenUser }, error: tokenError } = await supabase.auth.getUser(token);
-      
-      if (!tokenError && tokenUser) {
-        user = tokenUser;
-      }
-    } else {
-      const { data: { user: sessionUser }, error: authError } = await supabase.auth.getUser();
-      
-      if (!authError && sessionUser) {
-        user = sessionUser;
-      }
-    }
+    const user = await resolveUser(request, supabase);
 
     if (!user) {
       return NextResponse.json(
@@ -300,18 +257,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let query = supabase
+    const adminSupabase = getAdminClient() as any;
+
+    let query = adminSupabase
       .from('migrations')
       .select('*, scan_reports(project_id, projects(id, name, user_id))');
 
     if (projectId) {
       // Get migrations for all scan reports in this project
-      const { data: scanReports } = await supabase
+      const { data: scanReports } = await adminSupabase
         .from('scan_reports')
         .select('id')
         .eq('project_id', projectId);
 
-      const scanReportIds = scanReports?.map(sr => sr.id) || [];
+      const scanReportIds = scanReports?.map((sr: any) => sr.id) || [];
       
       if (scanReportIds.length === 0) {
         return NextResponse.json({ migrations: [] });

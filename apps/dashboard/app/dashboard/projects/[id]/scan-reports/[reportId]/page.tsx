@@ -12,6 +12,44 @@ import SchemaComparison from '@/components/SchemaComparison';
 import ExportButton from '@/components/ExportButton';
 import { MessageSquare } from 'lucide-react';
 
+function formatMismatchPath(mismatch: any): string {
+  const model = formatMismatchValue(mismatch.model, 'Unknown');
+  const field = typeof mismatch.field === 'string' ? mismatch.field : null;
+  return field ? `${model}.${field}` : model;
+}
+
+function formatMismatchValue(value: any, fallback = 'Not present'): string {
+  if (value === null || value === undefined || value === '') {
+    return fallback;
+  }
+
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => formatMismatchValue(item)).join(', ');
+  }
+
+  if (typeof value === 'object') {
+    if ('name' in value && Array.isArray(value.columns)) {
+      return `${value.name} (${value.columns.length} column${value.columns.length === 1 ? '' : 's'})`;
+    }
+
+    if ('name' in value && 'type' in value) {
+      return `${value.name}: ${value.type}${value.nullable === false ? ' not null' : ''}`;
+    }
+
+    if ('type' in value) {
+      return `${value.type}${value.nullable === false ? ' not null' : ''}`;
+    }
+
+    return JSON.stringify(value, null, 2);
+  }
+
+  return String(value);
+}
+
 export default async function ScanReportDetailPage({
   params,
 }: {
@@ -58,6 +96,8 @@ export default async function ScanReportDetailPage({
   }
 
   const mismatches = (report.mismatches as any[]) || [];
+  const scanMetadata = (report.metadata as any) || {};
+  const scanCounts = scanMetadata.counts || {};
   const mismatchCount = mismatches.length;
   const isComplete = report.status === 'completed';
   const hasMismatches = mismatchCount > 0;
@@ -108,7 +148,7 @@ export default async function ScanReportDetailPage({
       </div>
 
       {/* Summary */}
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-5 gap-4">
         <div className="p-6 bg-card border border-border rounded-lg">
           <div className="text-sm text-muted-foreground mb-1">Status</div>
           <div className="text-2xl font-bold capitalize">{report.status}</div>
@@ -116,6 +156,18 @@ export default async function ScanReportDetailPage({
         <div className="p-6 bg-card border border-border rounded-lg">
           <div className="text-sm text-muted-foreground mb-1">Mismatches</div>
           <div className="text-2xl font-bold">{mismatchCount}</div>
+        </div>
+        <div className="p-6 bg-card border border-border rounded-lg">
+          <div className="text-sm text-muted-foreground mb-1">Code Tables</div>
+          <div className="text-2xl font-bold">
+            {scanCounts.codeTables ?? report.code_schema?.metadata?.tableCount ?? report.code_schema?.tables?.length ?? 0}
+          </div>
+        </div>
+        <div className="p-6 bg-card border border-border rounded-lg">
+          <div className="text-sm text-muted-foreground mb-1">Database Tables</div>
+          <div className="text-2xl font-bold">
+            {scanCounts.dbTables ?? report.db_schema?.metadata?.tableCount ?? report.db_schema?.tables?.length ?? 0}
+          </div>
         </div>
         <div className="p-6 bg-card border border-border rounded-lg">
           <div className="text-sm text-muted-foreground mb-1">Project</div>
@@ -217,8 +269,7 @@ export default async function ScanReportDetailPage({
                           {mismatch.type.replace('_', ' ').toUpperCase()}
                         </h3>
                         <p className="text-sm text-muted-foreground">
-                          {mismatch.model}
-                          {mismatch.field && `.${mismatch.field}`}
+                          {formatMismatchPath(mismatch)}
                         </p>
                       </div>
                     </div>
@@ -236,17 +287,17 @@ export default async function ScanReportDetailPage({
                       {mismatch.codeValue && (
                         <div>
                           <span className="text-sm text-muted-foreground">Code:</span>
-                          <div className="font-mono text-sm bg-background/50 p-2 rounded mt-1">
-                            {mismatch.codeValue}
-                          </div>
+                          <pre className="font-mono text-sm bg-background/50 p-2 rounded mt-1 whitespace-pre-wrap overflow-x-auto">
+                            {formatMismatchValue(mismatch.codeValue)}
+                          </pre>
                         </div>
                       )}
                       {mismatch.dbValue && (
                         <div>
                           <span className="text-sm text-muted-foreground">Database:</span>
-                          <div className="font-mono text-sm bg-background/50 p-2 rounded mt-1">
-                            {mismatch.dbValue}
-                          </div>
+                          <pre className="font-mono text-sm bg-background/50 p-2 rounded mt-1 whitespace-pre-wrap overflow-x-auto">
+                            {formatMismatchValue(mismatch.dbValue)}
+                          </pre>
                         </div>
                       )}
                     </div>

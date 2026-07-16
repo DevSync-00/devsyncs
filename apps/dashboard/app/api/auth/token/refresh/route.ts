@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { issueDevSyncTokens, verifyJwt } from '@/lib/auth/tokens';
 
 interface TokenRefreshRequest {
   refresh_token: string;
@@ -26,54 +27,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Decode the refresh token to get user info
-    // Device flow tokens use base64url encoding
-    try {
-      const tokenData = JSON.parse(
-        Buffer.from(refresh_token, 'base64url').toString('utf-8')
+    const tokenData = verifyJwt(refresh_token, 'refresh');
+
+    if (!tokenData) {
+      return NextResponse.json(
+        { error: 'invalid_token', error_description: 'Invalid or expired refresh token' },
+        { status: 400 }
       );
+    }
 
-      if (Date.now() / 1000 > tokenData.exp) {
-        return NextResponse.json(
-          { error: 'expired_token', error_description: 'Refresh token expired' },
-          { status: 400 }
-        );
-      }
-
-      const userId = tokenData.sub;
-
-      // Generate new tokens (using base64url to match device flow)
-      const now = Math.floor(Date.now() / 1000);
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-      
-      const accessTokenPayload = {
-          sub: userId,
-        email: '', // Email not available in refresh flow
-        role: 'authenticated',
-        exp: now + 3600, // 1 hour
-        iat: now,
-        aud: 'authenticated',
-        iss: supabaseUrl,
-      };
-
-      const refreshTokenPayload = {
-          sub: userId,
-        exp: now + 2592000, // 30 days
-        iat: now,
-        type: 'refresh',
-      };
-      
-      const accessToken = Buffer.from(JSON.stringify(accessTokenPayload)).toString('base64url');
-      const newRefreshToken = Buffer.from(JSON.stringify(refreshTokenPayload)).toString('base64url');
+    try {
+      const tokens = issueDevSyncTokens({
+        userId: tokenData.sub,
+        email: tokenData.email,
+        clientId: tokenData.client_id || 'vscode',
+      });
 
       const response: TokenRefreshResponse = {
         token_type: 'Bearer',
-        access_token: accessToken,
-        refresh_token: newRefreshToken,
-        expires_in: 3600,
-        refresh_expires_in: 2592000,
-        user_id: userId,
-        client_id: 'vscode', // Default client ID
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expires_in: tokens.expires_in,
+        refresh_expires_in: tokens.refresh_expires_in,
+        user_id: tokenData.sub,
+        client_id: tokenData.client_id || 'vscode',
       };
 
       return NextResponse.json(response);

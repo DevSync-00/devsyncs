@@ -25,14 +25,14 @@ export default function ScanReportFilters({ onFilterChange }: ScanReportFiltersP
   });
   const [showFilters, setShowFilters] = useState(false);
 
-  const updateFilter = (key: keyof FilterState, value: any) => {
+  const updateFilter = <K extends keyof FilterState>(key: K, value: FilterState[K]) => {
     const newFilters = { ...filters, [key]: value };
     setFilters(newFilters);
     onFilterChange(newFilters);
   };
 
   const clearFilters = () => {
-    const cleared = {
+    const cleared: FilterState = {
       search: '',
       severity: 'all',
       dateRange: 'all',
@@ -95,7 +95,7 @@ export default function ScanReportFilters({ onFilterChange }: ScanReportFiltersP
             <label className="text-sm font-medium mb-2 block">Severity</label>
             <select
               value={filters.severity}
-              onChange={(e) => updateFilter('severity', e.target.value)}
+              onChange={(e) => updateFilter('severity', e.target.value as FilterState['severity'])}
               className="w-full px-3 py-2 border rounded-md bg-background"
             >
               <option value="all">All Severities</option>
@@ -109,7 +109,7 @@ export default function ScanReportFilters({ onFilterChange }: ScanReportFiltersP
             <label className="text-sm font-medium mb-2 block">Date Range</label>
             <select
               value={filters.dateRange}
-              onChange={(e) => updateFilter('dateRange', e.target.value)}
+              onChange={(e) => updateFilter('dateRange', e.target.value as FilterState['dateRange'])}
               className="w-full px-3 py-2 border rounded-md bg-background"
             >
               <option value="all">All Time</option>
@@ -123,7 +123,7 @@ export default function ScanReportFilters({ onFilterChange }: ScanReportFiltersP
             <label className="text-sm font-medium mb-2 block">Status</label>
             <select
               value={filters.status}
-              onChange={(e) => updateFilter('status', e.target.value)}
+              onChange={(e) => updateFilter('status', e.target.value as FilterState['status'])}
               className="w-full px-3 py-2 border rounded-md bg-background"
             >
               <option value="all">All Statuses</option>

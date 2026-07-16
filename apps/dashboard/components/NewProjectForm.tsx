@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
-import { createClient } from '@/lib/supabase/client';
 import { GitBranch, Upload, Loader2 } from 'lucide-react';
 import { formatErrorMessage } from '@/lib/error-utils';
 import { useToast } from '@/hooks/use-toast';
@@ -93,7 +92,6 @@ const SCHEMA_TYPES = [
 
 export default function NewProjectForm({ userId, teamId }: NewProjectFormProps) {
   const router = useRouter();
-  const supabase = createClient();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -124,153 +122,33 @@ export default function NewProjectForm({ userId, teamId }: NewProjectFormProps) 
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
 
-      // Prepare codebase config
-      const codebaseConfig: {
-        type: 'git' | 'upload';
-        url?: string;
-        status: string;
-        files?: File[];
-      } = {
-        type: data.codebaseSource,
-        status: 'pending',
-      };
+      const codebase =
+        data.codebaseSource === 'git'
+          ? { type: 'git' as const, url: data.gitUrl }
+          : {
+              type: 'upload' as const,
+              files: Array.from(data.uploadedFiles || []).map((file) => ({
+                name: file.name,
+                size: file.size,
+                type: file.type,
+              })),
+            };
 
-      if (data.codebaseSource === 'git') {
-        codebaseConfig.url = data.gitUrl;
-      } else if (data.codebaseSource === 'upload' && data.uploadedFiles) {
-        codebaseConfig.files = Array.from(data.uploadedFiles);
-      }
-
-      // Create project directly using Supabase client
-      // This ensures authentication cookies are properly used
-      const { data: project, error: insertError } = await supabase
-        .from('projects')
-        .insert({
+      const response = await fetchJSON<{ project: { id: string } }>('/api/projects', {
+        method: 'POST',
+        body: JSON.stringify({
           name: data.name,
           slug,
-          user_id: userId,
-          team_id: teamId || null,
-          schema_type: data.schemaType,
-          db_connection_string: data.dbConnectionString,
-          config: {
-            codebase: codebaseConfig,
-          },
-        })
-        .select()
-        .single();
+          schemaType: data.schemaType,
+          dbConnectionString: data.dbConnectionString,
+          codebase,
+          teamId: teamId || null,
+        }),
+        timeout: 30000,
+        retries: 1,
+      });
 
-      if (insertError) {
-        console.error('Project creation error:', insertError);
-        throw new Error(insertError.message || 'Failed to create project');
-      }
-
-      // Handle file uploads if needed
-      if (data.codebaseSource === 'upload' && data.uploadedFiles && project) {
-        try {
-          // Check if storage bucket exists, create if needed
-          const { data: buckets } = await supabase.storage.listBuckets();
-          const bucketExists = buckets?.some(b => b.name === 'project-files');
-          
-          if (!bucketExists) {
-            // Try to create the bucket (requires admin privileges)
-            const { error: createError } = await supabase.storage.createBucket('project-files', {
-              public: false,
-              fileSizeLimit: 104857600, // 100MB
-            });
-            
-            if (createError) {
-              console.warn('Could not create storage bucket:', createError);
-              // Continue without storage - files will be processed later
-            }
-          }
-          
-          const storage = supabase.storage.from('project-files');
-          const uploadedFiles: string[] = [];
-          
-          // Upload each file
-          for (const file of Array.from(data.uploadedFiles)) {
-            const filePath = `${project.id}/${file.name}`;
-            const arrayBuffer = await file.arrayBuffer();
-            
-            const { error: uploadError } = await storage.upload(filePath, arrayBuffer, {
-              contentType: file.type || 'application/octet-stream',
-              upsert: false,
-            });
-            
-            if (!uploadError) {
-              uploadedFiles.push(filePath);
-            } else {
-              console.warn(`Failed to upload ${file.name}:`, uploadError);
-            }
-          }
-          
-          // Update project config with uploaded files
-          if (uploadedFiles.length > 0) {
-            await supabase
-              .from('projects')
-              .update({
-                config: {
-                  codebase: {
-                    ...codebaseConfig,
-                    status: 'completed',
-                    uploadedFiles,
-                  },
-                },
-              })
-              .eq('id', project.id);
-          } else {
-            // Update status to indicate files need to be processed
-            await supabase
-              .from('projects')
-              .update({
-                config: {
-                  codebase: {
-                    ...codebaseConfig,
-                    status: 'processing',
-                  },
-                },
-              })
-              .eq('id', project.id);
-          }
-        } catch (uploadErr: any) {
-          console.error('File upload error:', uploadErr);
-          // Update project status to indicate upload failed
-          try {
-            await supabase
-              .from('projects')
-              .update({
-                config: {
-                  codebase: {
-                    ...codebaseConfig,
-                    status: 'error',
-                    error: uploadErr.message,
-                  },
-                },
-              })
-              .eq('id', project.id);
-          } catch {
-            // Ignore update errors
-          }
-        }
-      }
-
-      // Trigger Git clone via API if needed (background job)
-      if (data.codebaseSource === 'git' && data.gitUrl && project) {
-        // Trigger background job asynchronously (fire and forget)
-        fetchJSON('/api/projects', {
-          method: 'POST',
-          body: JSON.stringify({
-            action: 'trigger-git-clone',
-            projectId: project.id,
-            gitUrl: data.gitUrl,
-          }),
-          timeout: 10000, // 10 seconds for trigger
-          retries: 1, // Only retry once for background jobs
-        }).catch(err => {
-          console.error('Error triggering Git clone:', err);
-          // Don't show error to user as this is a background operation
-        });
-      }
+      const project = response.project;
 
       // Show success toast
       toast({
@@ -368,7 +246,7 @@ export default function NewProjectForm({ userId, teamId }: NewProjectFormProps) 
             <p className="text-sm text-destructive mt-1">{errors.dbConnectionString.message}</p>
           )}
           <p className="text-xs text-muted-foreground mt-2">
-            Your connection string is encrypted and stored securely.
+            Your connection string is sent only to the server. Use a least-privilege database user.
           </p>
         </div>
 

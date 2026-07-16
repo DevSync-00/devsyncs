@@ -3,7 +3,7 @@
  * Provides consistent error handling and retry logic across the dashboard
  */
 
-import { formatErrorMessage, isRetryableError } from './error-utils';
+import { isRetryableError } from './error-utils';
 
 export interface FetchOptions extends RequestInit {
   timeout?: number;
@@ -147,12 +147,10 @@ export async function fetchJSON<T = any>(
   const data = await response.json();
 
   if (!response.ok) {
-    const errorMessage = data.error || data.message || `HTTP ${response.status}`;
-    const formatted = formatErrorMessage(
-      new Error(errorMessage),
-      { operation: 'fetch', resource: url }
-    );
-    throw new Error(formatted.message);
+    const errorMessage = data.details
+      ? `${data.error || data.message || `HTTP ${response.status}`}: ${data.details}`
+      : data.error || data.message || `HTTP ${response.status}`;
+    throw new Error(errorMessage);
   }
 
   return data as T;

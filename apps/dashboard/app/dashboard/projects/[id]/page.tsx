@@ -2,13 +2,15 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
+import Link from 'next/link';
+import { Pencil } from 'lucide-react';
 import ScanReportsListWithFilters from '@/components/ScanReportsListWithFilters';
 import CodebaseStatus from '@/components/CodebaseStatus';
 import ProjectAnalyticsWidget from '@/components/analytics/ProjectAnalyticsWidget';
 import MigrationTimeline from '@/components/MigrationTimeline';
-import { Button } from '@/components/ui/button';
-import { Scan } from 'lucide-react';
+import RunScanButton from '@/components/RunScanButton';
 import { ScanReportSkeleton } from '@/components/LoadingSkeleton';
+import { Button } from '@/components/ui/button';
 
 function formatSchemaType(schemaType: string): string {
   const schemaTypeMap: Record<string, string> = {
@@ -81,10 +83,17 @@ export default async function ProjectDetailPage({
             {formatSchemaType(project.schema_type)} schema • {project.slug}
           </p>
         </div>
-        <Button size="lg">
-          <Scan className="w-4 h-4 mr-2" />
-          Run Scan
-        </Button>
+        <div className="flex items-center gap-3">
+          {isOwner && (
+            <Link href={`/dashboard/projects/${params.id}/edit`}>
+              <Button variant="outline">
+                <Pencil className="w-4 h-4 mr-2" />
+                Edit
+              </Button>
+            </Link>
+          )}
+          <RunScanButton projectId={params.id} />
+        </div>
       </div>
 
       {/* Codebase Status */}

@@ -77,7 +77,9 @@ export function useRealtimeTable<T extends Record<string, any> = Record<string, 
     ).subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         // Successfully subscribed
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+      } else if (status === 'CLOSED') {
+        // Normal during Fast Refresh, navigation, and Supabase reconnects.
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         const { onError } = handlersRef.current;
         if (onError) {
           // Only call onError if handler is provided, and suppress console errors for CSP-related issues

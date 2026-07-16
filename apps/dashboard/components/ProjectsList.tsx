@@ -3,14 +3,15 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { FolderKanban, Clock, ChevronLeft, ChevronRight, Loader2, Search, GitBranch, Package } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { FolderKanban, Clock, ChevronLeft, ChevronRight, Loader2, Search, Package, Pencil, Trash2, AlertTriangle, X } from 'lucide-react';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ProjectCardSkeleton } from './LoadingSkeleton';
 import { useRealtimeTable, useTeamActivityNotifications } from '@/hooks/use-realtime';
 import { useToast } from '@/hooks/use-toast';
 import { formatErrorMessage } from '@/lib/error-utils';
 import { executeSupabaseQuery } from '@/lib/supabase-client-wrapper';
+import { cn } from '@/lib/utils';
 
 function formatSchemaType(schemaType: string): string {
   const schemaTypeMap: Record<string, string> = {
@@ -68,6 +69,9 @@ export default function ProjectsList({
   const [totalCount, setTotalCount] = useState(initialProjects.length);
   const [scanMap, setScanMap] = useState<Map<string, ScanReport>>(new Map());
   const [searchQuery, setSearchQuery] = useState('');
+  const [confirmDeleteProjectId, setConfirmDeleteProjectId] = useState<string | null>(null);
+  const [confirmDeleteText, setConfirmDeleteText] = useState('');
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const { toast } = useToast();
   const projectIdsRef = useRef(new Set(initialProjects.map(p => p.id)));
   const prevSearchQueryRef = useRef<string>('');
@@ -218,6 +222,50 @@ export default function ProjectsList({
     fetchProjects(searchQuery.trim() || undefined);
   }, [currentUserId, fetchProjects, searchQuery]);
 
+  const deleteProject = useCallback(async (project: Project) => {
+    if (confirmDeleteText !== project.name) {
+      return;
+    }
+
+    setDeletingProjectId(project.id);
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || data.details || 'Failed to delete project');
+      }
+
+      setProjects((prev) => prev.filter((item) => item.id !== project.id));
+      setScans((prev) => prev.filter((scan) => scan.project_id !== project.id));
+      setScanMap((prev) => {
+        const next = new Map(prev);
+        next.delete(project.id);
+        return next;
+      });
+      setTotalCount((prev) => Math.max(0, prev - 1));
+      setConfirmDeleteProjectId(null);
+      setConfirmDeleteText('');
+
+      toast({
+        title: 'Project deleted',
+        description: `${project.name} was deleted.`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete project';
+      toast({
+        title: 'Delete failed',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingProjectId(null);
+    }
+  }, [confirmDeleteText, toast]);
+
   useRealtimeTable({
     table: 'projects',
     enabled: Boolean(currentUserId),
@@ -344,54 +392,147 @@ export default function ProjectsList({
           const latestScan = scanMap.get(project.id);
           const mismatchCount = (latestScan?.mismatches as any[])?.length || 0;
 
+          const confirmDelete = confirmDeleteProjectId === project.id;
+          const isDeleting = deletingProjectId === project.id;
+
           return (
-            <Link
+            <div
               key={project.id}
-              href={`/dashboard/projects/${project.id}`}
-              className="block p-6 bg-card border border-border rounded-lg hover:border-primary/50 transition-colors"
+              className="bg-card border border-border rounded-lg hover:border-primary/50 transition-colors overflow-hidden"
             >
-              <div className="flex items-start justify-between mb-4">
-                <FolderKanban className="w-8 h-8 text-primary" />
-                {latestScan && (
-                  <span
-                    className={`text-xs px-2 py-1 rounded ${
-                      latestScan.status === 'completed'
-                        ? mismatchCount === 0
-                          ? 'bg-green-500/10 text-green-500'
-                          : 'bg-yellow-500/10 text-yellow-500'
-                        : 'bg-gray-500/10 text-gray-500'
-                    }`}
-                  >
-                    {latestScan.status}
-                  </span>
-                )}
-              </div>
-              <div className="mb-2">
-                <h3 className="font-semibold text-lg">{project.name}</h3>
-                {project.slug && (
-                  <p className="text-xs text-muted-foreground mt-1">/{project.slug}</p>
-                )}
-              </div>
-              <div className="flex items-center gap-2 mb-4">
-                <Package className="w-4 h-4 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  {formatSchemaType(project.schema_type)} schema
-                </p>
-              </div>
-              {latestScan && (
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {new Date(latestScan.created_at).toLocaleDateString()}
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <Link href={`/dashboard/projects/${project.id}`} aria-label={`Open ${project.name}`}>
+                    <FolderKanban className="w-8 h-8 text-primary" />
+                  </Link>
+                  <div className="flex items-center gap-2">
+                    {latestScan && (
+                      <span
+                        className={`text-xs px-2 py-1 rounded ${
+                          latestScan.status === 'completed'
+                            ? mismatchCount === 0
+                              ? 'bg-green-500/10 text-green-500'
+                              : 'bg-yellow-500/10 text-yellow-500'
+                            : 'bg-gray-500/10 text-gray-500'
+                        }`}
+                      >
+                        {latestScan.status}
+                      </span>
+                    )}
+                    <Link
+                      href={`/dashboard/projects/${project.id}/edit`}
+                      className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8')}
+                      aria-label={`Edit ${project.name}`}
+                      title="Edit project"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Link>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => {
+                        setConfirmDeleteProjectId(project.id);
+                        setConfirmDeleteText('');
+                      }}
+                      aria-label={`Delete ${project.name}`}
+                      title="Delete project"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
-                  {mismatchCount > 0 && (
-                    <span className="text-yellow-500">
-                      {mismatchCount} mismatch{mismatchCount !== 1 ? 'es' : ''}
-                    </span>
+                </div>
+                <Link href={`/dashboard/projects/${project.id}`} className="block">
+                  <div className="mb-2">
+                    <h3 className="font-semibold text-lg">{project.name}</h3>
+                    {project.slug && (
+                      <p className="text-xs text-muted-foreground mt-1">/{project.slug}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Package className="w-4 h-4 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      {formatSchemaType(project.schema_type)} schema
+                    </p>
+                  </div>
+                  {latestScan && (
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        {new Date(latestScan.created_at).toLocaleDateString()}
+                      </div>
+                      {mismatchCount > 0 && (
+                        <span className="text-yellow-500">
+                          {mismatchCount} mismatch{mismatchCount !== 1 ? 'es' : ''}
+                        </span>
+                      )}
+                    </div>
                   )}
+                </Link>
+              </div>
+
+              {confirmDelete && (
+                <div className="border-t border-destructive/20 bg-destructive/10 p-4 space-y-3">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-destructive mt-0.5" />
+                    <div className="flex-1 space-y-2">
+                      <p className="text-sm font-medium text-destructive">Delete this project?</p>
+                      <p className="text-xs text-muted-foreground">
+                        This removes its scan reports, migrations, and history. Type <strong>{project.name}</strong> to confirm.
+                      </p>
+                      <Input
+                        value={confirmDeleteText}
+                        onChange={(event) => setConfirmDeleteText(event.target.value)}
+                        placeholder={project.name}
+                        disabled={isDeleting}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        setConfirmDeleteProjectId(null);
+                        setConfirmDeleteText('');
+                      }}
+                      aria-label="Cancel delete"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isDeleting}
+                      onClick={() => {
+                        setConfirmDeleteProjectId(null);
+                        setConfirmDeleteText('');
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      disabled={isDeleting || confirmDeleteText !== project.name}
+                      onClick={() => deleteProject(project)}
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4 mr-2" />
+                      )}
+                      Delete
+                    </Button>
+                  </div>
                 </div>
               )}
-            </Link>
+            </div>
           );
         })}
         </div>

@@ -92,6 +92,7 @@ program
   .option('--format <format>', 'Output format: sql|prisma', 'sql')
   .option('--dry-run', 'Preview migration without applying', true)
   .option('--apply', 'Apply migration after validation', false)
+  .option('--confirm-apply <text>', 'Required confirmation text for --apply: APPLY <migration-id>')
   .option('--include-rollback', 'Generate rollback SQL', true)
   .action(migrateCommand);
 

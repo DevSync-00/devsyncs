@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deviceCodes } from '@/lib/device-codes-store';
 import { createClient } from '@/lib/supabase/server';
+import {
+  approveDeviceCode,
+  findDeviceCodeByUserCode,
+  isExpired,
+} from '@/lib/auth/device-codes';
 
 interface DeviceVerifyRequest {
   user_code: string;
@@ -37,19 +41,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find device code by user code (normalize format)
-    const normalizedUserCode = user_code.toUpperCase().replace(/-/g, '');
-    let deviceData = null;
-    let deviceCode = '';
-
-    for (const [code, data] of deviceCodes.entries()) {
-      const normalizedStoredCode = data.userCode.replace(/-/g, '');
-      if (normalizedStoredCode === normalizedUserCode) {
-        deviceData = data;
-        deviceCode = code;
-        break;
-      }
-    }
+    const deviceData = await findDeviceCodeByUserCode(user_code);
 
     if (!deviceData) {
       return NextResponse.json(
@@ -58,8 +50,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (Date.now() > deviceData.expiresAt) {
-      deviceCodes.delete(deviceCode);
+    if (isExpired(deviceData)) {
       return NextResponse.json(
         { error: 'expired_code' },
         { status: 400 }
@@ -67,12 +58,12 @@ export async function POST(request: NextRequest) {
     }
 
     const response: DeviceVerifyResponse = {
-      client_name: deviceData.clientId === 'vscode' ? 'VS Code Extension' : deviceData.clientId,
-      client_id: deviceData.clientId,
-      user_code: deviceData.userCode,
+      client_name: deviceData.client_id === 'vscode' ? 'VS Code Extension' : deviceData.client_id,
+      client_id: deviceData.client_id,
+      user_code: deviceData.user_code,
       approved: deviceData.approved,
-      expires_in: Math.floor((deviceData.expiresAt - Date.now()) / 1000),
-      created_at: deviceData.expiresAt - (15 * 60 * 1000), // Approximate creation time
+      expires_in: Math.floor((new Date(deviceData.expires_at).getTime() - Date.now()) / 1000),
+      created_at: new Date(deviceData.created_at).getTime(),
     };
 
     return NextResponse.json(response);
@@ -108,19 +99,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Find device code by user code (normalize format)
-    const normalizedUserCode = user_code.toUpperCase().replace(/-/g, '');
-    let deviceData = null;
-    let deviceCode = '';
-
-    for (const [code, data] of deviceCodes.entries()) {
-      const normalizedStoredCode = data.userCode.replace(/-/g, '');
-      if (normalizedStoredCode === normalizedUserCode) {
-        deviceData = data;
-        deviceCode = code;
-        break;
-      }
-    }
+    const deviceData = await findDeviceCodeByUserCode(user_code);
 
     if (!deviceData) {
       return NextResponse.json(
@@ -129,31 +108,27 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    if (Date.now() > deviceData.expiresAt) {
-      deviceCodes.delete(deviceCode);
+    if (isExpired(deviceData)) {
       return NextResponse.json(
         { error: 'expired_code' },
         { status: 400 }
       );
     }
 
-    // Approve the device - update the store
-    deviceCodes.set(deviceCode, {
-      ...deviceData,
-      approved: true,
+    await approveDeviceCode({
+      id: deviceData.id,
       userId: user.id,
     });
-    deviceData = deviceCodes.get(deviceCode)!;
 
     console.log('[Device Verify] Approved device:', {
-      userCode: deviceData.userCode,
+      userCode: deviceData.user_code,
       userId: user.id,
-      clientId: deviceData.clientId,
+      clientId: deviceData.client_id,
     });
 
     return NextResponse.json({
       status: 'approved',
-      client_id: deviceData.clientId,
+      client_id: deviceData.client_id,
       approved_at: Date.now(),
     });
   } catch (error) {

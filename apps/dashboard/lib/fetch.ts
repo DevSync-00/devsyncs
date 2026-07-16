@@ -135,10 +135,24 @@ export async function robustFetch(
         continue;
       }
 
+      let message = `Request failed: ${response.status} ${response.statusText}`;
+      try {
+        const contentType = response.headers.get('content-type');
+        if (contentType?.includes('application/json')) {
+          const errorBody = await response.clone().json();
+          const detail = errorBody?.details || errorBody?.message || errorBody?.error;
+          if (detail) {
+            message = errorBody?.error && errorBody.error !== detail
+              ? `${errorBody.error}: ${detail}`
+              : String(detail);
+          }
+        }
+      } catch {
+        // Keep the default HTTP status message if the error body cannot be read.
+      }
+
       // Non-retryable error or last attempt - throw with full context
-      const error: FetchError = new Error(
-        `Request failed: ${response.status} ${response.statusText}`
-      ) as FetchError;
+      const error: FetchError = new Error(message) as FetchError;
       error.status = response.status;
       error.statusText = response.statusText;
       error.response = response;

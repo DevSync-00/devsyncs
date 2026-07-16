@@ -12,6 +12,7 @@
    - Get them from [Supabase Dashboard](https://supabase.com/dashboard)
    - Go to **Settings** → **API**
    - Copy **Project URL** and **anon public** key
+   - Copy the **service_role** key only into server-side environment variables
 
 3. **Optional: Add OpenAI API key** (if using AI features)
 
@@ -23,6 +24,8 @@
 
 **What it is:**
 - Your Supabase project URL
+- Required by browser pages such as signup and login.
+- Server routes can also read `SUPABASE_URL`, but browser code cannot.
 
 **Where to find it:**
 1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
@@ -48,6 +51,8 @@ NEXT_PUBLIC_SUPABASE_URL=https://lzvaidnvedhzpaczpxlk.supabase.co
 - Your Supabase anon (public) key
 - Safe to expose in client-side code
 - Used for authentication and database queries
+- Required by browser pages such as signup and login.
+- Server routes can also read `SUPABASE_PUBLISHABLE_KEY`, but browser code cannot.
 
 **Where to find it:**
 1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
@@ -63,6 +68,37 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dmFpZG5
 **Example:**
 ```
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+---
+
+### `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SECRET_KEY`
+
+**What it is:**
+- Your Supabase `service_role` API key.
+- Server-only. It bypasses RLS and must never be exposed to browser code.
+- Required for device-code authentication storage and admin/background jobs.
+
+**Production requirement:**
+- Store this only in your deployment provider's encrypted environment variables.
+- Rotate it immediately if it is pasted into chat, committed, logged, or shared.
+
+**Example:**
+```
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIs...
+```
+
+---
+
+### `DEVSYNC_TOKEN_SIGNING_SECRET`
+
+**What it is:**
+- A random server-only secret used to sign DevSync CLI/extension access and refresh tokens.
+- Must be at least 32 characters.
+
+**Example:**
+```
+DEVSYNC_TOKEN_SIGNING_SECRET=replace-with-32-plus-random-characters
 ```
 
 ---
@@ -258,15 +294,16 @@ AI_PROVIDER=deepseek  # Optional: prefer DeepSeek when both are configured
 
 ## Troubleshooting
 
-### Issue: "Missing Supabase credentials"
+### Issue: "Missing browser Supabase config"
 
 **Problem:** Variables not loaded
 
 **Solutions:**
 1. Check file is named exactly `.env.local` (not `.env` or `.env.example`)
 2. Check file is in `apps/dashboard/` directory
-3. Restart dev server after creating/editing `.env.local`
-4. Check for typos in variable names
+3. Make sure browser variables use the exact names `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. Restart dev server after creating/editing `.env.local`
+5. Check for typos in variable names
 
 ### Issue: "Invalid Supabase URL"
 

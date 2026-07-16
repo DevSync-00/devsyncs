@@ -1,12 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import AnalyticsDashboard from '@/components/reporting/AnalyticsDashboard';
 import EnhancedAnalyticsDashboard from '@/components/reporting/EnhancedAnalyticsDashboard';
 
 export default async function AnalyticsPage({
   searchParams,
 }: {
-  searchParams: { teamId?: string; period?: string };
+  searchParams: { teamId?: string; period?: string; projectId?: string };
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

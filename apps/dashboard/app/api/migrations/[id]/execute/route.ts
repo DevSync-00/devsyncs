@@ -7,6 +7,8 @@ export const dynamic = 'force-dynamic';
 interface MigrationExecuteRequest {
   dryRun?: boolean;
   confirm?: boolean;
+  confirmationText?: string;
+  allowDestructive?: boolean;
 }
 
 export async function POST(
@@ -27,7 +29,12 @@ export async function POST(
     }
 
     const body: MigrationExecuteRequest = await request.json().catch(() => ({}));
-    const { dryRun = false, confirm = false } = body;
+    const {
+      dryRun = false,
+      confirm = false,
+      confirmationText = '',
+      allowDestructive = false,
+    } = body;
 
     // Require explicit confirmation for production runs
     if (!dryRun && !confirm) {
@@ -80,6 +87,30 @@ export async function POST(
       return NextResponse.json(
         { error: 'Access denied' },
         { status: 403 }
+      );
+    }
+
+    const safety = analyzeMigrationSafety(migration.content);
+    if (!dryRun && safety.destructive && !allowDestructive) {
+      return NextResponse.json(
+        {
+          error: 'Destructive migration blocked',
+          message: 'Set allowDestructive: true and provide the required confirmationText to execute destructive SQL.',
+          requiredConfirmationText: `EXECUTE ${params.id}`,
+          findings: safety.findings,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!dryRun && safety.destructive && confirmationText !== `EXECUTE ${params.id}`) {
+      return NextResponse.json(
+        {
+          error: 'Destructive migration confirmation required',
+          requiredConfirmationText: `EXECUTE ${params.id}`,
+          findings: safety.findings,
+        },
+        { status: 400 }
       );
     }
 
@@ -147,6 +178,7 @@ export async function POST(
     let executionResult: {
       success: boolean;
       error?: string;
+      affectedTables?: number;
       affectedRows?: number;
       executionTime?: number;
     };
@@ -402,81 +434,43 @@ async function validateMigrationSQL(sql: string, connectionString: string): Prom
 }> {
   const startTime = Date.now();
   
+  const pool = new Pool({ connectionString });
+  const client = await pool.connect();
+
   try {
-    let validateMigration: (
-      sql: string,
-      options: Record<string, unknown>
-    ) => Promise<{
-      valid: boolean;
-      errors: Array<{ message: string }>;
-      warnings: unknown[];
-      breakingChanges: unknown[];
-      summary: unknown;
-    }>;
-
-    try {
-      const validatorPath =
-        process.env.NODE_ENV === 'production'
-          ? '@devsync/cli/services/migration-validator'
-          : '../../../../../../packages/cli/src/services/migration-validator.js';
-      const validatorModule = await import(validatorPath);
-      validateMigration = validatorModule.validateMigration;
-    } catch {
-      // Fallback: basic EXPLAIN-based validation when CLI package is unavailable
-      const pool = new Pool({ connectionString });
-      const client = await pool.connect();
-      try {
-        await client.query(`EXPLAIN ${sql}`);
-        await pool.end();
-        return {
-          success: true,
-          executionTime: Date.now() - startTime,
-          validation: { mode: 'explain-fallback' },
-        };
-      } catch (explainError: unknown) {
-        await pool.end();
-        const message =
-          explainError instanceof Error ? explainError.message : 'Failed to validate SQL';
-        return {
-          success: false,
-          error: message,
-          executionTime: Date.now() - startTime,
-        };
-      }
-    }
-
-    const validation = await validateMigration(sql, {
-      connectionString,
-      strictMode: false,
-      checkPermissions: true,
-      checkBreakingChanges: true
-    });
+    await client.query(`SET statement_timeout = '30s'`);
+    await client.query(`SET lock_timeout = '5s'`);
+    await client.query('BEGIN');
+    await client.query(sql);
+    await client.query('ROLLBACK');
 
     return {
-      success: validation.valid,
-      error: validation.errors.length > 0 
-        ? validation.errors.map(e => e.message).join('; ')
-        : undefined,
+      success: true,
       executionTime: Date.now() - startTime,
-      validation: {
-        errors: validation.errors,
-        warnings: validation.warnings,
-        breakingChanges: validation.breakingChanges,
-        summary: validation.summary
-      }
+      validation: { mode: 'transaction-rollback' },
     };
   } catch (error: any) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      // Ignore rollback cleanup errors.
+    }
+
     return {
       success: false,
       error: error.message || 'Failed to validate SQL',
       executionTime: Date.now() - startTime,
     };
+  } finally {
+    client.release();
+    await pool.end();
   }
 }
 
 async function executeMigrationSQL(sql: string, connectionString: string): Promise<{
   success: boolean;
   error?: string;
+  affectedTables?: number;
   affectedRows?: number;
   executionTime?: number;
 }> {
@@ -487,7 +481,10 @@ async function executeMigrationSQL(sql: string, connectionString: string): Promi
     const client = await pool.connect();
     
     try {
-      // Execute the migration SQL
+      await client.query(`SET statement_timeout = '30s'`);
+      await client.query(`SET lock_timeout = '5s'`);
+      await client.query(`SELECT pg_advisory_lock(hashtext('devsync:migration'))`);
+
       const result = await client.query(sql);
       
       // Calculate affected rows (simplified - counts all rows from all statements)
@@ -495,10 +492,16 @@ async function executeMigrationSQL(sql: string, connectionString: string): Promi
 
       return {
         success: true,
+        affectedTables: estimateAffectedTables(sql),
         affectedRows,
         executionTime: Date.now() - startTime,
       };
     } finally {
+      try {
+        await client.query(`SELECT pg_advisory_unlock(hashtext('devsync:migration'))`);
+      } catch {
+        // Ignore unlock errors; the connection close releases advisory locks too.
+      }
       client.release();
     }
   } catch (error: any) {
@@ -512,3 +515,43 @@ async function executeMigrationSQL(sql: string, connectionString: string): Promi
   }
 }
 
+function estimateAffectedTables(sql: string): number {
+  const stripped = sql
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/--.*$/gm, '');
+  const tablePattern = /\b(?:ALTER\s+TABLE|CREATE\s+TABLE|DROP\s+TABLE|TRUNCATE\s+TABLE|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?["']?([a-zA-Z_][a-zA-Z0-9_.]*)["']?/gi;
+  const tables = new Set<string>();
+  let match: RegExpExecArray | null;
+  while ((match = tablePattern.exec(stripped)) !== null) {
+    tables.add(match[1].toLowerCase());
+  }
+  return tables.size;
+}
+
+function analyzeMigrationSafety(sql: string): {
+  destructive: boolean;
+  findings: string[];
+} {
+  const stripped = sql
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/--.*$/gm, '')
+    .toUpperCase();
+
+  const destructivePatterns = [
+    /\bDROP\s+TABLE\b/,
+    /\bDROP\s+COLUMN\b/,
+    /\bTRUNCATE\b/,
+    /\bDELETE\s+FROM\b(?![\s\S]*\bWHERE\b)/,
+    /\bALTER\s+TABLE\b[\s\S]*\bALTER\s+COLUMN\b[\s\S]*\bTYPE\b/,
+    /\bALTER\s+TABLE\b[\s\S]*\bSET\s+NOT\s+NULL\b/,
+  ];
+
+  const findings = destructivePatterns
+    .filter((pattern) => pattern.test(stripped))
+    .map((pattern) => pattern.source);
+
+  return {
+    destructive: findings.length > 0,
+    findings,
+  };
+}

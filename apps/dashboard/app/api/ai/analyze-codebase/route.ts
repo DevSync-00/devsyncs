@@ -1,29 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyJwt } from '@/lib/auth/tokens';
 
 export const dynamic = 'force-dynamic';
-
-/**
- * Validate device flow token (base64-encoded JSON)
- * Returns userId if valid, null otherwise
- */
-function validateDeviceFlowToken(token: string): string | null {
-  try {
-    // Decode base64url token
-    const decoded = Buffer.from(token, 'base64url').toString('utf-8');
-    const payload = JSON.parse(decoded);
-    
-    // Check expiration
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      return null; // Token expired
-    }
-    
-    // Return user ID from token
-    return payload.sub || null;
-  } catch {
-    return null; // Invalid token format
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,8 +21,8 @@ export async function POST(request: NextRequest) {
       if (!tokenError && tokenUser) {
         userId = tokenUser.id;
       } else {
-        // Fallback: try device flow token validation
-        userId = validateDeviceFlowToken(token);
+        const devsyncToken = verifyJwt(token, 'access');
+        userId = devsyncToken?.sub || null;
       }
     } else {
       // Try session-based auth

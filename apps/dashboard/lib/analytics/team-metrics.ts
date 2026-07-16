@@ -98,7 +98,10 @@ export async function recordTeamActivity(
   } else {
     // Create new
     const newMetric: TeamActivityMetric = {
-      ...updates,
+      user_id: activity.user_id,
+      activity_date: today,
+      ...(activity.team_id ? { team_id: activity.team_id } : {}),
+      ...(activity.project_id ? { project_id: activity.project_id } : {}),
       scans_count: activity.activity_type === 'scan' ? 1 : 0,
       migrations_count: activity.activity_type === 'migration' ? 1 : 0,
       fixes_applied: activity.activity_type === 'fix' ? 1 : 0,

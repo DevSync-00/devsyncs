@@ -231,6 +231,7 @@ export async function storeSchemaSnapshot(
     .from('schema_snapshots')
     .insert({
       project_id: projectId,
+      schema: schemaData,
       schema_type: schemaType,
       schema_data: schemaData,
       schema_hash: hash,

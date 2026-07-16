@@ -5,6 +5,7 @@ import {
   buildCodebaseConfig,
   formatProjectSummary,
   generateSlug,
+  maskConnectionString,
   resolveUser,
 } from '../utils';
 import { withRateLimit } from '@/lib/rate-limit-middleware';
@@ -65,7 +66,8 @@ export async function GET(
     return NextResponse.json({
       project: {
         ...formatProjectSummary(project, latestScan || undefined),
-        dbConnectionString: project.db_connection_string,
+        dbConnectionConfigured: !!project.db_connection_string,
+        dbConnectionPreview: maskConnectionString(project.db_connection_string),
         config: project.config,
       },
     });
@@ -170,7 +172,8 @@ export async function PATCH(
     return NextResponse.json({
       project: {
         ...formatProjectSummary(updatedProject, latestScan || undefined),
-        dbConnectionString: updatedProject.db_connection_string,
+        dbConnectionConfigured: !!updatedProject.db_connection_string,
+        dbConnectionPreview: maskConnectionString(updatedProject.db_connection_string),
         config: updatedProject.config,
       },
     });

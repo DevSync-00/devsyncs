@@ -19,10 +19,15 @@ export interface MigrateOptions {
   includeRollback?: boolean;
   db?: string;
   config?: string;
+  confirmApply?: string;
 }
 
 export async function migrateCommand(options: MigrateOptions) {
   try {
+    if (options.apply) {
+      options.dryRun = false;
+    }
+
     console.log(chalk.blue('🔧 Generating migration...\n'));
 
     // Resolve path to absolute path (default: cwd)
@@ -137,6 +142,14 @@ export async function migrateCommand(options: MigrateOptions) {
 
     // 8. Apply migration if requested
     if (options.apply && !options.dryRun) {
+      const requiredConfirmation = `APPLY ${migration.id}`;
+      if (options.confirmApply !== requiredConfirmation) {
+        console.log(chalk.red('\n❌ Explicit confirmation required to apply migration.'));
+        console.log(chalk.gray(`   Re-run with: --confirm-apply "${requiredConfirmation}"`));
+        console.log(chalk.yellow('   Review the saved migration and test it on staging first.\n'));
+        process.exit(1);
+      }
+
       // Re-validate before applying if not already validated
       if (!migration.validation && dbConnection) {
         console.log(chalk.gray('\n🔍 Validating migration before applying...'));

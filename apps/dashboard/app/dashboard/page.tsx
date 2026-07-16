@@ -8,6 +8,8 @@ import { ProjectCardSkeleton } from '@/components/LoadingSkeleton';
 import { NotificationCenter } from '@/components/notifications';
 import { getNotificationPreferences } from '@/lib/notifications';
 
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardPage() {
   try {
     const supabase = await createClient();

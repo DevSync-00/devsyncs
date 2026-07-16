@@ -5,6 +5,7 @@
  */
 
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { requiredEnv } from '@/lib/env';
 
 let adminClient: ReturnType<typeof createSupabaseClient> | null = null;
 
@@ -17,14 +18,8 @@ export function getAdminClient() {
     return adminClient;
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error(
-      'SUPABASE_SERVICE_ROLE_KEY environment variable is required for admin operations'
-    );
-  }
+  const supabaseUrl = requiredEnv('NEXT_PUBLIC_SUPABASE_URL', ['SUPABASE_URL']);
+  const serviceRoleKey = requiredEnv('SUPABASE_SERVICE_ROLE_KEY', ['SUPABASE_SECRET_KEY']);
 
   adminClient = createSupabaseClient(supabaseUrl, serviceRoleKey, {
     auth: {

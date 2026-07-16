@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { randomBytes } from 'crypto';
-import { deviceCodes } from '@/lib/device-codes-store';
+import {
+  createDeviceCode,
+  generateDeviceCode,
+  generateUserCode,
+} from '@/lib/auth/device-codes';
 
 interface DeviceStartRequest {
   client_id: string;
@@ -28,19 +30,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate device code and user code
-    const deviceCode = randomBytes(32).toString('hex');
+    const deviceCode = generateDeviceCode();
     const userCode = generateUserCode();
 
     // Store device code (expires in 15 minutes)
     const expiresIn = 15 * 60; // 15 minutes
-    const expiresAt = Date.now() + expiresIn * 1000;
+    const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
-    deviceCodes.set(deviceCode, {
+    await createDeviceCode({
       deviceCode,
       userCode,
       clientId: client_id,
       expiresAt,
-      approved: false,
     });
 
     const baseUrl = resolveDashboardOrigin(request);
@@ -112,17 +113,5 @@ function isValidOrigin(origin: string): boolean {
   } catch {
     return false;
   }
-}
-
-function generateUserCode(): string {
-  // Generate 8-character user code (e.g., "ABCD-1234")
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude confusing chars
-  const part1 = Array.from({ length: 4 }, () => 
-    chars[Math.floor(Math.random() * chars.length)]
-  ).join('');
-  const part2 = Array.from({ length: 4 }, () => 
-    chars[Math.floor(Math.random() * chars.length)]
-  ).join('');
-  return `${part1}-${part2}`;
 }
 

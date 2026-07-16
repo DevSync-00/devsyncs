@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveUser } from '@/app/api/projects/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,24 +8,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     
-    // Check authentication
-    const authHeader = request.headers.get('authorization');
-    let user = null;
-
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user: tokenUser }, error: tokenError } = await supabase.auth.getUser(token);
-      
-      if (!tokenError && tokenUser) {
-        user = tokenUser;
-      }
-    } else {
-      const { data: { user: sessionUser }, error: authError } = await supabase.auth.getUser();
-      
-      if (!authError && sessionUser) {
-        user = sessionUser;
-      }
-    }
+    const user = await resolveUser(request, supabase);
 
     if (!user) {
       return NextResponse.json(
