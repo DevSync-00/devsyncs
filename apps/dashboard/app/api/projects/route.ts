@@ -235,21 +235,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      triggerGitClone(projectId, gitUrl, adminSupabase).catch((error) => {
-        logger.error('Error triggering Git clone', error, {
-          userId: user.id,
-          projectId,
-        });
-        trackError(error, {
-          operation: 'POST /api/projects - trigger git clone',
-          userId: user.id,
-          projectId,
-        });
-      });
+      await triggerGitClone(projectId, gitUrl, adminSupabase);
 
       return NextResponse.json({
         success: true,
-        message: 'Git clone job triggered',
+        message: 'GitHub repository processed',
       });
     }
 
@@ -434,17 +424,7 @@ export async function POST(request: NextRequest) {
     }
 
       if (codebase?.type === 'git' && codebase.url) {
-        triggerGitClone(project.id, codebase.url, adminSupabase).catch((error) => {
-          logger.error('Error triggering Git clone', error, {
-            userId: user.id,
-            projectId: project.id,
-          });
-          trackError(error, {
-            operation: 'POST /api/projects - git clone',
-            userId: user.id,
-            projectId: project.id,
-          });
-        });
+        await triggerGitClone(project.id, codebase.url, adminSupabase);
       }
 
       logger.info('Project created successfully', {
