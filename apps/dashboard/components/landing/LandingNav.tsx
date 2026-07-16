@@ -36,7 +36,7 @@ export default function LandingNav() {
           <Link href="/" className="flex items-center gap-3 group">
             <Logo variant="original" width={34} height={34} />
             <span className="font-display text-xl font-bold tracking-tight">
-              DevSync<span className="text-gradient">.ai</span>
+              Dev-<span className="text-gradient">Sync</span>
             </span>
           </Link>
 
