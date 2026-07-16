@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Logo from "@/components/Logo";
 
 const footerLinks = {
   Product: [
@@ -21,11 +22,9 @@ const Footer = () => {
       <div className="container mx-auto max-w-6xl px-6 py-16">
         <div className="grid md:grid-cols-4 gap-12">
           <div className="md:col-span-1">
-            <Link href="/" className="inline-flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-xs">DS</span>
-              </div>
-              <span className="font-display text-lg font-bold">
+            <Link href="/" className="inline-flex items-center gap-2.5 mb-4 group">
+              <Logo variant="original" width={28} height={28} />
+              <span className="font-display text-lg font-bold tracking-tight">
                 DevSync<span className="text-gradient">.ai</span>
               </span>
             </Link>
