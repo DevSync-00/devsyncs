@@ -212,7 +212,7 @@ export default function LoginPage() {
             <div className="flex items-center gap-2 mb-8">
               <Logo variant="original" width={32} height={32} />
               <span className="font-display text-lg font-bold tracking-tight">
-                DevSync<span className="text-gradient">.ai</span>
+                Dev-<span className="text-gradient">Sync</span>
               </span>
             </div>
             <div className="max-w-md space-y-4 mt-20">

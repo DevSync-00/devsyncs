@@ -84,7 +84,7 @@ export default async function HomePage() {
               <Link href="/dashboard" className="flex items-center gap-3 group">
                 <Logo variant="original" width={32} height={32} />
                 <span className="font-display text-xl font-bold tracking-tight">
-                  DevSync<span className="text-gradient">.ai</span>
+                  Dev-<span className="text-gradient">Sync</span>
                 </span>
               </Link>
               <div className="flex items-center gap-4">

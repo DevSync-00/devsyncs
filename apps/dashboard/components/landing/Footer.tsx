@@ -25,7 +25,7 @@ const Footer = () => {
             <Link href="/" className="inline-flex items-center gap-2.5 mb-4 group">
               <Logo variant="original" width={28} height={28} />
               <span className="font-display text-lg font-bold tracking-tight">
-                DevSync<span className="text-gradient">.ai</span>
+                Dev-<span className="text-gradient">Sync</span>
               </span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
