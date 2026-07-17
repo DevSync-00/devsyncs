@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
@@ -20,6 +20,14 @@ export default function LoginPage() {
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
+
+  useEffect(() => {
+    const message = new URLSearchParams(window.location.search).get('message');
+    if (message) {
+      setError('Social sign-in failed');
+      setErrorDetails(message);
+    }
+  }, []);
 
   function formatAuthError(error: any): { message: string; details: string | null } {
     const errorMessage = error?.message || 'An error occurred';

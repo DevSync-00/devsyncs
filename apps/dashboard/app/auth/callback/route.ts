@@ -23,9 +23,17 @@ export async function GET(request: NextRequest) {
 
       await supabase.auth.signOut();
     }
+
+    const loginUrl = new URL('/auth/login', requestUrl.origin);
+    loginUrl.searchParams.set('error', 'oauth_callback_failed');
+    loginUrl.searchParams.set(
+      'message',
+      error?.message || 'The OAuth provider did not return a valid confirmed account.'
+    );
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.redirect(
-    new URL('/auth/login?error=email_confirmation_failed', requestUrl.origin)
+    new URL('/auth/login?error=oauth_code_missing', requestUrl.origin)
   );
 }
