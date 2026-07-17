@@ -559,6 +559,9 @@ export function compareSchemas(codeSchema: ScannedSchema, dbSchema: ScannedSchem
     for (const codeColumn of codeTable.columns) {
       const dbColumn = dbColumns.get(codeColumn.name.toLowerCase());
       if (!dbColumn) {
+        if (codeTable.columnsComplete === false) {
+          continue;
+        }
         mismatches.push({
           type: 'missing_field',
           severity: 'error',
@@ -868,9 +871,16 @@ function extractReferencedTables(
   let match: RegExpExecArray | null;
   while ((match = clientTablePattern.exec(content)) !== null) {
     const nextStatement = content.indexOf(';', clientTablePattern.lastIndex);
-    const segmentEnd = nextStatement === -1
+    let segmentEnd = nextStatement === -1
       ? Math.min(content.length, clientTablePattern.lastIndex + 4000)
       : Math.min(nextStatement, clientTablePattern.lastIndex + 4000);
+    const remainingSegment = content.slice(clientTablePattern.lastIndex, segmentEnd);
+    const nextQuery = remainingSegment.search(
+      /\b(?:supabase|db|database|client)\s*[\r\n\t ]*\.[\r\n\t ]*from\(/i
+    );
+    if (nextQuery >= 0) {
+      segmentEnd = clientTablePattern.lastIndex + nextQuery;
+    }
     addTable(
       match[1],
       extractSupabaseQueryColumns(content.slice(clientTablePattern.lastIndex, segmentEnd))
@@ -916,7 +926,7 @@ function extractSupabaseQueryColumns(segment: string): string[] {
 
   const selectMatch = segment.match(/\.select\(\s*["'`]([\s\S]*?)["'`]\s*[\),]/);
   if (selectMatch) {
-    for (const part of selectMatch[1].split(',')) {
+    for (const part of splitTopLevelSelectColumns(selectMatch[1])) {
       const candidate = part.trim();
       if (candidate !== '*' && !candidate.includes('(')) addColumn(candidate);
     }
@@ -935,6 +945,27 @@ function extractSupabaseQueryColumns(segment: string): string[] {
   while ((match = columnArgumentPattern.exec(segment)) !== null) addColumn(match[1]);
 
   return Array.from(columns);
+}
+
+function splitTopLevelSelectColumns(selection: string): string[] {
+  const columns: string[] = [];
+  let current = '';
+  let depth = 0;
+
+  for (const character of selection) {
+    if (character === '(') depth += 1;
+    if (character === ')' && depth > 0) depth -= 1;
+
+    if (character === ',' && depth === 0) {
+      columns.push(current);
+      current = '';
+    } else {
+      current += character;
+    }
+  }
+
+  if (current.trim()) columns.push(current);
+  return columns;
 }
 
 function extractSqlStringLiterals(content: string): string[] {

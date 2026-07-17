@@ -5,7 +5,7 @@ import { TextDecoder, TextEncoder } from 'util';
 
 Object.assign(global, { TextDecoder, TextEncoder });
 
-const { scanCodebaseSchema } = require('@/lib/schema-scanner') as
+const { compareSchemas, scanCodebaseSchema } = require('@/lib/schema-scanner') as
   typeof import('@/lib/schema-scanner');
 
 describe('scanCodebaseSchema table references', () => {
@@ -68,6 +68,49 @@ describe('scanCodebaseSchema table references', () => {
       'is_active',
     ]);
     expect(schema.tables[0].columns.every((column) => column.type === 'unknown')).toBe(true);
+  });
+
+  it('does not flatten related select fields into the root table', () => {
+    writeFileSync(
+      path.join(root, 'profiles.ts'),
+      `
+        await supabase
+          .from('admins')
+          .select('id, profile:profiles(full_name, avatar_url), role')
+        await supabase.from('audit_logs').select('id, action')
+      `
+    );
+
+    const schema = scanCodebaseSchema(root);
+    const admins = schema.tables.find((table) => table.name === 'admins');
+    const auditLogs = schema.tables.find((table) => table.name === 'audit_logs');
+
+    expect(admins?.columns.map((column) => column.name)).toEqual(['id', 'role']);
+    expect(auditLogs?.columns.map((column) => column.name)).toEqual(['id', 'action']);
+  });
+
+  it('does not report usage-inferred columns as authoritative missing fields', () => {
+    const codeSchema = scanCodebaseSchema(root);
+    codeSchema.tables = [{
+      name: 'profiles',
+      columns: [{ name: 'display_name', type: 'unknown', nullable: true }],
+      columnsComplete: false,
+    }];
+    const dbSchema = {
+      tables: [{
+        name: 'profiles',
+        columns: [{ name: 'id', type: 'uuid', nullable: false }],
+      }],
+      metadata: {
+        source: 'database' as const,
+        sourceType: 'postgres',
+        tableCount: 1,
+        columnCount: 1,
+        scannedAt: new Date().toISOString(),
+      },
+    };
+
+    expect(compareSchemas(codeSchema, dbSchema)).toEqual([]);
   });
 
   it('extracts table names from genuine SQL string literals', () => {
