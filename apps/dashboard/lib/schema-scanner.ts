@@ -22,6 +22,7 @@ export interface ScannedRelationship {
 export interface ScannedTable {
   name: string;
   columns: ScannedColumn[];
+  columnsComplete?: boolean;
   relationships?: ScannedRelationship[];
   source?: string;
 }
@@ -106,19 +107,22 @@ export function scanCodebaseSchema(root: string): ScannedSchema {
     const content = readFileSync(filePath, 'utf8');
     const relativePath = path.relative(root, filePath);
 
-    for (const tableName of extractReferencedTables(content, filePath)) {
-      if (!tableMap.has(tableName)) {
-        tableMap.set(tableName, {
-          name: tableName,
-          columns: [],
-          source: relativePath,
-        });
-      }
+    for (const reference of extractReferencedTables(content, filePath)) {
+      mergeTable(tableMap, {
+        name: reference.name,
+        columns: reference.columns.map((name) => ({
+          name,
+          type: 'unknown',
+          nullable: true,
+        })),
+        columnsComplete: false,
+        source: relativePath,
+      });
     }
   }
 
   const tables = Array.from(tableMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  const inferredTableCount = tables.filter((table) => table.columns.length === 0).length;
+  const inferredTableCount = tables.filter((table) => table.columnsComplete === false).length;
 
   if (schemaFiles.length > 0 && referenceFiles.length > 0) {
     warnings.push(`Merged ${schemaFiles.length} schema definition file${schemaFiles.length === 1 ? '' : 's'} with ${referenceFiles.length} database reference file${referenceFiles.length === 1 ? '' : 's'}.`);
@@ -570,7 +574,10 @@ export function compareSchemas(codeSchema: ScannedSchema, dbSchema: ScannedSchem
         continue;
       }
 
-      if (normalizeType(codeColumn.type) !== normalizeType(dbColumn.type)) {
+      if (
+        codeColumn.type !== 'unknown'
+        && normalizeType(codeColumn.type) !== normalizeType(dbColumn.type)
+      ) {
         mismatches.push({
           type: 'type_mismatch',
           severity: 'warning',
@@ -584,7 +591,7 @@ export function compareSchemas(codeSchema: ScannedSchema, dbSchema: ScannedSchem
         });
       }
 
-      if (codeColumn.nullable !== dbColumn.nullable) {
+      if (codeColumn.type !== 'unknown' && codeColumn.nullable !== dbColumn.nullable) {
         mismatches.push({
           type: 'nullable_mismatch',
           severity: 'warning',
@@ -600,7 +607,7 @@ export function compareSchemas(codeSchema: ScannedSchema, dbSchema: ScannedSchem
     }
 
     for (const dbColumn of dbTable.columns) {
-      if (!codeColumns.has(dbColumn.name.toLowerCase())) {
+      if (codeTable.columnsComplete !== false && !codeColumns.has(dbColumn.name.toLowerCase())) {
         mismatches.push({
           type: 'extra_field',
           severity: 'info',
@@ -844,16 +851,30 @@ function parsePrismaModels(content: string, source: string): ScannedTable[] {
   return tables;
 }
 
-function extractReferencedTables(content: string, filePath: string): string[] {
-  const tables = new Set<string>();
+function extractReferencedTables(
+  content: string,
+  filePath: string
+): Array<{ name: string; columns: string[] }> {
+  const tables = new Map<string, Set<string>>();
+  const addTable = (name: string, columns: string[] = []) => {
+    if (isFalsePositiveTable(name)) return;
+    const existing = tables.get(name) || new Set<string>();
+    columns.forEach((column) => existing.add(column));
+    tables.set(name, existing);
+  };
 
   const clientTablePattern =
     /\b(?:supabase|db|database|client)\s*[\r\n\t ]*\.[\r\n\t ]*from\(\s*["'`]([a-zA-Z_][\w-]*)["'`]\s*\)/g;
   let match: RegExpExecArray | null;
   while ((match = clientTablePattern.exec(content)) !== null) {
-    if (!isFalsePositiveTable(match[1])) {
-      tables.add(match[1]);
-    }
+    const nextStatement = content.indexOf(';', clientTablePattern.lastIndex);
+    const segmentEnd = nextStatement === -1
+      ? Math.min(content.length, clientTablePattern.lastIndex + 4000)
+      : Math.min(nextStatement, clientTablePattern.lastIndex + 4000);
+    addTable(
+      match[1],
+      extractSupabaseQueryColumns(content.slice(clientTablePattern.lastIndex, segmentEnd))
+    );
   }
 
   const sqlSources = path.extname(filePath).toLowerCase() === '.sql'
@@ -875,14 +896,45 @@ function extractReferencedTables(content: string, filePath: string): string[] {
       pattern.lastIndex = 0;
       while ((match = pattern.exec(sqlSource)) !== null) {
         const tableName = match[1];
-        if (tableName && !isFalsePositiveTable(tableName)) {
-          tables.add(tableName);
-        }
+        if (tableName) addTable(tableName);
       }
     }
   }
 
-  return Array.from(tables);
+  return Array.from(tables, ([name, columns]) => ({
+    name,
+    columns: Array.from(columns),
+  }));
+}
+
+function extractSupabaseQueryColumns(segment: string): string[] {
+  const columns = new Set<string>();
+  const addColumn = (candidate: string) => {
+    const normalized = candidate.trim().replace(/^.*:/, '').replace(/^.*\./, '');
+    if (/^[a-zA-Z_]\w*$/.test(normalized)) columns.add(normalized);
+  };
+
+  const selectMatch = segment.match(/\.select\(\s*["'`]([\s\S]*?)["'`]\s*[\),]/);
+  if (selectMatch) {
+    for (const part of selectMatch[1].split(',')) {
+      const candidate = part.trim();
+      if (candidate !== '*' && !candidate.includes('(')) addColumn(candidate);
+    }
+  }
+
+  const mutationPattern = /\.(?:insert|update|upsert)\(\s*\{([\s\S]*?)\}\s*\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = mutationPattern.exec(segment)) !== null) {
+    const keyPattern = /(?:^|,)\s*([a-zA-Z_]\w*)\s*:/g;
+    let keyMatch: RegExpExecArray | null;
+    while ((keyMatch = keyPattern.exec(match[1])) !== null) addColumn(keyMatch[1]);
+  }
+
+  const columnArgumentPattern =
+    /\.(?:eq|neq|gt|gte|lt|lte|like|ilike|is|in|contains|containedBy|order)\(\s*["'`]([a-zA-Z_]\w*)["'`]/g;
+  while ((match = columnArgumentPattern.exec(segment)) !== null) addColumn(match[1]);
+
+  return Array.from(columns);
 }
 
 function extractSqlStringLiterals(content: string): string[] {
@@ -989,6 +1041,7 @@ function mergeTable(tableMap: Map<string, ScannedTable>, table: ScannedTable) {
     }
   }
   existing.columns = Array.from(columns.values());
+  existing.columnsComplete = existing.columnsComplete !== false || table.columnsComplete !== false;
   existing.relationships = dedupeRelationships([
     ...(existing.relationships || []),
     ...(table.relationships || []),

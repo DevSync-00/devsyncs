@@ -39,6 +39,35 @@ describe('scanCodebaseSchema table references', () => {
     const schema = scanCodebaseSchema(root);
 
     expect(schema.tables.map((table) => table.name)).toEqual(['profiles']);
+    expect(schema.tables[0].columns.map((column) => column.name)).toEqual([]);
+  });
+
+  it('infers partial columns from Supabase query chains', () => {
+    mkdirSync(path.join(root, 'services'));
+    writeFileSync(
+      path.join(root, 'services', 'profiles.ts'),
+      `
+        import { createClient } from '@supabase/supabase-js';
+        await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url')
+          .eq('is_active', true)
+          .order('created_at');
+        await supabase.from('profiles').update({ display_name: nextName }).eq('id', userId);
+      `
+    );
+
+    const schema = scanCodebaseSchema(root);
+
+    expect(schema.tables[0].columnsComplete).toBe(false);
+    expect(schema.tables[0].columns.map((column) => column.name).sort()).toEqual([
+      'avatar_url',
+      'created_at',
+      'display_name',
+      'id',
+      'is_active',
+    ]);
+    expect(schema.tables[0].columns.every((column) => column.type === 'unknown')).toBe(true);
   });
 
   it('extracts table names from genuine SQL string literals', () => {
