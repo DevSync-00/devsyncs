@@ -10,6 +10,7 @@ import SchemaMeshBg from '@/components/animations/SchemaMeshBg';
 import Logo from '@/components/Logo';
 import ThemeToggle from '@/components/ThemeToggle';
 import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
+import GitHubAuthButton from '@/components/auth/GitHubAuthButton';
 import { getAuthCallbackUrl } from '@/lib/auth/callback-url';
 
 function SignupForm() {
@@ -253,13 +254,22 @@ function SignupForm() {
             </div>
           </div>
 
-          <GoogleAuthButton
-            label="Sign up with Google"
-            onError={(message) => {
-              setError(message);
-              setErrorDetails(message ? 'Please try again or create an account with email.' : null);
-            }}
-          />
+          <div className="space-y-3">
+            <GoogleAuthButton
+              label="Sign up with Google"
+              onError={(message) => {
+                setError(message);
+                setErrorDetails(message ? 'Please try again or create an account with email.' : null);
+              }}
+            />
+            <GitHubAuthButton
+              label="Sign up with GitHub"
+              onError={(message) => {
+                setError(message);
+                setErrorDetails(message ? 'Please try again or create an account with email.' : null);
+              }}
+            />
+          </div>
 
           <div className="text-center text-sm pt-2">
             <span className="text-muted-foreground">Already have an account? </span>

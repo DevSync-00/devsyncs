@@ -10,6 +10,7 @@ import SchemaMeshBg from '@/components/animations/SchemaMeshBg';
 import Logo from '@/components/Logo';
 import ThemeToggle from '@/components/ThemeToggle';
 import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
+import GitHubAuthButton from '@/components/auth/GitHubAuthButton';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -187,13 +188,22 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <GoogleAuthButton
-            label="Sign in with Google"
-            onError={(message) => {
-              setError(message);
-              setErrorDetails(message ? 'Please try again or use your email and password.' : null);
-            }}
-          />
+          <div className="space-y-3">
+            <GoogleAuthButton
+              label="Sign in with Google"
+              onError={(message) => {
+                setError(message);
+                setErrorDetails(message ? 'Please try again or use your email and password.' : null);
+              }}
+            />
+            <GitHubAuthButton
+              label="Sign in with GitHub"
+              onError={(message) => {
+                setError(message);
+                setErrorDetails(message ? 'Please try again or use your email and password.' : null);
+              }}
+            />
+          </div>
 
           <div className="text-center text-sm pt-2">
             <span className="text-muted-foreground">Don't have an account? </span>
