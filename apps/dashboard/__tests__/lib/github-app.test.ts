@@ -31,9 +31,20 @@ describe('GitHub App private key handling', () => {
     expect(createGitHubAppJwt().split('.')).toHaveLength(3);
   });
 
+  it('normalizes a quoted base64 assignment copied into an environment value', () => {
+    const encoded = Buffer.from(pem).toString('base64');
+    process.env.GITHUB_APP_PRIVATE_KEY_BASE64 =
+      `"GITHUB_APP_PRIVATE_KEY_BASE64=${encoded}\n"`;
+
+    expect(getGitHubAppPrivateKey()).toBe(pem.trim());
+    expect(createGitHubAppJwt().split('.')).toHaveLength(3);
+  });
+
   it('reports an actionable error for an invalid private key', () => {
     process.env.GITHUB_APP_PRIVATE_KEY = 'not-a-private-key';
 
-    expect(() => createGitHubAppJwt()).toThrow('GitHub App private key is invalid');
+    expect(() => createGitHubAppJwt()).toThrow(
+      'GitHub App private key is invalid: missing PEM header'
+    );
   });
 });

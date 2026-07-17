@@ -2,9 +2,18 @@ import fs from 'fs/promises';
 import { existsSync } from 'fs';
 import os from 'os';
 import path from 'path';
+import { Readable, Transform } from 'stream';
+import { pipeline } from 'stream/promises';
 import { x as extractTar } from 'tar';
 
-const MAX_REPOSITORY_ARCHIVE_BYTES = 100 * 1024 * 1024;
+const DEFAULT_MAX_REPOSITORY_ARCHIVE_BYTES = 400 * 1024 * 1024;
+
+function getMaxRepositoryArchiveBytes() {
+  const configuredMb = Number(process.env.MAX_REPOSITORY_ARCHIVE_MB);
+  return Number.isFinite(configuredMb) && configuredMb > 0
+    ? configuredMb * 1024 * 1024
+    : DEFAULT_MAX_REPOSITORY_ARCHIVE_BYTES;
+}
 
 export function getProjectsCloneBaseDir() {
   return process.env.PROJECTS_CLONE_DIR || path.join(os.tmpdir(), 'devsync-projects');
@@ -26,33 +35,26 @@ export async function ensureGitClone(
 
   const cloneDir = getProjectCloneDir(projectId);
   const baseDir = path.dirname(cloneDir);
-  const archivePath = path.join(baseDir, `${projectId}-${Date.now()}.tar.gz`);
 
   await fs.mkdir(baseDir, { recursive: true });
   await fs.rm(cloneDir, { recursive: true, force: true });
   await fs.mkdir(cloneDir, { recursive: true });
 
   try {
-    const archive = await downloadGitHubArchive(gitUrl, accessToken);
-    await fs.writeFile(archivePath, archive);
-    await extractTar({
-      cwd: cloneDir,
-      file: archivePath,
-      gzip: true,
-      strip: 1,
-      preservePaths: false,
-    });
+    await downloadAndExtractGitHubArchive(gitUrl, cloneDir, accessToken);
   } catch (error) {
     await fs.rm(cloneDir, { recursive: true, force: true });
     throw error;
-  } finally {
-    await fs.rm(archivePath, { force: true });
   }
 
   return cloneDir;
 }
 
-async function downloadGitHubArchive(gitUrl: string, accessToken?: string | null): Promise<Buffer> {
+async function downloadAndExtractGitHubArchive(
+  gitUrl: string,
+  cloneDir: string,
+  accessToken?: string | null
+) {
   const { owner, repository } = parseGitHubRepository(gitUrl);
   const token = accessToken || process.env.GITHUB_TOKEN?.trim();
   const response = await fetch(
@@ -77,17 +79,44 @@ async function downloadGitHubArchive(gitUrl: string, accessToken?: string | null
     );
   }
 
+  const maxArchiveBytes = getMaxRepositoryArchiveBytes();
   const contentLength = Number(response.headers.get('content-length') || 0);
-  if (contentLength > MAX_REPOSITORY_ARCHIVE_BYTES) {
-    throw new Error('Repository archive exceeds the 100 MB serverless processing limit.');
+  if (contentLength > maxArchiveBytes) {
+    throw new Error(
+      `Repository archive exceeds the ${Math.floor(maxArchiveBytes / 1024 / 1024)} MB processing limit.`
+    );
   }
 
-  const archive = Buffer.from(await response.arrayBuffer());
-  if (archive.byteLength > MAX_REPOSITORY_ARCHIVE_BYTES) {
-    throw new Error('Repository archive exceeds the 100 MB serverless processing limit.');
+  if (!response.body) {
+    throw new Error('GitHub returned an empty repository archive.');
   }
 
-  return archive;
+  let receivedBytes = 0;
+  const enforceLimit = new Transform({
+    transform(chunk, _encoding, callback) {
+      receivedBytes += chunk.length;
+      if (receivedBytes > maxArchiveBytes) {
+        callback(
+          new Error(
+            `Repository archive exceeds the ${Math.floor(maxArchiveBytes / 1024 / 1024)} MB processing limit.`
+          )
+        );
+        return;
+      }
+      callback(null, chunk);
+    },
+  });
+
+  await pipeline(
+    Readable.fromWeb(response.body as any),
+    enforceLimit,
+    extractTar({
+      cwd: cloneDir,
+      gzip: true,
+      strip: 1,
+      preservePaths: false,
+    })
+  );
 }
 
 export function parseGitHubRepository(gitUrl: string): { owner: string; repository: string } {

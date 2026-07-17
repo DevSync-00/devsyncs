@@ -19,7 +19,17 @@ export function getGitHubAppSlug() {
 }
 
 export function getGitHubAppPrivateKey() {
-  const base64Key = process.env.GITHUB_APP_PRIVATE_KEY_BASE64?.trim();
+  let base64Key = process.env.GITHUB_APP_PRIVATE_KEY_BASE64?.trim() || '';
+  if (
+    (base64Key.startsWith('"') && base64Key.endsWith('"')) ||
+    (base64Key.startsWith("'") && base64Key.endsWith("'"))
+  ) {
+    base64Key = base64Key.slice(1, -1);
+  }
+  base64Key = base64Key
+    .replace(/^GITHUB_APP_PRIVATE_KEY_BASE64\s*=\s*/i, '')
+    .replace(/\s/g, '');
+
   let privateKey = base64Key
     ? Buffer.from(base64Key, 'base64').toString('utf8')
     : process.env.GITHUB_APP_PRIVATE_KEY?.trim() || '';
@@ -32,6 +42,15 @@ export function getGitHubAppPrivateKey() {
   }
 
   return privateKey.replace(/\\r\\n|\\n/g, '\n').replace(/\r\n/g, '\n').trim();
+}
+
+function describePrivateKey(privateKey: string) {
+  if (!privateKey) return 'empty';
+  if (/^LS0tLS1CRUdJTi/.test(privateKey)) return 'still base64-encoded';
+  if (!privateKey.includes('-----BEGIN ')) return 'missing PEM header';
+  if (!privateKey.includes(' PRIVATE KEY-----')) return 'not a private-key PEM';
+  if (!privateKey.includes('-----END ')) return 'missing PEM footer';
+  return `PEM detected (${privateKey.length} characters)`;
 }
 
 export function createGitHubAppJwt() {
@@ -48,7 +67,7 @@ export function createGitHubAppJwt() {
     key = createPrivateKey(privateKey);
   } catch {
     throw new Error(
-      'The GitHub App private key is invalid. Upload the complete PEM key or set GITHUB_APP_PRIVATE_KEY_BASE64 to its base64-encoded contents.'
+      `The GitHub App private key is invalid: ${describePrivateKey(privateKey)}. Check the Vercel Production environment value and redeploy.`
     );
   }
 
