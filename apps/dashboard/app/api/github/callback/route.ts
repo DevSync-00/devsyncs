@@ -19,8 +19,15 @@ export async function GET(request: NextRequest) {
 
   const expectedState = request.cookies.get('github_app_state')?.value;
   const state = request.nextUrl.searchParams.get('state');
-  const installationId = Number(request.nextUrl.searchParams.get('installation_id'));
-  if (!expectedState || state !== expectedState || !Number.isSafeInteger(installationId)) {
+  const installationIdParam = request.nextUrl.searchParams.get('installation_id');
+  const installationId = Number(installationIdParam);
+  if (
+    !expectedState ||
+    state !== expectedState ||
+    !installationIdParam ||
+    !Number.isSafeInteger(installationId) ||
+    installationId <= 0
+  ) {
     return response('error', 'Invalid or expired GitHub installation request.');
   }
 
@@ -45,4 +52,3 @@ export async function GET(request: NextRequest) {
     return response('error', error?.message || 'Unable to connect GitHub.');
   }
 }
-

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Github, Loader2, CheckCircle2 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { AlertCircle, Github, Loader2, CheckCircle2 } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -12,8 +13,11 @@ interface Installation {
 }
 
 export default function GitHubAppConnection() {
+  const searchParams = useSearchParams();
   const [installations, setInstallations] = useState<Installation[]>([]);
   const [loading, setLoading] = useState(true);
+  const connectionStatus = searchParams.get('github');
+  const connectionMessage = searchParams.get('github_message');
 
   useEffect(() => {
     fetch('/api/github/installations')
@@ -56,6 +60,20 @@ export default function GitHubAppConnection() {
         <p className="text-xs text-muted-foreground">
           Public repositories work without connecting. Private repositories require installation access.
         </p>
+      )}
+
+      {connectionStatus === 'connected' && (
+        <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400" role="status">
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+          GitHub access connected. You can now scan the selected repositories.
+        </div>
+      )}
+
+      {connectionStatus === 'error' && (
+        <div className="flex items-start gap-2 text-xs text-destructive" role="alert">
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{connectionMessage || 'GitHub access could not be connected. Please try again.'}</span>
+        </div>
       )}
     </div>
   );
