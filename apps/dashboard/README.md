@@ -45,8 +45,8 @@ Supabase's redirect allow list. Provider secrets must not be committed here.
 
 Under **Supabase Authentication > URL Configuration**, set:
 
-- Site URL: `https://dev-sync.dev`
-- Redirect URL: `https://dev-sync.dev/auth/callback`
+- Site URL: `https://www.dev-sync.dev`
+- Redirect URL: `https://www.dev-sync.dev/auth/callback`
 
 The application also defaults auth callbacks to this production URL so a
 missing deployment environment variable cannot generate localhost links.
@@ -59,8 +59,8 @@ See `supabase/migrations/` for database schema.
 
 Create a GitHub App named DevSync with:
 
-- Homepage URL: `https://dev-sync.dev`
-- Setup URL: `https://dev-sync.dev/api/github/callback`
+- Homepage URL: `https://www.dev-sync.dev`
+- Setup URL: `https://www.dev-sync.dev/api/github/callback`
 - Redirect on update: enabled
 - Repository permission: **Contents — Read-only**
 - Webhooks: disabled (not required for repository scans)
@@ -71,6 +71,12 @@ Generate a private key and configure `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, and
 `007_github_app_installations.sql` before enabling the connection button.
 DevSync persists installation IDs only and creates repository-scoped,
 short-lived installation tokens for scans.
+
+Configure the GitHub App callback URL as
+`https://www.dev-sync.dev/api/github/callback`, then add
+`GITHUB_APP_CLIENT_ID` and `GITHUB_APP_CLIENT_SECRET` to the deployment.
+User authorization lets multiple DevSync accounts securely connect the same
+existing GitHub App installation.
 
 For Vercel, `GITHUB_APP_PRIVATE_KEY_BASE64` is the most reliable option. Set it
 to the base64 encoding of the complete `.pem` file downloaded from GitHub; it

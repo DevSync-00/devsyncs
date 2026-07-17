@@ -18,6 +18,10 @@ export function getGitHubAppSlug() {
   return process.env.GITHUB_APP_SLUG?.trim() || '';
 }
 
+export function getGitHubAppOAuthClientId() {
+  return process.env.GITHUB_APP_CLIENT_ID?.trim() || '';
+}
+
 export function getGitHubAppPrivateKey() {
   let base64Key = process.env.GITHUB_APP_PRIVATE_KEY_BASE64?.trim() || '';
   if (
@@ -96,6 +100,39 @@ async function githubRequest<T>(url: string, token: string, init: RequestInit = 
     throw new Error(`GitHub API request failed (${response.status} ${response.statusText}).`);
   }
   return response.json() as Promise<T>;
+}
+
+export async function exchangeGitHubOAuthCode(code: string) {
+  const clientId = getGitHubAppOAuthClientId();
+  const clientSecret = process.env.GITHUB_APP_CLIENT_SECRET?.trim();
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      'GitHub user authorization is not configured. Add GITHUB_APP_CLIENT_ID and GITHUB_APP_CLIENT_SECRET.'
+    );
+  }
+
+  const response = await fetch('https://github.com/login/oauth/access_token', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'DevSync',
+    },
+    body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, code }),
+  });
+  const data = await response.json() as { access_token?: string; error_description?: string };
+  if (!response.ok || !data.access_token) {
+    throw new Error(data.error_description || 'GitHub authorization failed.');
+  }
+  return data.access_token;
+}
+
+export async function getGitHubInstallationsForUser(userAccessToken: string) {
+  const data = await githubRequest<{ installations: any[] }>(
+    'https://api.github.com/user/installations?per_page=100',
+    userAccessToken
+  );
+  return data.installations || [];
 }
 
 export async function getGitHubInstallation(installationId: number) {

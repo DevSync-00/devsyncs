@@ -1,7 +1,7 @@
 import { randomBytes } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getGitHubAppSlug } from '@/lib/github-app';
+import { getGitHubAppOAuthClientId, getGitHubAppSlug } from '@/lib/github-app';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,9 +22,11 @@ export async function GET(request: NextRequest) {
   const returnTo = returnToParam.startsWith('/') && !returnToParam.startsWith('//')
     ? returnToParam
     : '/dashboard/projects/new';
-  const response = NextResponse.redirect(
-    `https://github.com/apps/${encodeURIComponent(slug)}/installations/new?state=${state}`
-  );
+  const clientId = getGitHubAppOAuthClientId();
+  const destination = clientId
+    ? `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(clientId)}&state=${state}`
+    : `https://github.com/apps/${encodeURIComponent(slug)}/installations/new?state=${state}`;
+  const response = NextResponse.redirect(destination);
   response.cookies.set('github_app_state', state, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -41,4 +43,3 @@ export async function GET(request: NextRequest) {
   });
   return response;
 }
-
