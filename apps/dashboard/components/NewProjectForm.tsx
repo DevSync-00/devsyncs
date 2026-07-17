@@ -14,6 +14,7 @@ import { formatErrorMessage } from '@/lib/error-utils';
 import { useToast } from '@/hooks/use-toast';
 import { fetchJSON } from '@/lib/fetch-utils';
 import GitHubAppConnection from '@/components/github/GitHubAppConnection';
+import GitHubRepositoryPicker from '@/components/github/GitHubRepositoryPicker';
 
 interface NewProjectFormProps {
   userId: string;
@@ -101,6 +102,7 @@ export default function NewProjectForm({ userId, teamId }: NewProjectFormProps) 
   const {
     register,
     handleSubmit,
+    setValue,
     watch,
     formState: { errors },
   } = useForm<ProjectFormData>({
@@ -111,6 +113,7 @@ export default function NewProjectForm({ userId, teamId }: NewProjectFormProps) 
   });
 
   const codebaseSource = watch('codebaseSource');
+  const gitUrl = watch('gitUrl') || '';
 
   const onSubmit = async (data: ProjectFormData) => {
     setLoading(true);
@@ -310,13 +313,17 @@ export default function NewProjectForm({ userId, teamId }: NewProjectFormProps) 
             <Label htmlFor="gitUrl">
               Git Repository URL <span className="text-destructive">*</span>
             </Label>
-            <Input
-              id="gitUrl"
-              {...register('gitUrl')}
-              placeholder="https://github.com/username/repository.git"
-              className="mt-2"
-              disabled={loading}
-            />
+            <input type="hidden" {...register('gitUrl')} />
+            <div className="mt-2">
+              <GitHubRepositoryPicker
+                value={gitUrl}
+                onChange={(url) => setValue('gitUrl', url, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })}
+                disabled={loading}
+              />
+            </div>
             {errors.gitUrl && (
               <p className="text-sm text-destructive mt-1">{errors.gitUrl.message}</p>
             )}

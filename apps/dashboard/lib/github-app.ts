@@ -157,6 +157,22 @@ export async function createInstallationToken(installationId: number, repository
   return data.token;
 }
 
+export async function getRepositoriesForInstallation(installationId: number) {
+  const token = await createInstallationToken(installationId);
+  const repositories: any[] = [];
+
+  for (let page = 1; page <= 10; page += 1) {
+    const data = await githubRequest<{ repositories: any[] }>(
+      `https://api.github.com/installation/repositories?per_page=100&page=${page}`,
+      token
+    );
+    repositories.push(...(data.repositories || []));
+    if (!data.repositories || data.repositories.length < 100) break;
+  }
+
+  return repositories;
+}
+
 export async function getGitHubAccessTokenForRepository(
   userId: string,
   owner: string,
