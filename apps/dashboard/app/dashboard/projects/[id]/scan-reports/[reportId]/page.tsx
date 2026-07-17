@@ -207,10 +207,9 @@ export default async function ScanReportDetailPage({
             <div className="text-center py-8 border border-border rounded-lg bg-card">
               <FileCode className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No migrations generated yet</h3>
-              <p className="text-muted-foreground mb-4">
+              <p className="text-muted-foreground">
                 Generate a migration to fix the mismatches
               </p>
-              <GenerateMigrationButton scanReportId={params.reportId} />
             </div>
           )}
         </div>

@@ -148,12 +148,14 @@ export async function POST(request: NextRequest) {
         finalDbSchema = await scanDatabaseSchema(project.db_connection_string);
       } catch (scanError: any) {
         console.error('Database scan failed:', scanError);
+        const details = scanError?.message || 'Unknown database scan error';
+        const isConfigurationError = /authentication failed|connection string|required/i.test(details);
         return NextResponse.json(
           {
             error: 'Failed to scan database',
-            details: scanError?.message || 'Unknown database scan error',
+            details,
           },
-          { status: 500 }
+          { status: isConfigurationError ? 422 : 500 }
         );
       }
 

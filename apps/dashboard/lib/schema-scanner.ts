@@ -106,7 +106,7 @@ export function scanCodebaseSchema(root: string): ScannedSchema {
     const content = readFileSync(filePath, 'utf8');
     const relativePath = path.relative(root, filePath);
 
-    for (const tableName of extractReferencedTables(content)) {
+    for (const tableName of extractReferencedTables(content, filePath)) {
       if (!tableMap.has(tableName)) {
         tableMap.set(tableName, {
           name: tableName,
@@ -499,6 +499,17 @@ function formatDatabaseConnectionError(error: any, connectionString: string) {
 
   try {
     const url = new URL(connectionString);
+    if (
+      code === '28P01'
+      || message.toLowerCase().includes('password authentication failed')
+      || message.toLowerCase().includes('wrong password')
+    ) {
+      const isSupabase = url.hostname.includes('supabase.co');
+      return isSupabase
+        ? 'Database authentication failed. In Supabase, open Connect, copy the Transaction pooler connection string, replace [YOUR-PASSWORD] with the project database password, and save it in Edit Project. Percent-encode special characters in the password.'
+        : `Database authentication failed for user "${decodeURIComponent(url.username)}". Verify the username and password in Edit Project.`;
+    }
+
     if (code === 'ENOTFOUND' || message.includes('ENOTFOUND')) {
       return `Could not resolve database host "${url.hostname}". Check that the Supabase project ref/host is correct, the project is active, and prefer the Supabase Shared Pooler connection string if your network cannot reach the direct database host.`;
     }
@@ -833,25 +844,60 @@ function parsePrismaModels(content: string, source: string): ScannedTable[] {
   return tables;
 }
 
-function extractReferencedTables(content: string): string[] {
+function extractReferencedTables(content: string, filePath: string): string[] {
   const tables = new Set<string>();
-  const patterns = [
-    /\b(?:supabase|db|database|client)\s*[\r\n\t ]*\.[\r\n\t ]*from\(\s*["'`]([a-zA-Z_][\w-]*)["'`]\s*\)/g,
-    /\b(?:supabase|db|database|client)\s*[\r\n\t ]*\.[\r\n\t ]*rpc\(\s*["'`]([a-zA-Z_][\w-]*)["'`]\s*\)/g,
-    /\b(?:FROM|JOIN|INTO|UPDATE)\s+(?:(?:public|dbo)\.)?"?([a-zA-Z_][\w-]*)"?/gi,
+
+  const clientTablePattern =
+    /\b(?:supabase|db|database|client)\s*[\r\n\t ]*\.[\r\n\t ]*from\(\s*["'`]([a-zA-Z_][\w-]*)["'`]\s*\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = clientTablePattern.exec(content)) !== null) {
+    if (!isFalsePositiveTable(match[1])) {
+      tables.add(match[1]);
+    }
+  }
+
+  const sqlSources = path.extname(filePath).toLowerCase() === '.sql'
+    ? [content]
+    : extractSqlStringLiterals(content);
+
+  const sqlPatterns = [
+    /\bSELECT\b[\s\S]{0,2000}?\bFROM\s+(?:(?:public|dbo)\.)?"?([a-zA-Z_][\w-]*)"?/gi,
+    /\bINSERT\s+INTO\s+(?:(?:public|dbo)\.)?"?([a-zA-Z_][\w-]*)"?/gi,
+    /\bUPDATE\s+(?:(?:public|dbo)\.)?"?([a-zA-Z_][\w-]*)"?\s+SET\b/gi,
+    /\bDELETE\s+FROM\s+(?:(?:public|dbo)\.)?"?([a-zA-Z_][\w-]*)"?/gi,
+    /\bJOIN\s+(?:(?:public|dbo)\.)?"?([a-zA-Z_][\w-]*)"?/gi,
   ];
 
-  for (const pattern of patterns) {
-    let match: RegExpExecArray | null;
-    while ((match = pattern.exec(content)) !== null) {
-      const tableName = match[1];
-      if (tableName && !isFalsePositiveTable(tableName)) {
-        tables.add(tableName);
+  for (const sqlSource of sqlSources) {
+    if (!/\b(?:SELECT|INSERT|UPDATE|DELETE)\b/i.test(sqlSource)) continue;
+
+    for (const pattern of sqlPatterns) {
+      pattern.lastIndex = 0;
+      while ((match = pattern.exec(sqlSource)) !== null) {
+        const tableName = match[1];
+        if (tableName && !isFalsePositiveTable(tableName)) {
+          tables.add(tableName);
+        }
       }
     }
   }
 
   return Array.from(tables);
+}
+
+function extractSqlStringLiterals(content: string): string[] {
+  const literals: string[] = [];
+  const stringPattern = /(["'`])([\s\S]*?)\1/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = stringPattern.exec(content)) !== null) {
+    const value = match[2];
+    if (/\b(?:SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b/i.test(value)) {
+      literals.push(value);
+    }
+  }
+
+  return literals;
 }
 
 function parseSqlColumn(columnDefinition: string): ScannedColumn | null {
