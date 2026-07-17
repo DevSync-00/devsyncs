@@ -72,6 +72,10 @@ Generate a private key and configure `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, and
 DevSync persists installation IDs only and creates repository-scoped,
 short-lived installation tokens for scans.
 
+For Vercel, `GITHUB_APP_PRIVATE_KEY_BASE64` is the most reliable option. Set it
+to the base64 encoding of the complete `.pem` file downloaded from GitHub; it
+takes precedence over `GITHUB_APP_PRIVATE_KEY`.
+
 The Setup URL is required: GitHub sends the `installation_id` and DevSync
 state to that route after installation. Without it, installation succeeds on
 GitHub but the installation is never connected to the signed-in DevSync user.

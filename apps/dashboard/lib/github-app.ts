@@ -1,4 +1,4 @@
-import { createSign } from 'crypto';
+import { createPrivateKey, createSign } from 'crypto';
 import { getAdminClient } from '@/lib/supabase/admin';
 
 const GITHUB_API_VERSION = '2026-03-10';
@@ -18,11 +18,38 @@ export function getGitHubAppSlug() {
   return process.env.GITHUB_APP_SLUG?.trim() || '';
 }
 
+export function getGitHubAppPrivateKey() {
+  const base64Key = process.env.GITHUB_APP_PRIVATE_KEY_BASE64?.trim();
+  let privateKey = base64Key
+    ? Buffer.from(base64Key, 'base64').toString('utf8')
+    : process.env.GITHUB_APP_PRIVATE_KEY?.trim() || '';
+
+  if (
+    (privateKey.startsWith('"') && privateKey.endsWith('"')) ||
+    (privateKey.startsWith("'") && privateKey.endsWith("'"))
+  ) {
+    privateKey = privateKey.slice(1, -1);
+  }
+
+  return privateKey.replace(/\\r\\n|\\n/g, '\n').replace(/\r\n/g, '\n').trim();
+}
+
 export function createGitHubAppJwt() {
   const appId = process.env.GITHUB_APP_ID?.trim();
-  const privateKey = process.env.GITHUB_APP_PRIVATE_KEY?.replace(/\\n/g, '\n').trim();
+  const privateKey = getGitHubAppPrivateKey();
   if (!appId || !privateKey) {
-    throw new Error('GitHub App is not configured. Add GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY.');
+    throw new Error(
+      'GitHub App is not configured. Add GITHUB_APP_ID and a GitHub-generated private key.'
+    );
+  }
+
+  let key;
+  try {
+    key = createPrivateKey(privateKey);
+  } catch {
+    throw new Error(
+      'The GitHub App private key is invalid. Upload the complete PEM key or set GITHUB_APP_PRIVATE_KEY_BASE64 to its base64-encoded contents.'
+    );
   }
 
   const now = Math.floor(Date.now() / 1000);
@@ -32,7 +59,7 @@ export function createGitHubAppJwt() {
   const signer = createSign('RSA-SHA256');
   signer.update(unsignedToken);
   signer.end();
-  return `${unsignedToken}.${base64Url(signer.sign(privateKey))}`;
+  return `${unsignedToken}.${base64Url(signer.sign(key))}`;
 }
 
 async function githubRequest<T>(url: string, token: string, init: RequestInit = {}): Promise<T> {
