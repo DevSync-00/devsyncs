@@ -63,4 +63,31 @@ describe('scanCodebaseSchema table references', () => {
       'users',
     ]);
   });
+
+  it('separates PostgreSQL types from constraints and primary-key nullability', () => {
+    mkdirSync(path.join(root, 'migrations'));
+    writeFileSync(
+      path.join(root, 'migrations', '001_schema.sql'),
+      `
+        CREATE TABLE admin_users (
+          id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+          email text UNIQUE NOT NULL,
+          role text NOT NULL CHECK (role IN ('admin', 'staff')),
+          is_active boolean DEFAULT true,
+          created_at timestamp with time zone DEFAULT now()
+        );
+      `
+    );
+
+    const schema = scanCodebaseSchema(root);
+    const columns = schema.tables[0].columns;
+
+    expect(columns.map(({ name, type, nullable }) => ({ name, type, nullable }))).toEqual([
+      { name: 'id', type: 'uuid', nullable: false },
+      { name: 'email', type: 'text', nullable: false },
+      { name: 'role', type: 'text', nullable: false },
+      { name: 'is_active', type: 'boolean', nullable: true },
+      { name: 'created_at', type: 'timestamptz', nullable: true },
+    ]);
+  });
 });

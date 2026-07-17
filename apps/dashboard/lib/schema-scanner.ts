@@ -906,14 +906,21 @@ function parseSqlColumn(columnDefinition: string): ScannedColumn | null {
     return null;
   }
 
-  const match = trimmed.match(/^"?([\w-]+)"?\s+([a-zA-Z][\w\s]*(?:\([^)]*\))?)(.*)$/);
+  const match = trimmed.match(/^"?([\w-]+)"?\s+([\s\S]+)$/);
   if (!match) return null;
 
-  const [, name, rawType, rest] = match;
+  const [, name, definition] = match;
+  const constraintIndex = definition.search(
+    /\s+(?=CONSTRAINT\b|NOT\s+NULL\b|NULL\b|DEFAULT\b|PRIMARY\s+KEY\b|UNIQUE\b|REFERENCES\b|CHECK\b|GENERATED\b|COLLATE\b)/i
+  );
+  const rawType = (constraintIndex === -1 ? definition : definition.slice(0, constraintIndex)).trim();
+  const rest = constraintIndex === -1 ? '' : definition.slice(constraintIndex).trim();
+  if (!rawType) return null;
+
   return {
     name,
     type: normalizeType(rawType),
-    nullable: !/\bNOT\s+NULL\b/i.test(rest),
+    nullable: !/\b(?:NOT\s+NULL|PRIMARY\s+KEY)\b/i.test(rest),
     defaultValue: rest.match(/\bDEFAULT\s+(.+?)(?:\s+CONSTRAINT|\s+PRIMARY|\s+REFERENCES|\s+UNIQUE|\s+CHECK|$)/i)?.[1]?.trim(),
     constraints: [
       /\bPRIMARY\s+KEY\b/i.test(rest) ? 'PRIMARY KEY' : '',
