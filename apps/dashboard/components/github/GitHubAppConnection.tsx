@@ -40,10 +40,14 @@ export default function GitHubAppConnection() {
           </p>
         </div>
         <a
-          href="/api/github/install?returnTo=/dashboard/projects/new"
+          href={
+            installations.length > 0
+              ? '/api/github/install?action=add&returnTo=/dashboard/projects/new'
+              : '/api/github/install?returnTo=/dashboard/projects/new'
+          }
           className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
         >
-          {installations.length > 0 ? 'Manage access' : 'Connect GitHub'}
+          {installations.length > 0 ? 'Add organization' : 'Connect GitHub'}
         </a>
       </div>
 
