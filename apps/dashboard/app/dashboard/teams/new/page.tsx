@@ -48,6 +48,7 @@ export default function NewTeamPage() {
         .insert({
           name,
           slug: slug || generateSlug(name),
+          created_by: user.id,
         })
         .select()
         .single();
