@@ -4,8 +4,8 @@ import { getAdminClient } from '@/lib/supabase/admin';
 import {
   exchangeGitHubOAuthCode,
   getGitHubAppSlug,
-  getGitHubInstallation,
   getGitHubInstallationsForUser,
+  getGitHubOAuthUser,
 } from '@/lib/github-app';
 
 export const dynamic = 'force-dynamic';
@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
   if (code) {
     try {
       const userToken = await exchangeGitHubOAuthCode(code);
+      const githubUser = await getGitHubOAuthUser(userToken);
       const installations = await getGitHubInstallationsForUser(userToken);
 
       if (installations.length === 0) {
@@ -53,6 +54,9 @@ export async function GET(request: NextRequest) {
         account_login: installation.account?.login,
         account_type: installation.account?.type || installation.target_type || 'User',
         repository_selection: installation.repository_selection || 'selected',
+        github_user_id: githubUser.id,
+        github_login: githubUser.login,
+        verified_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }));
       const { error } = await admin
@@ -66,29 +70,16 @@ export async function GET(request: NextRequest) {
   }
 
   const installationIdParam = request.nextUrl.searchParams.get('installation_id');
-  const installationId = Number(installationIdParam);
-  if (
-    !installationIdParam ||
-    !Number.isSafeInteger(installationId) ||
-    installationId <= 0
-  ) {
-    return response('error', 'Invalid or expired GitHub installation request.');
+  if (installationIdParam) {
+    const clientId = process.env.GITHUB_APP_CLIENT_ID?.trim();
+    if (!clientId) {
+      return response('error', 'GitHub user authorization is required before connecting installations.');
+    }
+
+    return NextResponse.redirect(
+      `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(clientId)}&state=${expectedState}`
+    );
   }
 
-  try {
-    const installation = await getGitHubInstallation(installationId);
-    const admin = getAdminClient() as any;
-    const { error } = await admin.from('github_app_installations').upsert({
-      user_id: user.id,
-      installation_id: installationId,
-      account_login: installation.account?.login,
-      account_type: installation.account?.type || 'User',
-      repository_selection: installation.repository_selection || 'selected',
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,installation_id' });
-    if (error) throw error;
-    return response('connected');
-  } catch (error: any) {
-    return response('error', error?.message || 'Unable to connect GitHub.');
-  }
+  return response('error', 'Invalid or expired GitHub connection request.');
 }

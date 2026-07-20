@@ -10,10 +10,10 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('github_app_installations')
-    .select('installation_id, account_login, account_type, repository_selection')
+    .select('installation_id, account_login, account_type, repository_selection, github_login')
     .eq('user_id', user.id)
+    .not('github_user_id', 'is', null)
     .order('created_at', { ascending: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ installations: data || [] });
 }
-

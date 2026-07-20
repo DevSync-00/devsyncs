@@ -18,13 +18,12 @@ export async function GET(request: NextRequest) {
   }
 
   const state = randomBytes(32).toString('hex');
-  const forceInstallation = request.nextUrl.searchParams.get('action') === 'add';
   const returnToParam = request.nextUrl.searchParams.get('returnTo') || '/dashboard/projects/new';
   const returnTo = returnToParam.startsWith('/') && !returnToParam.startsWith('//')
     ? returnToParam
     : '/dashboard/projects/new';
   const clientId = getGitHubAppOAuthClientId();
-  const destination = clientId && !forceInstallation
+  const destination = clientId
     ? `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(clientId)}&state=${state}`
     : `https://github.com/apps/${encodeURIComponent(slug)}/installations/new?state=${state}`;
   const response = NextResponse.redirect(destination);

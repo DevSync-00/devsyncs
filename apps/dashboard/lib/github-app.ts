@@ -135,6 +135,13 @@ export async function getGitHubInstallationsForUser(userAccessToken: string) {
   return data.installations || [];
 }
 
+export async function getGitHubOAuthUser(userAccessToken: string) {
+  return githubRequest<{ id: number; login: string }>(
+    'https://api.github.com/user',
+    userAccessToken
+  );
+}
+
 export async function getGitHubInstallation(installationId: number) {
   return githubRequest<any>(
     `https://api.github.com/app/installations/${installationId}`,

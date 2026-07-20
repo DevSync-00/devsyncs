@@ -12,7 +12,8 @@ export async function GET() {
   const { data: installations, error } = await supabase
     .from('github_app_installations')
     .select('installation_id, account_login')
-    .eq('user_id', user.id);
+    .eq('user_id', user.id)
+    .not('github_user_id', 'is', null);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   try {
