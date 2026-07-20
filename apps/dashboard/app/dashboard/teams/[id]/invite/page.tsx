@@ -6,13 +6,11 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Loader2, Mail, UserPlus } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 
 export default function InviteMemberPage() {
   const router = useRouter();
   const params = useParams();
   const teamId = params.id as string;
-  const supabase = createClient();
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,43 +25,26 @@ export default function InviteMemberPage() {
     setSuccess(false);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/auth/login');
-        return;
+      const response = await fetch('/api/teams/invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          teamId,
+          email,
+          role,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to invite member');
       }
 
-      // First, get the user by email to check if they exist
-      // Note: This requires querying auth.users which might need admin access
-      // For now, we'll create a team_member entry and handle the user lookup differently
-      // In production, you'd want to use Supabase admin API or a server action
-
-      // Check if user exists in auth.users (this requires RLS or admin access)
-      // For now, we'll assume the user exists and create the membership
-      // You might want to add email validation and user lookup here
-
-      // Check if member already exists
-      const { data: existing } = await supabase
-        .from('team_members')
-        .select('id')
-        .eq('team_id', teamId)
-        .eq('user_id', email) // This won't work - need to find user by email first
-        .single();
-
-      if (existing) {
-        throw new Error('User is already a member of this team');
-      }
-
-      // For now, we'll need to implement this properly with user lookup
-      // This is a simplified version - in production, you'd need to:
-      // 1. Look up user by email (might need admin API)
-      // 2. Create team_member with the found user_id
-      // 3. Send invitation email
-
-      setError('User invitation not yet fully implemented. Please use user ID directly.');
+      setSuccess(true);
       setLoading(false);
-      
-      // TODO: Implement proper user lookup and invitation
     } catch (err: any) {
       console.error('Invitation error:', err);
       setError(err.message || 'Failed to invite member');
@@ -168,9 +149,8 @@ export default function InviteMemberPage() {
       <div className="p-4 bg-muted/50 border border-border rounded-lg">
         <h3 className="font-medium mb-2">Note</h3>
         <p className="text-sm text-muted-foreground">
-          User invitation requires the invited user to already have an account.
-          In production, you would implement email invitations with magic links
-          or use Supabase Admin API to look up users by email.
+          Existing DevSync users are added to the team immediately. New users receive
+          an invitation link to create an account.
         </p>
       </div>
     </div>

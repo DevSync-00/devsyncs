@@ -74,36 +74,24 @@ export default async function TeamDetailPage({
       
       const { data, error } = await adminClient
         .from('team_members')
-        .select(`
-          *,
-          users:user_id (
-            id,
-            email
-          )
-        `)
+        .select('*')
         .eq('team_id', params.id)
         .order('created_at', { ascending: false });
       
-      members = data || [];
       membersError = error;
+      members = await attachMemberProfiles(adminClient, data || []);
     } catch (error: any) {
       // Fallback: if admin client not available, just get own membership
       // This happens if SUPABASE_SERVICE_ROLE_KEY is not set
       console.warn('Admin client not available, falling back to own membership only:', error.message);
       const { data: ownMembership } = await supabase
         .from('team_members')
-        .select(`
-          *,
-          users:user_id (
-            id,
-            email
-          )
-        `)
+        .select('*')
         .eq('team_id', params.id)
         .eq('user_id', user.id)
         .single();
       
-      members = ownMembership ? [ownMembership] : [];
+      members = ownMembership ? await attachMemberProfiles(supabase, [ownMembership]) : [];
     }
   }
 
@@ -235,7 +223,7 @@ export default async function TeamDetailPage({
               <tbody className="divide-y divide-border">
                 {members.map((member: any) => {
                   const RoleIcon = roleIcons[member.role as keyof typeof roleIcons] || User;
-                  const memberEmail = (member.users as any)?.email || 'Unknown';
+                  const memberEmail = (member.profile as any)?.email || member.user_id || 'Unknown';
                   const isCurrentUser = member.user_id === user.id;
 
                   return (
@@ -335,5 +323,25 @@ export default async function TeamDetailPage({
       </div>
     </div>
   );
+}
+
+async function attachMemberProfiles(supabase: any, members: any[]) {
+  const userIds = members.map((member) => member.user_id).filter(Boolean);
+
+  if (userIds.length === 0) {
+    return members;
+  }
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, email, full_name, avatar_url')
+    .in('id', userIds);
+
+  const profilesById = new Map((profiles || []).map((profile: any) => [profile.id, profile]));
+
+  return members.map((member) => ({
+    ...member,
+    profile: profilesById.get(member.user_id) || null,
+  }));
 }
 
