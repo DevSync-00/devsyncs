@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { LogOut, Settings, FolderKanban, Key } from 'lucide-react';
+import { LogOut, Settings, Key } from 'lucide-react';
 import Logo from '@/components/Logo';
 import ThemeToggle from '@/components/ThemeToggle';
 
@@ -73,7 +73,13 @@ export default async function DashboardLayout({
             </div>
             <div className="flex items-center gap-4">
               <ThemeToggle />
-              <span className="text-sm text-muted-foreground">{user.email}</span>
+              <Link
+                href="/dashboard/settings"
+                className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Settings className="h-4 w-4" />
+                {user.email}
+              </Link>
               <form action={handleSignOut}>
                 <Button type="submit" variant="ghost" size="sm">
                   <LogOut className="w-4 h-4 mr-2" />

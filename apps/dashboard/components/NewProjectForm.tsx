@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -13,7 +14,6 @@ import { GitBranch, Upload, Loader2 } from 'lucide-react';
 import { formatErrorMessage } from '@/lib/error-utils';
 import { useToast } from '@/hooks/use-toast';
 import { fetchJSON } from '@/lib/fetch-utils';
-import GitHubAppConnection from '@/components/github/GitHubAppConnection';
 import GitHubRepositoryPicker from '@/components/github/GitHubRepositoryPicker';
 
 interface NewProjectFormProps {
@@ -308,7 +308,6 @@ export default function NewProjectForm({ userId, teamId }: NewProjectFormProps) 
         {/* Conditional: Git URL */}
         {codebaseSource === 'git' && (
           <div className="space-y-4">
-            <GitHubAppConnection />
             <div>
             <Label htmlFor="gitUrl">
               Git Repository URL <span className="text-destructive">*</span>
@@ -328,7 +327,10 @@ export default function NewProjectForm({ userId, teamId }: NewProjectFormProps) 
               <p className="text-sm text-destructive mt-1">{errors.gitUrl.message}</p>
             )}
             <p className="text-xs text-muted-foreground mt-2">
-              Supports GitHub HTTPS URLs. Select private repositories when installing the DevSync GitHub App.
+              Supports GitHub HTTPS URLs.{' '}
+              <Link href="/dashboard/settings" className="font-medium text-primary hover:underline">
+                Manage GitHub connections
+              </Link>
             </p>
             </div>
           </div>

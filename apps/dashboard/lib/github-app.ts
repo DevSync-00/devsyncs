@@ -190,6 +190,7 @@ export async function getGitHubAccessTokenForRepository(
     .from('github_app_installations')
     .select('installation_id')
     .eq('user_id', userId)
+    .not('github_user_id', 'is', null)
     .ilike('account_login', owner)
     .maybeSingle();
 
