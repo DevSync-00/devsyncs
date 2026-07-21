@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { AlertCircle, Building2, Github, Loader2, Unplug, User } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { AlertCircle, Building2, CheckCircle2, ExternalLink, Github, Loader2, RefreshCw, Unplug, User, X } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -14,12 +15,19 @@ interface Installation {
 }
 
 export default function GitHubConnectionsManager() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [installations, setInstallations] = useState<Installation[]>([]);
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDisconnect, setPendingDisconnect] = useState<Installation | null>(null);
+  const connectionStatus = searchParams.get('github');
+  const connectionMessage = searchParams.get('github_message');
 
-  useEffect(() => {
+  const loadConnections = useCallback(() => {
+    setLoading(true);
+    setError(null);
     fetch('/api/github/installations')
       .then(async (response) => {
         const result = await response.json();
@@ -31,9 +39,17 @@ export default function GitHubConnectionsManager() {
       .finally(() => setLoading(false));
   }, []);
 
-  const disconnect = async (installation: Installation) => {
-    if (!window.confirm(`Disconnect ${installation.account_login} from your DevSync account?`)) return;
+  useEffect(() => {
+    loadConnections();
+  }, [loadConnections]);
 
+  useEffect(() => {
+    if (!connectionStatus) return;
+    const timeout = window.setTimeout(() => router.replace('/dashboard/settings'), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [connectionStatus, router]);
+
+  const disconnect = async (installation: Installation) => {
     setDisconnecting(installation.installation_id);
     setError(null);
     try {
@@ -47,6 +63,7 @@ export default function GitHubConnectionsManager() {
       setInstallations((current) => current.filter(
         (item) => item.installation_id !== installation.installation_id
       ));
+      setPendingDisconnect(null);
     } catch (caught: any) {
       setError(caught.message);
     } finally {
@@ -65,13 +82,28 @@ export default function GitHubConnectionsManager() {
             Repositories from these installations are available when creating a project.
           </p>
         </div>
-        <a
-          href="/api/github/install?returnTo=/dashboard/settings"
-          className={cn(buttonVariants({ size: 'sm' }))}
-        >
-          <Github className="mr-2 h-4 w-4" /> Connect GitHub
-        </a>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" size="icon" onClick={loadConnections} disabled={loading} title="Refresh GitHub connections">
+            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+            <span className="sr-only">Refresh GitHub connections</span>
+          </Button>
+          <a href="/api/github/install?returnTo=/dashboard/settings" className={cn(buttonVariants({ size: 'sm' }))}>
+            <Github className="mr-2 h-4 w-4" /> Connect GitHub
+          </a>
+        </div>
       </div>
+
+      {connectionStatus === 'connected' && (
+        <div className="flex items-center gap-2 rounded-md border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400" role="status">
+          <CheckCircle2 className="h-4 w-4 shrink-0" /> GitHub was connected successfully.
+        </div>
+      )}
+
+      {connectionStatus === 'error' && (
+        <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive" role="alert">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {connectionMessage || 'GitHub could not be connected.'}
+        </div>
+      )}
 
       {error && (
         <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive" role="alert">
@@ -106,20 +138,21 @@ export default function GitHubConnectionsManager() {
                     Authorized by @{installation.github_login || 'GitHub user'} - {installation.repository_selection} repositories
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={disconnecting === installation.installation_id}
-                  onClick={() => disconnect(installation)}
-                >
-                  {disconnecting === installation.installation_id ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Unplug className="mr-2 h-4 w-4" />
-                  )}
-                  Disconnect
-                </Button>
+                <div className="flex shrink-0 items-center gap-2">
+                  <a
+                    href={`https://github.com/settings/installations/${installation.installation_id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}
+                    title={`Manage ${installation.account_login} access on GitHub`}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    <span className="sr-only">Manage access on GitHub</span>
+                  </a>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setPendingDisconnect(installation)}>
+                    <Unplug className="mr-2 h-4 w-4" /> Disconnect
+                  </Button>
+                </div>
               </div>
             );
           })}
@@ -132,6 +165,31 @@ export default function GitHubConnectionsManager() {
           GitHub App settings
         </a>.
       </p>
+
+      {pendingDisconnect && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation" onMouseDown={() => setPendingDisconnect(null)}>
+          <div className="w-full max-w-md rounded-md border bg-background p-6 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="disconnect-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 id="disconnect-title" className="text-lg font-semibold">Disconnect {pendingDisconnect.account_login}?</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Its private repositories will no longer be available to your DevSync account. Existing projects are not deleted.
+                </p>
+              </div>
+              <Button type="button" variant="ghost" size="icon" onClick={() => setPendingDisconnect(null)} title="Close">
+                <X className="h-4 w-4" /><span className="sr-only">Close</span>
+              </Button>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => setPendingDisconnect(null)}>Cancel</Button>
+              <Button type="button" variant="destructive" disabled={disconnecting !== null} onClick={() => disconnect(pendingDisconnect)}>
+                {disconnecting !== null && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Disconnect
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

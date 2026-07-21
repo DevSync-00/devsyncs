@@ -232,10 +232,19 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
+      id: scanReport.id,
       scanId: scanReport.id,
-      status: 'success',
+      projectId: projectId,
+      project_id: projectId,
+      status: 'completed',
       mismatches: scanReport.mismatches,
+      codeSchema: scanReport.code_schema,
+      code_schema: scanReport.code_schema,
+      dbSchema: scanReport.db_schema,
+      db_schema: scanReport.db_schema,
+      created_at: scanReport.created_at,
       createdAt: scanReport.created_at,
+      completed_at: scanReport.completed_at,
     });
   } catch (error: any) {
     console.error('API error:', error);
