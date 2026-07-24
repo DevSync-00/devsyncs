@@ -52,7 +52,7 @@ export class ChatPanelManager {
     this.codeBlockActions = new CodeBlockActions(editorService);
     this.config = {
       apiUrl: '',
-      analyzerUrl: 'http://localhost:3000',
+      analyzerUrl: 'https://dev-sync.dev',
       projectId: undefined,
     };
 
@@ -165,7 +165,7 @@ export class ChatPanelManager {
         const url = message.url?.trim();
         if (!url || url.includes('undefined') || url.includes('null/')) {
           this.sendError(
-            'Invalid verification URL. Set "devsync.analyzerUrl" to your dashboard (e.g. http://localhost:3000) and run login again.'
+            'Invalid verification URL. Set "devsync.analyzerUrl" to your dashboard (e.g. https://dev-sync.dev) and run login again.'
           );
           return;
         }

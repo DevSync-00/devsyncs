@@ -159,6 +159,10 @@ export class MockApiClient implements IApiClient {
     ];
   }
 
+  async createProject(payload: { name: string; schemaType: string }): Promise<{ id: string; name: string; schemaType: string }> {
+    return { id: this.projectId, name: payload.name, schemaType: payload.schemaType };
+  }
+
   getDashboardUrl(): string {
     return `${this.apiUrl}/dashboard/projects/${this.projectId}`;
   }

@@ -90,6 +90,14 @@ export interface IApiClient {
    * @returns Promise resolving to array of project items
    */
   listProjects(): Promise<Array<{ id: string; name: string; slug?: string; schemaType?: string; schema_type?: string }>>;
+
+  createProject(payload: {
+    name: string;
+    schemaType: string;
+    teamId?: string | null;
+    dbConnectionString?: string | null;
+    codebase?: { type: 'git' | 'upload' | 'cli'; url?: string };
+  }): Promise<{ id: string; name: string; slug?: string; schemaType?: string }>;
 }
 
 /**

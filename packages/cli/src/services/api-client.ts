@@ -5,7 +5,7 @@ export interface ScanReportPayload {
   projectId: string;
   codeSchema?: any;
   dbSchema?: any;
-  mismatches: any[];
+  mismatches?: any[];
   metadata?: {
     codeVersion: string;
     dbVersion: string;
@@ -21,10 +21,16 @@ export interface ApiClientOptions {
 }
 
 export interface ScanReportResponse {
+  id?: string;
   scanId: string;
   status: string;
+  projectId?: string;
   mismatches?: any[];
+  codeSchema?: any;
+  dbSchema?: any;
   createdAt?: string;
+  created_at?: string;
+  completed_at?: string | null;
 }
 
 export interface ScanReportsResponse {
@@ -128,6 +134,10 @@ export class ApiClient {
         retryableErrors: ['ECONNREFUSED', 'ETIMEDOUT', 'timeout', 'network', 'fetch failed']
       }
     );
+  }
+
+  async triggerScan(projectId: string): Promise<ScanReportResponse> {
+    return this.sendScanReport({ projectId });
   }
 
   async getScanReports(projectId: string): Promise<any[]> {
@@ -243,7 +253,7 @@ export class ApiClient {
         }
 
         const data = await response.json() as ProjectResponse;
-        return data.project;
+        return this.normalizeProject(data.project);
       },
       {
         maxAttempts: this.maxRetries,
@@ -285,13 +295,23 @@ export class ApiClient {
         }
 
         const data = await response.json() as ProjectResponse;
-        return data.project;
+        return this.normalizeProject(data.project);
       },
       {
         maxAttempts: this.maxRetries,
         retryableErrors: ['ECONNREFUSED', 'ETIMEDOUT', 'timeout', 'network', 'fetch failed']
       }
     );
+  }
+
+  private normalizeProject(project: any): ProjectResponse['project'] {
+    return {
+      ...project,
+      schemaType: project.schemaType || project.schema_type,
+      teamId: project.teamId ?? project.team_id ?? null,
+      createdAt: project.createdAt || project.created_at,
+      updatedAt: project.updatedAt || project.updated_at,
+    };
   }
 
   async updateProject(projectId: string, payload: UpdateProjectPayload) {

@@ -14,6 +14,10 @@ import type {
   OutputFormat,
 } from '../types/index.js';
 import { scanDatabase, closeDatabaseConnections } from '../services/db-scanner.js';
+import { loadConfig } from '../utils/config.js';
+import { requireAuthenticatedCli } from '../lib/auth-check.js';
+import { ApiClient } from '../services/api-client.js';
+import { resolveDashboardUrl } from '../utils/dashboard-url.js';
 
 const DEFAULT_IGNORES = new Set(['node_modules', '.git', '.devsync', '.turbo', '.next']);
 const ENV_FILES = ['.env', '.env.local', '.env.development', '.env.production', '.env.test'];
@@ -35,6 +39,16 @@ export async function scanCommand(options: ScanOptions = {}): Promise<void> {
 
   const root = resolvePath(options.path ?? process.cwd());
   const format = (options.format || 'table') as OutputFormat;
+
+  if (!options.local) {
+    const configPath = options.config || path.join(root, '.devsync', 'config.json');
+    const config = await loadConfig(configPath).catch(() => null);
+    const projectId = options.project || config?.project?.id;
+    if (projectId) {
+      await runDashboardScan(projectId, format);
+      return;
+    }
+  }
 
   const guided = options.guided || false;
 
@@ -117,6 +131,29 @@ export async function scanCommand(options: ScanOptions = {}): Promise<void> {
   };
 
   emitResult(format, result);
+}
+
+async function runDashboardScan(projectId: string, format: OutputFormat): Promise<void> {
+  const auth = await requireAuthenticatedCli();
+  const apiUrl = auth.apiUrl || resolveDashboardUrl();
+  const client = new ApiClient({ apiUrl, apiKey: auth.accessToken });
+
+  if (format === 'table') {
+    console.log(chalk.blue('Running dashboard scan...'));
+  }
+
+  const report = await client.triggerScan(projectId);
+  if (format === 'json') {
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
+
+  const mismatchCount = report.mismatches?.length || 0;
+  console.log(chalk.green('Scan completed and saved to DevSync.'));
+  console.log(chalk.gray(`Project: ${projectId}`));
+  console.log(chalk.gray(`Report: ${report.id || report.scanId}`));
+  console.log(chalk.gray(`Mismatches: ${mismatchCount}`));
+  console.log(chalk.gray(`Dashboard: ${apiUrl}/dashboard/projects/${projectId}`));
 }
 
 export function formatLastScan(value?: string | null): string {

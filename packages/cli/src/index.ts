@@ -10,6 +10,10 @@ import { fixCommand } from './commands/fix.js';
 import { applyCommand } from './commands/apply.js';
 import { loginCommand } from './commands/login.js';
 import { migrateCommand } from './commands/migrate.js';
+import { projectsCommand, linkProjectCommand, createProjectCommand, selectProjectCommand } from './commands/projects.js';
+import { logoutCommand, sessionCommand } from './commands/session.js';
+import { reportCommand } from './commands/report.js';
+import { homeCommand } from './commands/home.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -19,7 +23,8 @@ const version = packageJson.version;
 program
   .name('devsync')
   .description('Database-first schema synchronization assistant (safe by default)')
-  .version(version);
+  .version(version)
+  .action(() => homeCommand());
 
 program
   .command('init')
@@ -38,7 +43,37 @@ program
   .option('--allow-db-writes', 'Allow DB writes (blocked in Phase 1)', false)
   .option('-y, --yes', 'Auto-approve prompts within safe envelope', false)
   .option('--guided', 'Interactive prompts for scan steps (still read-only)', false)
+  .option('--project <id>', 'Scan a specific DevSync dashboard project')
+  .option('--config <path>', 'Path to DevSync config file')
+  .option('--local', 'Run only the local offline scanner', false)
   .action(scanCommand);
+
+program
+  .command('projects')
+  .description('List projects available to the signed-in DevSync account')
+  .action(projectsCommand);
+
+program
+  .command('select')
+  .description('Select and link a DevSync dashboard project')
+  .option('-p, --path <path>', 'Project path (default: current directory)', process.cwd())
+  .action(selectProjectCommand);
+
+program
+  .command('create')
+  .description('Create a local project and connect it to DevSync when signed in')
+  .option('-p, --path <path>', 'Project path (default: current directory)', process.cwd())
+  .option('-n, --name <name>', 'Project name (auto-detected by default)')
+  .option('-s, --schema-type <type>', 'Schema type (auto-detected by default)')
+  .option('--team <id>', 'Optional DevSync team ID')
+  .option('--local', 'Create only the local project without synchronizing', false)
+  .action(createProjectCommand);
+
+program
+  .command('link <projectId>')
+  .description('Link the current workspace to a DevSync dashboard project')
+  .option('-p, --path <path>', 'Project path (default: current directory)', process.cwd())
+  .action(linkProjectCommand);
 
 program
   .command('status')
@@ -48,6 +83,14 @@ program
   .option('-d, --db <connection>', 'Database connection string (optional, for conflict detection)')
   .option('--config <path>', 'Path to DevSync config file', '.devsync/config.json')
   .action(statusCommand);
+
+program
+  .command('report')
+  .description('View the latest schema report for the selected project')
+  .option('-p, --path <path>', 'Project path (default: current directory)', process.cwd())
+  .option('--project <id>', 'View a specific DevSync project')
+  .option('--format <format>', 'Output format: json|table', 'table')
+  .action(reportCommand);
 
 program
   .command('fix')
@@ -102,10 +145,24 @@ program
   .action(loginCommand);
 
 program
+  .command('logout')
+  .description('Remove the saved DevSync CLI session from this computer')
+  .action(logoutCommand);
+
+program
+  .command('whoami')
+  .description('Show the current DevSync CLI session')
+  .action(sessionCommand);
+
+program
   .command('apply')
   .description('Apply fixes (blocked, DB writes disabled by default)')
   .option('--format <format>', 'Output format: json|table', 'table')
   .action(applyCommand);
 
-program.parse();
+await program.parseAsync().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`DevSync error: ${message}`);
+  process.exitCode = 1;
+});
 

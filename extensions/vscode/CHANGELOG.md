@@ -2,6 +2,36 @@
 
 All notable changes to the DevSync VSCode Extension will be documented in this file.
 
+## [0.1.2] - 2026-07-23
+
+### Fixed
+- Added the DevSync logo to the VS Code Marketplace listing and installed extension details.
+- Reorganized the sidebar around account, project, scan, report, and migration workflows.
+
+## [0.1.1] - 2026-07-23
+
+### Fixed
+- Routed the sidebar scan and migration actions through the connected extension services.
+- Routed Initialize Project through the native project creation flow.
+- Stopped Marketplace installs from trying to build the CLI inside user workspaces.
+
+## [Unreleased]
+
+### Changed
+- Added browser-based device sign-in backed by VS Code SecretStorage.
+- Added dashboard project discovery and workspace project selection.
+- Added local-first project creation with optional account synchronization.
+- Added an explicit offline scan command backed by the local DevSync CLI.
+- Defaulted dashboard links and API requests to `https://dev-sync.dev`.
+- Normalized dashboard scan responses for diagnostics and migration commands.
+- Added production packaging metadata, a Marketplace activity icon, and a minimized ERD webview bundle.
+- Deprecated plaintext `devsync.apiKey` configuration in favor of device sign-in.
+
+### Fixed
+- Allowed authenticated scans without requiring a legacy API key setting.
+- Registered command and view disposables for clean extension shutdown.
+- Made the Windows integration-test harness ignore inherited Electron Node mode.
+
 ## [0.1.0] - 2024-11-01
 
 ### Added
@@ -25,7 +55,7 @@ All notable changes to the DevSync VSCode Extension will be documented in this f
 - **Auto-scan**: Automatically scan on file save (configurable)
 
 ### Configuration
-- `devsync.apiUrl`: Dashboard API URL (default: http://localhost:3000)
+- `devsync.apiUrl`: Dashboard API URL (default: https://dev-sync.dev)
 - `devsync.apiKey`: API key (JWT token)
 - `devsync.projectId`: Project ID from dashboard
 - `devsync.databaseConnection`: Database connection string (optional)
@@ -51,5 +81,5 @@ All notable changes to the DevSync VSCode Extension will be documented in this f
 
 ---
 
-**Check the [README.md](./README.md) for installation and usage instructions.**
+See the extension README for installation and usage instructions.
 

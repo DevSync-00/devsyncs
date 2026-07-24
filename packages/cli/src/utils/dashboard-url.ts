@@ -1,4 +1,12 @@
 const PLACEHOLDER_VALUES = new Set(['undefined', 'null', 'none', '']);
+const PLACEHOLDER_HOSTS = new Set([
+  'example.com',
+  'www.example.com',
+  'example.org',
+  'www.example.org',
+  'example.net',
+  'www.example.net',
+]);
 
 /**
  * Resolve the DevSync dashboard base URL from environment variables.
@@ -19,24 +27,26 @@ export function resolveDashboardUrl(): string {
     }
   }
 
-  return 'http://localhost:3000';
+  return 'https://dev-sync.dev';
 }
 
 /**
  * Build the browser URL for device-flow authorization.
- * Prefers the server-provided verification_uri when it is a valid absolute URL.
+ * Accepts a server-provided verification URI only when it uses the configured
+ * dashboard origin. This prevents a compromised or misconfigured response from
+ * sending users to an unrelated authorization page.
  */
 export function buildDeviceVerificationUrl(
   verificationUri: string | undefined,
   dashboardUrl: string,
   userCode: string
 ): string {
+  const base = normalizeBaseUrl(dashboardUrl) ?? 'https://dev-sync.dev';
   const fromApi = normalizeAbsoluteUrl(verificationUri);
-  if (fromApi) {
+  if (fromApi && new URL(fromApi).origin === base) {
     return fromApi;
   }
 
-  const base = normalizeBaseUrl(dashboardUrl) ?? 'http://localhost:3000';
   return `${base}/device?code=${encodeURIComponent(userCode)}`;
 }
 
@@ -53,6 +63,9 @@ export function normalizeBaseUrl(raw?: string): string | null {
   try {
     const parsed = new URL(trimmed);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return null;
+    }
+    if (PLACEHOLDER_HOSTS.has(parsed.hostname.toLowerCase())) {
       return null;
     }
     return parsed.origin;

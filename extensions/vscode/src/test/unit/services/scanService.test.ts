@@ -19,7 +19,7 @@ suite('ScanService', () => {
     mockApiClient = new MockApiClient();
     mockConfigManager = new MockConfigurationManager();
     mockConfigManager.set('apiUrl', 'http://localhost:3000');
-    mockConfigManager.set('apiKey', 'test-api-key');
+    mockConfigManager.set('apiKey', '');
     mockConfigManager.set('projectId', 'test-project-id');
     scanService = new ScanService(mockApiClient, mockConfigManager);
   });
@@ -28,6 +28,12 @@ suite('ScanService', () => {
     test('should validate scan with valid configuration', () => {
       const result = scanService.validateScan('/valid/path');
       assert.ok(result.valid);
+    });
+
+    test('should allow secure device authentication without a settings API key', () => {
+      const result = scanService.validateScan('/valid/path');
+      assert.ok(result.valid);
+      assert.ok(!result.missingFields?.includes('devsync.apiKey'));
     });
 
     test('should reject scan with invalid path', () => {

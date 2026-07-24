@@ -90,11 +90,13 @@ export class DIContainer {
     const key = 'apiClient';
     if (!this.has(key)) {
       const config = this.configManager.getAll();
+      const authManager = this.getAuthManager();
       const client = new DevSyncApiClient(
         config.apiUrl,
         config.apiKey,
         config.projectId,
-        this.configManager // Pass config manager for dynamic config reading
+        this.configManager, // Pass config manager for dynamic config reading
+        authManager
       );
       this.register(key, client);
     }

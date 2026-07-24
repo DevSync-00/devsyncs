@@ -86,11 +86,10 @@ export async function loginCommand(): Promise<void> {
     // Start device flow
     log(chalk.gray('📡 Connecting to authentication service...'));
     let deviceFlowData;
+    const stopStartSpinner = createSpinner('Starting device flow...');
     
     try {
-      const stopSpinner = createSpinner('Starting device flow...');
       deviceFlowData = await client.startDeviceFlow('cli');
-      stopSpinner();
     } catch (error) {
       if (error instanceof Error && /^exit:\d+$/.test(error.message)) {
         throw error;
@@ -110,6 +109,8 @@ export async function loginCommand(): Promise<void> {
       }
       
       throw error;
+    } finally {
+      stopStartSpinner();
     }
 
     log(chalk.green('✅ Device flow started\n'));

@@ -1,18 +1,38 @@
 {
   "name": "@devsync/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DevSync CLI - AI-powered schema sync for modern development",
   "type": "module",
   "bin": {
     "devsync": "./dist/index.js"
   },
   "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DevSync-00/devsyncs.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://dev-sync.dev",
+  "bugs": {
+    "url": "https://github.com/DevSync-00/devsyncs/issues"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
     "watch": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "test": "npm run build && node --test tests/all.test.js"
+    "test": "npm run build && node --test --test-force-exit tests/all.test.js",
+    "prepack": "npm run build",
+    "pack:check": "npm pack --dry-run"
   },
   "keywords": [
     "devops",
@@ -22,7 +42,7 @@
     "prisma",
     "postgresql"
   ],
-  "author": "Dev-Sync.dev",
+  "author": "DevSync <devsync@bitlabsbuild.com>",
   "license": "MIT",
   "dependencies": {
     "commander": "^12.1.0",
@@ -37,4 +57,3 @@
     "tsx": "^4.19.2"
   }
 }
-

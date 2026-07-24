@@ -1,139 +1,100 @@
 # DevSync CLI
 
-AI-powered schema sync for modern development.
+Run DevSync schema scans from a terminal and store the results in the DevSync dashboard.
 
-## Installation
+## Requirements
+
+- Node.js 20 or newer
+- A DevSync account at https://dev-sync.dev
+- A dashboard project with a configured repository and database connection
+
+## Install
 
 ```bash
-npm install -g @devsync/cli
+npm install --global @devsync/cli
 ```
 
-Or use locally:
+## Dashboard workflow
+
+Run the CLI without arguments to open the guided workflow:
 
 ```bash
-npm install @devsync/cli
-npx devsync scan
+devsync
 ```
 
-## Quick Start
+The terminal flow follows the dashboard:
 
-### 1. Initialize Project
+1. Sign in to DevSync
+2. Create a project or select an existing project
+3. Scan the connected schema
+4. Review the latest report
+5. Generate a migration plan
 
-```bash
-devsync init
-```
-
-This creates a `.devsync/config.json` file in your project.
-
-### 2. Scan for Mismatches
+The same workflow remains available as individual commands:
 
 ```bash
-# Scan with inline database connection
-devsync scan --db postgresql://user:password@localhost:5432/mydb
-
-# Or scan without DB (just show code models)
+devsync login
+devsync create            # Create a new connected project
+devsync select            # Select an existing dashboard project
 devsync scan
-
-# Use config file for database connection
-devsync scan --config .devsync/config.json
+devsync report
+devsync migrate --db postgresql://...
 ```
 
-## Commands
+`devsync login` uses browser device authorization. `devsync create` creates a local project first and synchronizes it when you are signed in; use `devsync create --local` to deliberately remain offline. `devsync select` presents projects as a numbered list and links the chosen project to the current workspace. `devsync link <project-id>` remains available for scripts. Authentication credentials remain in the user-level DevSync configuration directory.
 
-### `devsync init`
+The linked `devsync scan` runs the same server-side scanner as the dashboard and saves the report to the selected project. `devsync report` retrieves and displays its latest report.
 
-Initialize DevSync in your project. Creates `.devsync/config.json`.
+## Offline scan
 
-### `devsync scan`
-
-Scan your codebase and database for schema mismatches.
-
-**Options:**
-- `-p, --path <path>` - Codebase path (default: current directory)
-- `-d, --db <connection>` - Database connection string
-- `--config <path>` - Config file path (default: `.devsync/config.json`)
-
-**Examples:**
 ```bash
-# Scan current directory
-devsync scan
+devsync scan --local
+```
 
-# Scan specific project
-devsync scan --path ./my-project
+The offline scanner inspects the current workspace without creating a dashboard report.
 
-# Scan with database connection
-devsync scan --db postgresql://user:pass@localhost/dbname
+## Session commands
 
-# Use config file
-devsync scan --config .devsync/config.json
-
-# Works with any supported schema type (Prisma, TypeORM, Sequelize, Drizzle, Raw SQL)
-# DevSync automatically detects your schema type!
+```bash
+devsync whoami
+devsync logout
 ```
 
 ## Configuration
 
-Edit `.devsync/config.json`:
+DevSync creates `.devsync/config.json` in a linked workspace:
 
 ```json
 {
   "version": "1.0",
   "project": {
-    "name": "my-project",
-    "schemaType": "prisma"
+    "id": "project-uuid",
+    "name": "example-project",
+    "schemaType": "supabase"
   },
   "database": {
-    "connectionString": "postgresql://user:password@localhost:5432/mydb",
-    "provider": "postgresql"
+    "mode": "auto",
+    "connectionString": "",
+    "writeAccess": false
   },
-  "scan": {
-    "watch": false,
-    "autoFix": false
+  "safety": {
+    "allowWrites": false,
+    "allowDbWrites": false,
+    "requirePlanApproval": true
   }
 }
 ```
 
-## Supported Schema Types
-
-Currently supported:
-- ✅ **Prisma** (`prisma/schema.prisma`)
-- ✅ **Supabase** (`supabase/migrations/*.sql`) - Most important!
-- ✅ **TypeORM** (`*.entity.ts`)
-- ✅ **Kysely** (`schema.ts` or SQL template literals)
-- ✅ **Sequelize** (`*.model.js/ts`)
-- ✅ **Drizzle ORM** (`schema.ts`)
-- ✅ **Django** (`models.py`)
-- ✅ **SQLAlchemy** (`*.py` with SQLAlchemy models)
-- ✅ **Raw SQL** (`*.sql` migration files)
-
-DevSync automatically detects which schema type you're using!
-
-## Database Support
-
-Currently supported:
-- ✅ PostgreSQL
-
-Coming soon:
-- ⏳ MySQL
-- ⏳ SQLite
+Do not commit database passwords or tokens. Use the dashboard project configuration for cloud scans.
 
 ## Development
 
 ```bash
-# Install dependencies
-npm install
-
-# Build
-npm run build
-
-# Run in development mode
-npm run dev
-
-# Watch mode
-npm run watch
+npm ci
+npm test
+npm run pack:check
 ```
 
 ## License
 
 MIT
-

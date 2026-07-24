@@ -1,154 +1,76 @@
-# DevSync VSCode Extension
+# DevSync for VS Code
 
-AI-powered schema sync for modern development - Real-time schema mismatch detection and fixes in VSCode.
-
-## Features
-
-✅ **Sidebar Integration** - Full-featured sidebar with all CLI tools accessible  
-✅ **Real-time Diagnostics** - Inline warnings for schema mismatches  
-✅ **Quick Scan** - Scan your Prisma schema with one click  
-✅ **Migration Generation** - Generate SQL migrations directly from VSCode  
-✅ **Dashboard Integration** - Open dashboard with one click  
-✅ **Auto-scan** - Automatically scan on file save (optional)  
-✅ **CLI Integration** - Run all CLI commands (scan, migrate, init) from the sidebar  
-✅ **Results Viewer** - View scan results and migration history in the sidebar  
-
-## Installation
-
-1. Install the extension from the VSCode Marketplace (coming soon)
-2. Or install from `.vsix` file:
-   ```bash
-   code --install-extension devsync-0.1.0.vsix
-   ```
-
-## Configuration
-
-Open VSCode settings and configure:
-
-```json
-{
-  "devsync.apiUrl": "http://localhost:3000",
-  "devsync.apiKey": "your-jwt-token",
-  "devsync.projectId": "your-project-id",
-  "devsync.databaseConnection": "postgresql://user:pass@localhost/db",
-  "devsync.enableDiagnostics": true,
-  "devsync.autoScan": false,
-  "Dev-Sync.devAnalysis": false,
-  "devsync.useOllama": false,
-  "devsync.ollamaModel": "llama3.2:3b",
-  "devsync.ollamaUrl": "http://localhost:11434",
-  "devsync.openaiApiKey": ""
-}
-```
-
-## Usage
-
-### Sidebar (Recommended)
-
-The DevSync sidebar provides easy access to all CLI tools:
-
-1. **Open Sidebar**: Click the DevSync icon in the Activity Bar (left sidebar)
-2. **Commands Section**:
-   - **🔍 Scan Schema** - Scan your codebase and database for mismatches
-   - **🔧 Generate Migration** - Generate SQL migration from mismatches
-   - **⚙️ Initialize Project** - Initialize DevSync in your project
-   - **📊 View Output** - View CLI command execution logs
-3. **Scan Results Section**:
-   - View summary of mismatches (errors, warnings)
-   - Expand to see detailed mismatch information
-   - Click "View Suggested Fix" to see SQL fixes
-4. **Migrations Section**:
-   - View all generated migration files
-   - Click to open migration files in editor
-5. **Configuration Section**:
-   - Open config file
-   - Open VS Code settings
-
-### Command Palette
-
-You can also use the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
-
-- `DevSync: Scan Schema`
-- `DevSync: Generate Migration`
-- `DevSync: View Report`
-- `DevSync: Open Dashboard`
-
-### Context Menu
-
-Right-click on `schema.prisma` files:
-- "DevSync: Scan Schema"
-- "DevSync: Generate Migration"
-
-### Inline Diagnostics
-
-When mismatches are found:
-- Red squiggles for errors
-- Yellow squiggles for warnings
-- Blue squiggles for info
-
-Hover over to see mismatch details and suggested fixes.
-
-## Commands
-
-### Main Commands
-- `devsync.scan` - Scan schema
-- `devsync.generateMigration` - Generate migration
-- `devsync.viewReport` - View scan report
-- `devsync.openDashboard` - Open dashboard
-
-### Sidebar Commands
-- `devsync.sidebar.scan` - Scan schema (from sidebar)
-- `devsync.sidebar.migrate` - Generate migration (from sidebar)
-- `devsync.sidebar.init` - Initialize project (from sidebar)
-- `devsync.sidebar.showOutput` - Show CLI output
-- `devsync.sidebar.viewFix` - View suggested fix for mismatch
-- `devsync.sidebar.openConfig` - Open config file
-- `devsync.sidebar.refresh` - Refresh sidebar view
+Run DevSync schema scans, review drift, and generate migrations without leaving VS Code.
 
 ## Requirements
 
-- VSCode 1.80.0 or higher
-- DevSync dashboard running (optional, for cloud sync)
-- Prisma schema file in workspace
+- VS Code 1.80 or newer
+- A DevSync account at https://dev-sync.dev
+- A dashboard project with a configured repository and database connection
+- `@devsync/cli` installed globally when using offline scans
+
+## Getting started
+
+1. Run **DevSync: Sign In to DevSync** from the Command Palette.
+2. Complete browser device authorization.
+3. Open the repository associated with a DevSync dashboard project.
+4. Run **DevSync: Select Dashboard Project** and choose the project for this workspace.
+5. Run **DevSync: Scan Schema**.
+
+Run **DevSync: Create Project** to create one without leaving VS Code. The extension writes a read-only `.devsync/config.json` first, then synchronizes the project to your account when signed in. Local configuration and scanning remain available if the service is offline.
+
+The selected project ID is stored in workspace settings. Access and refresh tokens are stored in VS Code SecretStorage and are never written to workspace configuration.
+
+## Commands
+
+- **DevSync: Sign In to DevSync**
+- **DevSync: Sign Out of DevSync**
+- **DevSync: Select Dashboard Project**
+- **DevSync: Create Project**
+- **DevSync: Scan Schema**
+- **DevSync: Scan Locally (Offline)**
+- **DevSync: View Scan Report**
+- **DevSync: Generate Migration**
+- **DevSync: Open Dashboard**
+
+## Settings
+
+```json
+{
+  "devsync.apiUrl": "https://dev-sync.dev",
+  "devsync.analyzerUrl": "https://dev-sync.dev",
+  "devsync.projectId": "",
+  "devsync.enableDiagnostics": true,
+  "devsync.autoScan": false
+}
+```
+
+`devsync.apiKey` remains available only as a legacy override. Device sign-in is recommended.
+
+The optional `devsync.databaseConnection` setting is used only by local extension features. Cloud scans use the database connection configured for the selected dashboard project.
 
 ## Development
 
-### Quick Start
-
-For a complete step-by-step guide on setting up and running the extension, see:
-- **[GETTING_STARTED.md](./GETTING_STARTED.md)** - Complete setup and launch guide
-
-### Quick Commands
-
 ```bash
-cd extensions/vscode
-npm install
+npm ci
 npm run compile
-npm run watch
+npm run compile-tests
+npm run package:check
 ```
 
-### Running the Extension
+Press `F5` from the extension project to open an Extension Development Host.
 
-1. **Build the CLI first:**
-   ```bash
-   cd packages/cli
-   npm run build
-   ```
+## Privacy and security
 
-2. **Build the extension:**
-   ```bash
-   cd extensions/vscode
-   npm run compile
-   ```
+- Authentication tokens use VS Code SecretStorage.
+- Project access is enforced by the dashboard API for every request.
+- Database credentials are not sent from the extension during cloud scans.
+- Signing out removes the locally stored DevSync session.
 
-3. **Launch:**
-   - Press `F5` in VS Code
-   - Select "Run Extension" from dropdown
-   - Extension Development Host window opens
+Privacy policy: https://dev-sync.dev/privacy
 
-See [GETTING_STARTED.md](./GETTING_STARTED.md) for detailed instructions.
+Terms of service: https://dev-sync.dev/terms
 
 ## License
 
 MIT
-

@@ -36,6 +36,22 @@ suite('Sidebar Interactions Tests', () => {
       assert.ok(children.length > 0);
     });
 
+    test('should mirror the dashboard workflow', async () => {
+      const children = await sidebarProvider.getChildren();
+      assert.ok(Array.isArray(children));
+      assert.deepStrictEqual(
+        children.slice(0, 3).map((item) => item.label),
+        ['Account', 'Project', 'Schema Workflow']
+      );
+
+      const workflow = await sidebarProvider.getChildren(children[2]);
+      assert.ok(Array.isArray(workflow));
+      assert.deepStrictEqual(
+        workflow.slice(0, 3).map((item) => item.label),
+        ['Scan Schema', 'View Latest Report', 'Generate Migration']
+      );
+    });
+
     test('should provide tree items for elements', async () => {
       const rootChildren = await sidebarProvider.getChildren();
       if (rootChildren && rootChildren.length > 0) {

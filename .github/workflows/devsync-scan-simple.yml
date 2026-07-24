@@ -35,9 +35,8 @@ jobs:
           cd packages/cli
           node dist/index.js scan \
             --path ../.. \
-            --db "$DATABASE_URL" \
-            --json \
-            --output .devsync/scan-results.json || true
+            --local \
+            --format json > .devsync/scan-results.json || true
 
       - name: Comment PR
         if: always() && github.event_name == 'pull_request'

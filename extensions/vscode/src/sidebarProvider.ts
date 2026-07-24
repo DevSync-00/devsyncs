@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { CliCommandResult } from './cliRunner';
-import { ICliRunner } from './interfaces';
+import { IAuthManager, ICliRunner } from './interfaces';
 import { ScanReport, Mismatch } from './api';
 import { safeParseScanReport } from './types/validation';
 import { getScanResultsPath, getMigrationsDir, getFilesInDir, readJsonFile } from './utils/paths';
@@ -27,16 +27,21 @@ export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTr
   private isMigrating: boolean = false;
   private enhancedProvider?: EnhancedSidebarProvider;
   private context?: vscode.ExtensionContext;
+  private authManager?: IAuthManager;
 
-  constructor(cliRunner: ICliRunner, context?: vscode.ExtensionContext) {
+  constructor(cliRunner: ICliRunner, context?: vscode.ExtensionContext, authManager?: IAuthManager) {
     this.cliRunner = cliRunner;
     this.context = context;
+    this.authManager = authManager;
     if (context) {
       this.enhancedProvider = new EnhancedSidebarProvider(cliRunner, context);
       // Forward events from enhanced provider
       this.enhancedProvider.onDidChangeTreeData(() => {
         this._onDidChangeTreeData.fire();
       });
+      if (authManager) {
+        context.subscriptions.push(authManager.onDidChangeSession(() => this.refresh()));
+      }
     }
     this.loadScanResults();
     this.loadMigrationHistory();
@@ -100,11 +105,25 @@ export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTr
       // Root items
       return Promise.resolve([
         new DevSyncTreeItem(
-          'Commands',
+          'Account',
           vscode.TreeItemCollapsibleState.Expanded,
-          'folder',
+          'account',
           undefined,
-          'commands'
+          'account'
+        ),
+        new DevSyncTreeItem(
+          'Project',
+          vscode.TreeItemCollapsibleState.Expanded,
+          'folder-opened',
+          undefined,
+          'project'
+        ),
+        new DevSyncTreeItem(
+          'Schema Workflow',
+          vscode.TreeItemCollapsibleState.Expanded,
+          'database',
+          undefined,
+          'workflow'
         ),
         new DevSyncTreeItem(
           'Scan Results',
@@ -126,6 +145,158 @@ export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTr
           'settings',
           undefined,
           'config'
+        )
+      ]);
+    }
+
+    if (element.contextValue === 'account') {
+      const session = this.authManager?.getSession();
+      const authenticated = session?.status === 'authenticated';
+      const items = [
+        new DevSyncTreeItem(
+          authenticated ? 'Connected to DevSync' : session?.status === 'authenticating' ? 'Connecting to DevSync...' : 'Sign in to DevSync',
+          vscode.TreeItemCollapsibleState.None,
+          authenticated ? 'verified-filled' : session?.status === 'authenticating' ? 'loading~spin' : 'sign-in',
+          authenticated ? undefined : {
+            command: 'devsync.chat.login',
+            title: 'Sign in to DevSync',
+            arguments: []
+          },
+          authenticated ? 'account-connected' : 'account-sign-in',
+          authenticated && session.userId ? session.userId : undefined
+        ),
+        new DevSyncTreeItem(
+          'Open Dashboard',
+          vscode.TreeItemCollapsibleState.None,
+          'link-external',
+          {
+            command: 'devsync.openDashboard',
+            title: 'Open Dashboard',
+            arguments: []
+          },
+          'account-dashboard'
+        )
+      ];
+
+      if (authenticated) {
+        items.push(new DevSyncTreeItem(
+          'Sign out',
+          vscode.TreeItemCollapsibleState.None,
+          'sign-out',
+          {
+            command: 'devsync.chat.logout',
+            title: 'Sign out',
+            arguments: []
+          },
+          'account-sign-out'
+        ));
+      }
+      return Promise.resolve(items);
+    }
+
+    if (element.contextValue === 'project') {
+      const projectId = vscode.workspace.getConfiguration('devsync').get<string>('projectId', '').trim();
+      const items: DevSyncTreeItem[] = [
+        projectId
+          ? new DevSyncTreeItem(
+              'Connected Project',
+              vscode.TreeItemCollapsibleState.None,
+              'pass-filled',
+              undefined,
+              'project-connected',
+              projectId
+            )
+          : new DevSyncTreeItem(
+              'No project selected',
+              vscode.TreeItemCollapsibleState.None,
+              'warning',
+              undefined,
+              'project-missing'
+            ),
+        new DevSyncTreeItem(
+          'Create Project',
+          vscode.TreeItemCollapsibleState.None,
+          'new-folder',
+          {
+            command: 'devsync.createProject',
+            title: 'Create Project',
+            arguments: []
+          },
+          'project-create'
+        ),
+        new DevSyncTreeItem(
+          'Select Project',
+          vscode.TreeItemCollapsibleState.None,
+          'folder-opened',
+          {
+            command: 'devsync.selectProject',
+            title: 'Select Project',
+            arguments: []
+          },
+          'project-select'
+        )
+      ];
+      return Promise.resolve(items);
+    }
+
+    if (element.contextValue === 'workflow') {
+      return Promise.resolve([
+        new DevSyncTreeItem(
+          'Scan Schema',
+          vscode.TreeItemCollapsibleState.None,
+          'search',
+          {
+            command: 'devsync.sidebar.scan',
+            title: 'Scan Schema',
+            arguments: []
+          },
+          'workflow-scan',
+          this.isScanning ? '$(sync~spin) Scanning...' : undefined
+        ),
+        new DevSyncTreeItem(
+          'View Latest Report',
+          vscode.TreeItemCollapsibleState.None,
+          'preview',
+          {
+            command: 'devsync.viewReport',
+            title: 'View Latest Report',
+            arguments: []
+          },
+          'workflow-report'
+        ),
+        new DevSyncTreeItem(
+          'Generate Migration',
+          vscode.TreeItemCollapsibleState.None,
+          'tools',
+          {
+            command: 'devsync.sidebar.migrate',
+            title: 'Generate Migration',
+            arguments: []
+          },
+          'workflow-migrate',
+          this.isMigrating ? '$(sync~spin) Generating...' : undefined
+        ),
+        new DevSyncTreeItem(
+          'Scan Locally (Offline)',
+          vscode.TreeItemCollapsibleState.None,
+          'device-desktop',
+          {
+            command: 'devsync.scanLocal',
+            title: 'Scan Locally',
+            arguments: []
+          },
+          'workflow-scan-local'
+        ),
+        new DevSyncTreeItem(
+          'View Output',
+          vscode.TreeItemCollapsibleState.None,
+          'output',
+          {
+            command: 'devsync.sidebar.showOutput',
+            title: 'View Output',
+            arguments: []
+          },
+          'workflow-output'
         )
       ]);
     }

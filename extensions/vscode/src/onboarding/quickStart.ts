@@ -84,7 +84,7 @@ DATABASE_URL="postgresql://user:password@localhost:5432/mydb"
         {
           path: '.devsync/config.json',
           content: `{
-  "apiUrl": "http://localhost:3000",
+  "apiUrl": "https://dev-sync.dev",
   "projectId": "",
   "databaseConnection": "",
   "autoScan": true,
@@ -136,7 +136,7 @@ model Post {
         {
           path: '.devsync/config.json',
           content: `{
-  "apiUrl": "http://localhost:3000",
+  "apiUrl": "https://dev-sync.dev",
   "autoScan": true,
   "enableDiagnostics": true
 }

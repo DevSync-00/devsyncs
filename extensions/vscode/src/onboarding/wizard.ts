@@ -546,7 +546,7 @@ export class OnboardingWizard {
     return `
       <div class="form-group">
         <label>API URL:</label>
-        <input type="text" id="apiUrl" value="${this.data.apiUrl || 'http://localhost:3000'}" placeholder="http://localhost:3000" />
+        <input type="text" id="apiUrl" value="${this.data.apiUrl || 'https://dev-sync.dev'}" placeholder="https://dev-sync.dev" />
         <div id="error" class="error"></div>
         <div id="suggestion" class="suggestion"></div>
       </div>
@@ -717,7 +717,7 @@ export class OnboardingWizard {
       return {
         valid: false,
         error: 'Invalid URL format',
-        suggestion: 'Please enter a valid URL (e.g., http://localhost:3000)',
+        suggestion: 'Please enter a valid URL (e.g., https://dev-sync.dev)',
       };
     }
 

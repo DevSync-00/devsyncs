@@ -32,6 +32,9 @@ export interface ScanOptions {
   allowDbWrites?: boolean;
   yes?: boolean;
   guided?: boolean;
+  project?: string;
+  config?: string;
+  local?: boolean;
 }
 
 export interface StatusOptions {

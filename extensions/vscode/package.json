@@ -1,15 +1,16 @@
 {
   "name": "devsync",
-  "displayName": "DevSync",
-  "description": "AI-powered schema sync for modern development - Real-time schema mismatch detection and fixes",
-  "version": "0.1.0",
-  "publisher": "devsync",
+  "displayName": "DevSync Schema Guard",
+  "description": "Detect database schema drift and review safer migration plans in Visual Studio Code.",
+  "version": "0.1.2",
+  "publisher": "Dev-sync",
+  "icon": "resources/devsync-marketplace.png",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.80.0"
   },
   "categories": [
     "Other",
-    "Database",
     "Linters"
   ],
   "keywords": [
@@ -55,7 +56,7 @@
         {
           "id": "devsync",
           "title": "DevSync",
-          "icon": "$(database)"
+          "icon": "resources/devsync.svg"
         }
       ]
     },
@@ -63,6 +64,11 @@
       {
         "command": "devsync.scan",
         "title": "Scan Schema",
+        "category": "DevSync"
+      },
+      {
+        "command": "devsync.scanLocal",
+        "title": "Scan Locally (Offline)",
         "category": "DevSync"
       },
       {
@@ -79,6 +85,18 @@
         "command": "devsync.openDashboard",
         "title": "Open Dashboard",
         "category": "DevSync"
+      },
+      {
+        "command": "devsync.selectProject",
+        "title": "Select Dashboard Project",
+        "category": "DevSync",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "devsync.createProject",
+        "title": "Create Project",
+        "category": "DevSync",
+        "icon": "$(new-folder)"
       },
       {
         "command": "devsync.applyFix",
@@ -284,13 +302,14 @@
       "properties": {
         "devsync.apiUrl": {
           "type": "string",
-          "default": "http://localhost:3000",
+          "default": "https://dev-sync.dev",
           "description": "DevSync dashboard API URL"
         },
         "devsync.apiKey": {
           "type": "string",
           "default": "",
-          "description": "DevSync API key (JWT token)"
+          "description": "Legacy API token override. Prefer DevSync: Sign In to store credentials securely.",
+          "deprecationMessage": "Use DevSync: Sign In to store credentials in VS Code SecretStorage."
         },
         "devsync.projectId": {
           "type": "string",
@@ -345,7 +364,7 @@
         },
         "devsync.analyzerUrl": {
           "type": "string",
-          "default": "http://localhost:3000",
+          "default": "https://dev-sync.dev",
           "description": "DevSync dashboard URL for device authentication (authentication endpoints are in the dashboard, not a separate analyzer service)"
         }
       }
@@ -412,8 +431,9 @@
   ],
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./ && npm run compile:webview",
-    "compile:webview": "webpack --config src/erd/webview/webpack.config.js",
+    "compile": "tsc -p ./ --noEmit && npm run compile:extension && npm run compile:webview",
+    "compile:extension": "webpack --config webpack.extension.config.js --mode production",
+    "compile:webview": "webpack --config src/erd/webview/webpack.config.js --mode production",
     "watch": "tsc -watch -p ./",
     "watch:webview": "webpack --config src/erd/webview/webpack.config.js --watch",
     "pretest": "npm run compile && npm run compile-tests",
@@ -427,14 +447,11 @@
     "quality": "npm run lint; npm run format:check; npm run compile",
     "docs": "typedoc",
     "docs:watch": "typedoc --watch",
-    "package": "vsce package",
+    "package": "npm run compile && vsce package",
+    "package:check": "npm run compile && vsce ls",
     "publish": "vsce publish"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0",
-    "eslint": "^8.57.0",
-    "eslint-plugin-import": "^2.31.0",
     "@types/glob": "^8.0.0",
     "@types/mocha": "^10.0.0",
     "@types/node": "^20.0.0",
@@ -442,25 +459,29 @@
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
     "@vscode/test-electron": "^2.3.0",
-    "mocha": "^10.0.0",
-    "ts-loader": "^9.5.0",
-    "typedoc": "^0.28.15",
-    "typedoc-plugin-markdown": "^4.9.0",
-    "typescript": "^5.0.0",
-    "webpack": "^5.90.0",
-    "webpack-cli": "^5.1.4"
-  },
-  "dependencies": {
+    "@vscode/vsce": "^3.6.0",
     "dompurify": "^3.3.4",
+    "eslint": "^8.57.0",
+    "eslint-plugin-import": "^2.31.0",
     "glob": "^11.0.0",
     "marked": "^12.0.2",
+    "mocha": "^10.0.0",
     "mysql2": "^3.15.3",
     "pg": "^8.16.3",
     "prismjs": "^1.30.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "sharp": "^0.35.3",
     "sqlite3": "^6.0.1",
+    "ts-loader": "^9.5.0",
+    "typedoc": "^0.28.15",
+    "typedoc-plugin-markdown": "^4.9.0",
+    "typescript": "^5.0.0",
+    "webpack": "^5.90.0",
+    "webpack-cli": "^5.1.4",
     "zod": "^3.25.76"
   }
 }

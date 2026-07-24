@@ -50,9 +50,6 @@ export class ScanService implements IScanService {
     if (!config.apiUrl) {
       missingFields.push('devsync.apiUrl');
     }
-    if (!config.apiKey) {
-      missingFields.push('devsync.apiKey');
-    }
     // Project ID is optional - we'll try to auto-detect it
     // Only require it if we can't auto-detect (handled in executeScan)
 
@@ -104,7 +101,7 @@ export class ScanService implements IScanService {
       // Auto-detect project if projectId is not set
       let projectId = config.projectId;
       
-      if (!projectId && config.apiUrl && config.apiKey) {
+      if (!projectId && config.apiUrl) {
         try {
           // Detect project info from workspace
           const projectInfo = detectProjectInfo(workspacePath);

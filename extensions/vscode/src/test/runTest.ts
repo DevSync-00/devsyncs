@@ -1,5 +1,4 @@
 import * as path from 'path';
-import * as fs from 'fs';
 import { runTests } from '@vscode/test-electron';
 
 async function sleep(ms: number): Promise<void> {
@@ -16,12 +15,9 @@ async function main() {
 
     // The path to test runner
     const extensionTestsPath = path.resolve(__dirname, './suite/index');
-    const vscodeCachePath = path.resolve(extensionDevelopmentPath, '.vscode-test');
-
-    // Clear stale VS Code test host cache to avoid "currently being updated" lock state.
-    if (fs.existsSync(vscodeCachePath)) {
-      fs.rmSync(vscodeCachePath, { recursive: true, force: true });
-    }
+    // Electron-based terminals can export this variable. If inherited by the
+    // test host, Code.exe starts as a Node process and rejects all VS Code flags.
+    delete process.env.ELECTRON_RUN_AS_NODE;
 
     // Download VS Code, unzip it and run the integration test
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {

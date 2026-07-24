@@ -1,7 +1,35 @@
 import readline from 'readline';
 
-function isInteractive(): boolean {
+export function isInteractive(): boolean {
   return Boolean(process.stdin.isTTY && process.stdout.isTTY);
+}
+
+export interface SelectOption<T> {
+  label: string;
+  value: T;
+  description?: string;
+}
+
+export async function promptSelect<T>(
+  message: string,
+  options: SelectOption<T>[]
+): Promise<T | undefined> {
+  if (!isInteractive() || options.length === 0) return undefined;
+
+  console.log(message);
+  options.forEach((option, index) => {
+    const description = option.description ? ` - ${option.description}` : '';
+    console.log(`  ${index + 1}. ${option.label}${description}`);
+  });
+
+  const answer = await promptInput('Choose an option');
+  if (!answer) return undefined;
+  const selectedIndex = Number.parseInt(answer, 10) - 1;
+  if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= options.length) {
+    console.log('Invalid selection.');
+    return undefined;
+  }
+  return options[selectedIndex].value;
 }
 
 export async function promptYesNo(message: string, defaultYes = false): Promise<boolean> {

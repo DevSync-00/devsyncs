@@ -31,6 +31,6 @@ module.exports = {
   externals: {
     vscode: 'commonjs vscode',
   },
-  devtool: 'source-map',
+  devtool: false,
 }
 

@@ -9,4 +9,7 @@ import './auth-config.test.js';
 import './login-command.test.js';
 import './retry-timeout.test.js';
 import './auth-integration.test.js';
+import './session-command.test.js';
+import './create-project.test.js';
+import './home-workflow.test.js';
 

@@ -14,6 +14,7 @@ import { getModelInfoFromConfig } from './utils/aiModelInfo';
 import { ErdPanel } from './erd/panel';
 import { registerErdCommands } from './erd/commands';
 import { ErdSnapshotWatcher } from './erd/watcher';
+import { detectProjectInfo } from './utils/project-detector';
 
 /**
  * Activates the DevSync VS Code extension.
@@ -127,7 +128,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const enhancedCodeActions = new DevSyncCodeActions(apiClient, diagnostics);
 
   // Initialize sidebar with enhanced features
-  const sidebarProvider = new DevSyncSidebarProvider(cliRunner, context);
+  const sidebarProvider = new DevSyncSidebarProvider(cliRunner, context, authManager);
   const sidebarCommands = new SidebarCommands(sidebarProvider, cliRunner);
 
   // Register tree data provider for sidebar
@@ -273,15 +274,15 @@ export async function activate(context: vscode.ExtensionContext) {
   // Register sidebar commands
   const sidebarScanCommand = vscode.commands.registerCommand(
     'devsync.sidebar.scan',
-    () => sidebarCommands.scan()
+    () => commands.scan()
   );
   const sidebarMigrateCommand = vscode.commands.registerCommand(
     'devsync.sidebar.migrate',
-    () => sidebarCommands.migrate()
+    () => commands.generateMigration()
   );
   const sidebarInitCommand = vscode.commands.registerCommand(
     'devsync.sidebar.init',
-    () => sidebarCommands.init()
+    () => vscode.commands.executeCommand('devsync.createProject')
   );
   const sidebarShowOutputCommand = vscode.commands.registerCommand(
     'devsync.sidebar.showOutput',
@@ -370,6 +371,139 @@ export async function activate(context: vscode.ExtensionContext) {
   );
   const chatLoginCommand = vscode.commands.registerCommand('devsync.chat.login', () => chatManager.showLoginFlow());
   const chatLogoutCommand = vscode.commands.registerCommand('devsync.chat.logout', () => chatManager.logout());
+  const selectProjectCommand = vscode.commands.registerCommand('devsync.selectProject', async () => {
+    try {
+      const projects = await apiClient.listProjects();
+      if (projects.length === 0) {
+        const action = await vscode.window.showInformationMessage(
+          'No DevSync projects are available for this account.',
+          'Open Dashboard'
+        );
+        if (action === 'Open Dashboard') {
+          await vscode.env.openExternal(vscode.Uri.parse(`${configManager.get('apiUrl')}/dashboard`));
+        }
+        return;
+      }
+
+      const selected = await vscode.window.showQuickPick(
+        projects.map((project) => ({
+          label: project.name,
+          description: project.schemaType || project.schema_type || 'Project',
+          detail: project.id,
+          projectId: project.id,
+        })),
+        { placeHolder: 'Select the DevSync project for this workspace', matchOnDetail: true }
+      );
+      if (!selected) return;
+
+      await configManager.update('projectId', selected.projectId, vscode.ConfigurationTarget.Workspace);
+      if (typeof (apiClient as any).setProjectId === 'function') {
+        (apiClient as any).setProjectId(selected.projectId);
+      }
+      sidebarProvider.refresh();
+      await vscode.window.showInformationMessage(`DevSync project selected: ${selected.label}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const action = await vscode.window.showErrorMessage(
+        `Unable to load DevSync projects: ${message}`,
+        'Sign In'
+      );
+      if (action === 'Sign In') {
+        await vscode.commands.executeCommand('devsync.chat.login');
+      }
+    }
+  });
+  const createProjectCommand = vscode.commands.registerCommand('devsync.createProject', async () => {
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    if (!folder) {
+      await vscode.window.showErrorMessage('Open a project folder before creating a DevSync project.');
+      return;
+    }
+
+    const detected = detectProjectInfo(folder.uri.fsPath);
+    const name = await vscode.window.showInputBox({
+      title: 'Create DevSync Project',
+      prompt: 'Project name',
+      value: detected.name,
+      validateInput: (value) => value.trim() ? undefined : 'A project name is required',
+    });
+    if (!name) return;
+
+    const schemaTypes = ['prisma', 'supabase', 'typeorm', 'kysely', 'sequelize', 'drizzle', 'django', 'sqlalchemy', 'raw-sql'];
+    const schemaType = await vscode.window.showQuickPick(schemaTypes, {
+      title: 'Create DevSync Project',
+      placeHolder: 'Select the schema type',
+      ...(detected.schemaType ? { activeItem: detected.schemaType } : {}),
+    });
+    if (!schemaType) return;
+
+    const configUri = vscode.Uri.joinPath(folder.uri, '.devsync', 'config.json');
+    let localConfig: any = {};
+    try {
+      localConfig = JSON.parse(new TextDecoder().decode(await vscode.workspace.fs.readFile(configUri)));
+    } catch {
+      // A new local project starts from conservative, read-only defaults.
+    }
+    localConfig = {
+      version: localConfig.version || '1.0',
+      ...localConfig,
+      project: { ...(localConfig.project || {}), name: name.trim(), schemaType },
+      database: localConfig.database || { mode: 'auto', connectionString: '', writeAccess: false },
+      safety: localConfig.safety || { allowWrites: false, allowDbWrites: false, requirePlanApproval: true },
+      paths: localConfig.paths || { ignores: [] },
+    };
+    await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(folder.uri, '.devsync'));
+    await vscode.workspace.fs.writeFile(configUri, new TextEncoder().encode(JSON.stringify(localConfig, null, 2)));
+
+    if (localConfig.project.id) {
+      await configManager.update('projectId', localConfig.project.id, vscode.ConfigurationTarget.Workspace);
+      sidebarProvider.refresh();
+      await vscode.window.showInformationMessage(`DevSync project is already connected: ${name.trim()}`);
+      return;
+    }
+
+    try {
+      const project = await apiClient.createProject({
+        name: name.trim(),
+        schemaType,
+        codebase: { type: 'cli', url: detected.gitRemote },
+      });
+      localConfig.project.id = project.id;
+      await vscode.workspace.fs.writeFile(configUri, new TextEncoder().encode(JSON.stringify(localConfig, null, 2)));
+      await configManager.update('projectId', project.id, vscode.ConfigurationTarget.Workspace);
+      if (typeof (apiClient as any).setProjectId === 'function') {
+        (apiClient as any).setProjectId(project.id);
+      }
+      sidebarProvider.refresh();
+      await vscode.window.showInformationMessage(`Created and connected DevSync project: ${project.name}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const action = await vscode.window.showWarningMessage(
+        `Created the local project, but it could not be connected: ${message}`,
+        'Sign In'
+      );
+      if (action === 'Sign In') {
+        await vscode.commands.executeCommand('devsync.chat.login');
+      }
+    }
+  });
+  const localScanCommand = vscode.commands.registerCommand('devsync.scanLocal', async () => {
+    if (!vscode.workspace.workspaceFolders?.length) {
+      await vscode.window.showErrorMessage('Open a project folder before running a local scan.');
+      return;
+    }
+    if (!(await cliRunner.checkCliAvailable())) {
+      await vscode.window.showErrorMessage('The DevSync CLI is required for offline scans. Install it with `npm install --global @devsync/cli`.');
+      return;
+    }
+    cliRunner.showOutput();
+    const result = await cliRunner.executeCliCommand('scan', { local: true, format: 'table' });
+    if (result.success) {
+      await vscode.window.showInformationMessage('DevSync local scan completed.');
+    } else {
+      await vscode.window.showErrorMessage(`DevSync local scan failed: ${result.error || 'Unknown error'}`);
+    }
+  });
   
   // Enhanced editor commands (load on demand)
   const previewFixCommand = vscode.commands.registerCommand(
@@ -554,6 +688,13 @@ export async function activate(context: vscode.ExtensionContext) {
     sidebarFilterPresetCommand,
     sidebarViewFixCommand,
     sidebarJumpToSourceCommand,
+    focusChatCommand,
+    newConversationCommand,
+    chatLoginCommand,
+    chatLogoutCommand,
+    selectProjectCommand,
+    localScanCommand,
+    createProjectCommand,
     previewFixCommand,
     showDiffCommand,
     batchApplyFixesCommand,

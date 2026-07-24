@@ -48,6 +48,13 @@ export class CliRunner implements ICliRunner {
       if (existsSync(altPath)) {
         return altPath;
       }
+      const npmPrefix = process.env.APPDATA;
+      if (npmPrefix) {
+        const globalPath = join(npmPrefix, 'npm', 'node_modules', '@devsync', 'cli', 'dist', 'index.js');
+        if (existsSync(globalPath)) {
+          return globalPath;
+        }
+      }
       return null;
     }
 

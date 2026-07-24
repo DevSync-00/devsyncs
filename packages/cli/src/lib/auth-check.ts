@@ -96,7 +96,7 @@ export async function requireAuthenticatedCli(): Promise<AuthConfig> {
   log(deps.chalk.gray('🔄 Access token expired, refreshing...'));
 
   try {
-    const dashboardUrl = resolveDashboardUrl();
+    const dashboardUrl = existing.apiUrl || resolveDashboardUrl();
     const client = new deps.AnalyzerApiClient(dashboardUrl, {
       timeoutMs: 60000, // Increased to 1 minute for better reliability
       retryAttempts: 3,

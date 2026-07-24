@@ -171,7 +171,7 @@ export interface Migration {
   };
 }
 
-import { IApiClient } from './interfaces';
+import { IApiClient, IAuthManager } from './interfaces';
 
 /**
  * API client for interacting with the DevSync dashboard API.
@@ -204,7 +204,8 @@ export class DevSyncApiClient implements IApiClient {
     private readonly apiUrl: string,
     private readonly apiKey: string,
     private projectId: string = '',
-    configManager?: IConfigurationManager
+    configManager?: IConfigurationManager,
+    private readonly authManager?: IAuthManager
   ) {
     this.configManager = configManager;
   }
@@ -272,11 +273,6 @@ export class DevSyncApiClient implements IApiClient {
     }
     
     // Check API key before making request
-    const apiKey = this.getApiKey();
-    if (!apiKey) {
-      throw new Error('API key is required. Please sign in to DevSync or configure devsync.apiKey in your settings.');
-    }
-    
     // Check API URL
     const apiUrl = this.getApiUrl();
     if (!apiUrl) {
@@ -294,7 +290,7 @@ export class DevSyncApiClient implements IApiClient {
     
     // Validate response with runtime validation
     const { validateScanReport } = await import('./types/validation');
-    return validateScanReport(response);
+    return validateScanReport(this.normalizeScanReport(response));
     } catch (error: any) {
       // Provide better error messages for authentication failures
       if (error instanceof Error) {
@@ -319,7 +315,7 @@ export class DevSyncApiClient implements IApiClient {
 
     // Validate each scan report
     const { validateScanReport } = await import('./types/validation');
-    return (response.scanReports || []).map((report) => validateScanReport(report));
+    return (response.scanReports || []).map((report) => validateScanReport(this.normalizeScanReport(report)));
   }
 
   async getLatestScanReport(): Promise<ScanReport | null> {
@@ -373,6 +369,21 @@ export class DevSyncApiClient implements IApiClient {
     return `${this.getApiUrl()}/dashboard/projects/${this.projectId}`;
   }
 
+  private normalizeScanReport(report: any): unknown {
+    const codeSchema = report.codeSchema ?? report.code_schema;
+    const dbSchema = report.dbSchema ?? report.db_schema;
+    return {
+      id: report.id ?? report.scanId,
+      projectId: report.projectId ?? report.project_id ?? this.projectId,
+      status: report.status === 'success' ? 'completed' : report.status,
+      mismatches: report.mismatches || [],
+      ...(Array.isArray(codeSchema) ? { codeSchema } : {}),
+      ...(Array.isArray(dbSchema) ? { dbSchema } : {}),
+      created_at: report.created_at ?? report.createdAt ?? new Date().toISOString(),
+      completed_at: report.completed_at ?? null,
+    };
+  }
+
   /**
    * Lists all projects accessible to the current user.
    * 
@@ -390,6 +401,22 @@ export class DevSyncApiClient implements IApiClient {
     }));
   }
 
+  async createProject(payload: {
+    name: string;
+    schemaType: string;
+    teamId?: string | null;
+    dbConnectionString?: string | null;
+    codebase?: { type: 'git' | 'upload' | 'cli'; url?: string };
+  }): Promise<{ id: string; name: string; slug?: string; schemaType?: string }> {
+    const response = await this.post<{ project: any }>('/api/projects', payload);
+    return {
+      id: response.project.id,
+      name: response.project.name,
+      slug: response.project.slug,
+      schemaType: response.project.schemaType || response.project.schema_type,
+    };
+  }
+
   private buildUrl(path: string, params?: Record<string, string>): string {
     const url = new URL(path, this.getApiUrl());
     if (params) {
@@ -400,8 +427,8 @@ export class DevSyncApiClient implements IApiClient {
     return url.toString();
   }
 
-  private get authHeaders(): Record<string, string> {
-    const apiKey = this.getApiKey();
+  private async buildAuthHeaders(): Promise<Record<string, string>> {
+    const apiKey = this.getApiKey() || await this.authManager?.ensureAccessToken();
     if (!apiKey) {
       throw new Error('API key is required. Please sign in to DevSync or configure devsync.apiKey in your settings.');
     }
@@ -412,7 +439,7 @@ export class DevSyncApiClient implements IApiClient {
     try {
       return await requestJson<T>(this.buildUrl(path), {
       method: 'POST',
-      headers: this.authHeaders,
+      headers: await this.buildAuthHeaders(),
       json: payload,
     });
     } catch (error: any) {
@@ -431,7 +458,7 @@ export class DevSyncApiClient implements IApiClient {
     try {
       return await requestJson<T>(this.buildUrl(path, params), {
       method: 'GET',
-      headers: this.authHeaders,
+      headers: await this.buildAuthHeaders(),
     });
     } catch (error: any) {
       // Re-throw with more context for authentication errors
