@@ -11,6 +11,8 @@ import MigrationHistory from '@/components/MigrationHistory';
 import SchemaComparison from '@/components/SchemaComparison';
 import ExportButton from '@/components/ExportButton';
 import { MessageSquare } from 'lucide-react';
+import ApplicationImpact from '@/components/impact/ApplicationImpact';
+import SafetyGates from '@/components/impact/SafetyGates';
 
 function formatMismatchPath(mismatch: any): string {
   const model = formatMismatchValue(mismatch.model, 'Unknown');
@@ -65,7 +67,7 @@ export default async function ScanReportDetailPage({
   // Fetch scan report
   const { data: report, error } = await supabase
     .from('scan_reports')
-    .select('*, projects(id, name, user_id)')
+    .select('*, projects(id, name, user_id, team_id)')
     .eq('id', params.reportId)
     .eq('project_id', params.id)
     .single();
@@ -174,6 +176,14 @@ export default async function ScanReportDetailPage({
           <div className="text-lg font-semibold">{project.name}</div>
         </div>
       </div>
+
+      {scanMetadata.applicationImpact && (
+        <ApplicationImpact report={scanMetadata.applicationImpact} />
+      )}
+
+      {scanMetadata.changeSafety && (
+        <SafetyGates report={scanMetadata.changeSafety} />
+      )}
 
       {/* AI Features */}
       {hasMismatches && (

@@ -4,11 +4,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveUser } from '@/app/api/projects/utils';
 import {
   compareSchemas,
+  analyzeApplicationImpact,
   scanDatabaseSchema,
   scanCodebaseSchema,
 } from '@/lib/schema-scanner';
 import { ensureGitClone, parseGitHubRepository } from '@/lib/codebase-storage';
 import { getGitHubAccessTokenForRepository } from '@/lib/github-app';
+import { evaluateChangeSafety } from '@/lib/change-intelligence';
 
 export const dynamic = 'force-dynamic';
 
@@ -160,6 +162,16 @@ export async function POST(request: NextRequest) {
       }
 
       finalMismatches = compareSchemas(finalCodeSchema, finalDbSchema);
+      scanMetadata.applicationImpact = analyzeApplicationImpact(
+        clonePath,
+        finalCodeSchema,
+        finalMismatches,
+      );
+      scanMetadata.changeSafety = evaluateChangeSafety(
+        finalMismatches,
+        finalDbSchema,
+        scanMetadata.applicationImpact,
+      );
 
       scanMetadata.codebase = {
         type: codebase.type,

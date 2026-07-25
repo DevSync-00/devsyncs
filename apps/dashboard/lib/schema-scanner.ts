@@ -54,6 +54,68 @@ export interface SchemaMismatch {
   suggestedFix?: string;
 }
 
+export type ApplicationReferenceKind =
+  | 'schema'
+  | 'query'
+  | 'repository'
+  | 'api'
+  | 'job'
+  | 'test'
+  | 'ui'
+  | 'migration'
+  | 'unknown';
+
+export interface ApplicationReference {
+  id: string;
+  table: string;
+  column?: string;
+  file: string;
+  line: number;
+  kind: ApplicationReferenceKind;
+  operation: 'read' | 'write' | 'delete' | 'define' | 'unknown';
+  excerpt: string;
+  confidence: number;
+}
+
+export interface ImpactFinding {
+  mismatchIndex: number;
+  object: string;
+  risk: 'critical' | 'high' | 'medium' | 'low';
+  score: number;
+  breaking: boolean;
+  references: ApplicationReference[];
+  owners: string[];
+  evidence: string[];
+  compatibilityPlan: string[];
+}
+
+export interface ApplicationImpactReport {
+  version: 1;
+  generatedAt: string;
+  summary: {
+    score: number;
+    risk: 'critical' | 'high' | 'medium' | 'low';
+    breakingChanges: number;
+    affectedFiles: number;
+    affectedApis: number;
+    affectedJobs: number;
+    testCoverageFiles: number;
+    ownerCoveragePercent: number;
+  };
+  references: ApplicationReference[];
+  findings: ImpactFinding[];
+  graph: {
+    nodes: Array<{
+      id: string;
+      label: string;
+      type: 'database' | 'schema' | 'code' | 'api' | 'job' | 'test' | 'owner';
+      risk?: 'critical' | 'high' | 'medium' | 'low';
+      metadata?: Record<string, string | number>;
+    }>;
+    edges: Array<{ id: string; source: string; target: string; label: string }>;
+  };
+}
+
 const EXCLUDED_DIRS = new Set([
   '.git',
   '.next',
@@ -676,6 +738,275 @@ export function compareSchemas(codeSchema: ScannedSchema, dbSchema: ScannedSchem
   }
 
   return mismatches;
+}
+
+/**
+ * Builds an evidence-backed map from changed database objects to the application
+ * files that use them. This is deliberately deterministic: AI may explain this
+ * report later, but it never invents the underlying evidence.
+ */
+export function analyzeApplicationImpact(
+  root: string,
+  codeSchema: ScannedSchema,
+  mismatches: SchemaMismatch[],
+): ApplicationImpactReport {
+  const files = collectFiles(root);
+  const codeOwners = readCodeOwners(root);
+  const tableNames = new Set(codeSchema.tables.map((table) => table.name.toLowerCase()));
+  mismatches.forEach((mismatch) => tableNames.add((mismatch.table || mismatch.model).toLowerCase()));
+
+  const references: ApplicationReference[] = [];
+  for (const filePath of files) {
+    const relativeFile = path.relative(root, filePath).replace(/\\/g, '/');
+    const kind = classifyReferenceKind(relativeFile);
+    const content = readFileSync(filePath, 'utf8');
+    const lines = content.split(/\r?\n/);
+
+    lines.forEach((line, index) => {
+      const normalized = line.toLowerCase();
+      for (const table of tableNames) {
+        if (!containsIdentifier(normalized, table)) continue;
+
+        const schemaTable = codeSchema.tables.find((item) => item.name.toLowerCase() === table);
+        const mentionedColumns = (schemaTable?.columns || [])
+          .filter((column) => containsIdentifier(normalized, column.name.toLowerCase()))
+          .map((column) => column.name);
+        const operation = detectOperation(line);
+        const baseConfidence = kind === 'schema' || kind === 'migration' ? 0.98 : operation === 'unknown' ? 0.68 : 0.88;
+
+        references.push({
+          id: `ref-${references.length + 1}`,
+          table: schemaTable?.name || table,
+          column: mentionedColumns.length === 1 ? mentionedColumns[0] : undefined,
+          file: relativeFile,
+          line: index + 1,
+          kind,
+          operation,
+          excerpt: line.trim().slice(0, 220),
+          confidence: baseConfidence,
+        });
+      }
+    });
+  }
+
+  const deduplicated = Array.from(
+    new Map(references.map((reference) => [
+      `${reference.table}:${reference.column || '*'}:${reference.file}:${reference.line}`,
+      reference,
+    ])).values(),
+  );
+
+  const findings = mismatches.map((mismatch, mismatchIndex) => {
+    const table = mismatch.table || mismatch.model;
+    const column = mismatch.column || mismatch.field;
+    const affected = deduplicated.filter((reference) => {
+      if (reference.table.toLowerCase() !== table.toLowerCase()) return false;
+      return !column || !reference.column || reference.column.toLowerCase() === column.toLowerCase();
+    });
+    const nonDefinitionReferences = affected.filter((reference) => !['schema', 'migration'].includes(reference.kind));
+    const breaking = ['extra_table', 'extra_field', 'type_mismatch', 'nullable_mismatch'].includes(mismatch.type)
+      && nonDefinitionReferences.length > 0;
+    const score = calculateImpactScore(mismatch, nonDefinitionReferences);
+    const owners = Array.from(new Set(
+      affected.flatMap((reference) => ownersForFile(reference.file, codeOwners)),
+    ));
+
+    return {
+      mismatchIndex,
+      object: column ? `${table}.${column}` : table,
+      risk: scoreToRisk(score),
+      score,
+      breaking,
+      references: affected.slice(0, 50),
+      owners,
+      evidence: buildImpactEvidence(mismatch, nonDefinitionReferences),
+      compatibilityPlan: buildCompatibilityPlan(mismatch, nonDefinitionReferences),
+    };
+  });
+
+  const affectedReferences = findings.flatMap((finding) => finding.references)
+    .filter((reference) => !['schema', 'migration'].includes(reference.kind));
+  const affectedFiles = new Set(affectedReferences.map((reference) => reference.file));
+  const maximumScore = findings.reduce((maximum, finding) => Math.max(maximum, finding.score), 0);
+  const ownedFiles = new Set(
+    affectedReferences.filter((reference) => ownersForFile(reference.file, codeOwners).length > 0)
+      .map((reference) => reference.file),
+  );
+
+  return {
+    version: 1,
+    generatedAt: new Date().toISOString(),
+    summary: {
+      score: maximumScore,
+      risk: scoreToRisk(maximumScore),
+      breakingChanges: findings.filter((finding) => finding.breaking).length,
+      affectedFiles: affectedFiles.size,
+      affectedApis: new Set(affectedReferences.filter((reference) => reference.kind === 'api').map((reference) => reference.file)).size,
+      affectedJobs: new Set(affectedReferences.filter((reference) => reference.kind === 'job').map((reference) => reference.file)).size,
+      testCoverageFiles: new Set(affectedReferences.filter((reference) => reference.kind === 'test').map((reference) => reference.file)).size,
+      ownerCoveragePercent: affectedFiles.size ? Math.round((ownedFiles.size / affectedFiles.size) * 100) : 100,
+    },
+    references: deduplicated,
+    findings,
+    graph: buildImpactGraph(findings),
+  };
+}
+
+function containsIdentifier(line: string, identifier: string): boolean {
+  const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^a-z0-9_])${escaped}([^a-z0-9_]|$)`, 'i').test(line);
+}
+
+function classifyReferenceKind(file: string): ApplicationReferenceKind {
+  const normalized = file.toLowerCase();
+  if (/(\.test\.|\.spec\.|\/tests?\/|__tests__)/.test(normalized)) return 'test';
+  if (/(migration|migrations|\.prisma$|schema\.)/.test(normalized)) return 'migration';
+  if (/(\/api\/|route\.|controller|resolver)/.test(normalized)) return 'api';
+  if (/(worker|queue|cron|schedule|job)/.test(normalized)) return 'job';
+  if (/(repository|repositories|\/dao\/|service)/.test(normalized)) return 'repository';
+  if (/(\.tsx$|\.jsx$|\/components\/|\/pages\/)/.test(normalized)) return 'ui';
+  if (/(\.sql$|model|entity)/.test(normalized)) return 'schema';
+  return 'query';
+}
+
+function detectOperation(line: string): ApplicationReference['operation'] {
+  if (/\b(delete|drop|truncate|destroy)\b/i.test(line)) return 'delete';
+  if (/\b(insert|update|upsert|create|save|set)\b/i.test(line)) return 'write';
+  if (/\b(select|find|query|get|fetch|include|join)\b/i.test(line)) return 'read';
+  if (/\b(table|model|entity|column|create table)\b/i.test(line)) return 'define';
+  return 'unknown';
+}
+
+function calculateImpactScore(mismatch: SchemaMismatch, references: ApplicationReference[]): number {
+  const base: Record<SchemaMismatch['type'], number> = {
+    extra_table: 72,
+    extra_field: 68,
+    type_mismatch: 62,
+    nullable_mismatch: 52,
+    missing_table: 44,
+    missing_field: 38,
+    missing_relationship: 34,
+    extra_relationship: 42,
+  };
+  const apiCount = references.filter((reference) => reference.kind === 'api').length;
+  const jobCount = references.filter((reference) => reference.kind === 'job').length;
+  const writeCount = references.filter((reference) => reference.operation === 'write').length;
+  const testCount = references.filter((reference) => reference.kind === 'test').length;
+  return Math.min(100, Math.max(0,
+    base[mismatch.type] + Math.min(18, references.length * 2) + Math.min(10, apiCount * 3 + jobCount * 3 + writeCount * 2) - Math.min(8, testCount * 2),
+  ));
+}
+
+function scoreToRisk(score: number): 'critical' | 'high' | 'medium' | 'low' {
+  if (score >= 85) return 'critical';
+  if (score >= 65) return 'high';
+  if (score >= 40) return 'medium';
+  return 'low';
+}
+
+function buildImpactEvidence(mismatch: SchemaMismatch, references: ApplicationReference[]): string[] {
+  const evidence = [`${mismatch.message}`];
+  const kinds = new Map<ApplicationReferenceKind, number>();
+  references.forEach((reference) => kinds.set(reference.kind, (kinds.get(reference.kind) || 0) + 1));
+  for (const [kind, count] of kinds) {
+    evidence.push(`${count} ${kind} reference${count === 1 ? '' : 's'} found in application code.`);
+  }
+  const writes = references.filter((reference) => reference.operation === 'write').length;
+  if (writes) evidence.push(`${writes} write path${writes === 1 ? '' : 's'} may require a compatibility window.`);
+  if (!references.length) evidence.push('No direct application references were found; verify dynamic SQL and external consumers.');
+  return evidence;
+}
+
+function buildCompatibilityPlan(mismatch: SchemaMismatch, references: ApplicationReference[]): string[] {
+  const object = mismatch.field ? `${mismatch.model}.${mismatch.field}` : mismatch.model;
+  if (['extra_field', 'extra_table', 'type_mismatch'].includes(mismatch.type) && references.length) {
+    return [
+      `Expand: introduce the replacement for ${object} without removing the current contract.`,
+      `Migrate: update ${new Set(references.map((reference) => reference.file)).size} affected file${references.length === 1 ? '' : 's'} and backfill data where required.`,
+      'Verify: deploy application readers and writers, replay critical queries, and monitor errors.',
+      `Contract: remove ${object} only after all references and older clients are retired.`,
+    ];
+  }
+  if (mismatch.type === 'nullable_mismatch') {
+    return [
+      `Measure existing null values for ${object}.`,
+      'Backfill safely in bounded batches and add application validation.',
+      'Apply the constraint only after a rehearsal confirms no violating rows.',
+    ];
+  }
+  return [
+    `Review the proposed schema change for ${object}.`,
+    'Run migration rehearsal against a production-shaped preview database.',
+    'Require an owner approval before promotion to production.',
+  ];
+}
+
+type CodeOwnerRule = { pattern: string; owners: string[] };
+
+function readCodeOwners(root: string): CodeOwnerRule[] {
+  const candidates = [
+    path.join(root, 'CODEOWNERS'),
+    path.join(root, '.github', 'CODEOWNERS'),
+    path.join(root, 'docs', 'CODEOWNERS'),
+  ];
+  const candidate = candidates.find(existsSync);
+  if (!candidate) return [];
+  return readFileSync(candidate, 'utf8').split(/\r?\n/).flatMap((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) return [];
+    const [pattern, ...owners] = trimmed.split(/\s+/);
+    return owners.length ? [{ pattern, owners }] : [];
+  });
+}
+
+function ownersForFile(file: string, rules: CodeOwnerRule[]): string[] {
+  let owners: string[] = [];
+  for (const rule of rules) {
+    const doubleStarToken = '__DEVSYNC_DOUBLE_STAR__';
+    const escaped = rule.pattern
+      .replace(/^\/+/, '')
+      .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+      .replace(/\*\*/g, doubleStarToken)
+      .replace(/\*/g, '[^/]*')
+      .replace(new RegExp(doubleStarToken, 'g'), '.*');
+    if (new RegExp(`^${escaped}${rule.pattern.endsWith('/') ? '.*' : ''}$`).test(file)) owners = rule.owners;
+  }
+  return owners;
+}
+
+function buildImpactGraph(findings: ImpactFinding[]): ApplicationImpactReport['graph'] {
+  const nodes = new Map<string, ApplicationImpactReport['graph']['nodes'][number]>();
+  const edges = new Map<string, ApplicationImpactReport['graph']['edges'][number]>();
+  for (const finding of findings) {
+    const databaseId = `db:${finding.object}`;
+    nodes.set(databaseId, { id: databaseId, label: finding.object, type: 'database', risk: finding.risk });
+    for (const reference of finding.references.slice(0, 30)) {
+      const fileId = `file:${reference.file}`;
+      const nodeType = reference.kind === 'api' || reference.kind === 'job' || reference.kind === 'test'
+        ? reference.kind
+        : reference.kind === 'schema' || reference.kind === 'migration' ? 'schema' : 'code';
+      nodes.set(fileId, {
+        id: fileId,
+        label: reference.file.split('/').pop() || reference.file,
+        type: nodeType,
+        metadata: { file: reference.file, line: reference.line },
+      });
+      const edgeId = `${databaseId}->${fileId}`;
+      edges.set(edgeId, { id: edgeId, source: databaseId, target: fileId, label: reference.operation });
+    }
+    for (const owner of finding.owners) {
+      const ownerId = `owner:${owner}`;
+      nodes.set(ownerId, { id: ownerId, label: owner, type: 'owner' });
+      finding.references.forEach((reference) => {
+        const fileId = `file:${reference.file}`;
+        if (nodes.has(fileId)) {
+          const edgeId = `${fileId}->${ownerId}`;
+          edges.set(edgeId, { id: edgeId, source: fileId, target: ownerId, label: 'owned by' });
+        }
+      });
+    }
+  }
+  return { nodes: Array.from(nodes.values()), edges: Array.from(edges.values()) };
 }
 
 function relationshipKey(relationship: ScannedRelationship): string {
