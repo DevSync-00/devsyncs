@@ -1,24 +1,18 @@
-import { CheckCircle2, Lock, Scan, Layers } from "lucide-react";
-
-const items = [
-  { icon: Scan, label: "Read-only scan by default" },
-  { icon: Lock, label: "Preview before any apply" },
-  { icon: Layers, label: "Prisma, Supabase, TypeORM & more" },
-  { icon: CheckCircle2, label: "CLI + VS Code + Dashboard" },
+const rows = [
+  ["ORM", "Prisma", "Drizzle", "TypeORM", "Sequelize", "Django"],
+  ["Database", "PostgreSQL", "Supabase", "Neon", "Raw SQL"],
+  ["Workflow", "CLI", "VS Code", "Dashboard", "GitHub Actions"],
 ];
 
 export default function TrustStrip() {
   return (
-    <section className="relative border-y border-border/60 bg-secondary/20">
-      <div className="container mx-auto px-6 py-6">
-        <div className="flex flex-wrap justify-center gap-x-10 gap-y-4">
-          {items.map((item) => (
-            <div
-              key={item.label}
-              className="flex items-center gap-2.5 text-sm text-muted-foreground"
-            >
-              <item.icon className="w-4 h-4 text-primary shrink-0" aria-hidden />
-              <span>{item.label}</span>
+    <section id="integrations" className="border-b bg-card/40">
+      <div className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6">
+        <div className="overflow-x-auto rounded-lg border bg-background">
+          {rows.map(([category, ...tools]) => (
+            <div key={category} className="grid min-w-[720px] grid-cols-[120px_repeat(5,1fr)] border-b last:border-b-0">
+              <div className="bg-muted/20 px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{category}</div>
+              {tools.map((tool) => <div key={tool} className="border-l px-4 py-3 font-mono text-[11px]">{tool}</div>)}
             </div>
           ))}
         </div>

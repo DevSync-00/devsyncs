@@ -1,66 +1,34 @@
 import Link from "next/link";
+import { Activity } from "lucide-react";
 import Logo from "@/components/Logo";
 
-const footerLinks = {
-  Product: [
-    { href: "#how-it-works", label: "How it works" },
-    { href: "#features", label: "Features" },
-    { href: "#safety", label: "Safety" },
-    { href: "/auth/signup", label: "Sign up" },
-  ],
-  Resources: [
-    { href: "/docs", label: "Documentation" },
-    { href: "/docs/user-guide", label: "User guide" },
-    { href: "/docs/troubleshooting", label: "Troubleshooting" },
-    { href: "/auth/login", label: "Sign in" },
-  ],
-};
+const links = [
+  { href: "/docs", label: "Documentation" },
+  { href: "/docs/api-reference", label: "API" },
+  { href: "/docs/troubleshooting", label: "Troubleshooting" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/terms", label: "Terms" },
+];
 
-const Footer = () => {
+export default function Footer() {
   return (
-    <footer className="border-t border-border bg-secondary/10">
-      <div className="container mx-auto max-w-6xl px-6 py-16">
-        <div className="grid md:grid-cols-4 gap-12">
-          <div className="md:col-span-1">
-            <Link href="/" className="inline-flex items-center gap-2.5 mb-4 group">
-              <Logo variant="original" width={28} height={28} />
-              <span className="font-display text-lg font-bold tracking-tight">
-                Dev-<span className="text-gradient">Sync</span>
-              </span>
-            </Link>
-            <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-              Database schema sync and migration safety for engineering teams.
-            </p>
-          </div>
-
-          {Object.entries(footerLinks).map(([title, links]) => (
-            <div key={title}>
-              <h4 className="font-semibold text-sm mb-4">{title}</h4>
-              <ul className="space-y-3">
-                {links.map((link) => (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+    <footer className="border-t bg-[#080c12] text-slate-400">
+      <div className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+          <Link href="/" className="flex items-center gap-2">
+            <Logo variant="original" width={22} height={22} />
+            <span className="font-mono text-xs font-semibold text-slate-200">dev-sync</span>
+          </Link>
+          <nav className="flex flex-wrap gap-x-5 gap-y-2">
+            {links.map((link) => <Link key={link.href} href={link.href} className="font-mono text-[10px] hover:text-white">{link.label}</Link>)}
+          </nav>
+          <div className="sm:ml-auto flex items-center gap-1.5 font-mono text-[9px] text-slate-500"><Activity className="h-3 w-3 text-emerald-400" /> All systems operational</div>
         </div>
-
-        <div className="mt-12 pt-8 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} Dev-Sync.dev. All rights reserved.</p>
-          <p className="text-xs">
-            Scan read-only by default · Apply requires explicit approval
-          </p>
+        <div className="mt-7 flex flex-col gap-2 border-t border-white/10 pt-5 font-mono text-[9px] text-slate-600 sm:flex-row sm:justify-between">
+          <span>© {new Date().getFullYear()} Dev-Sync.dev</span>
+          <span>Read-only by default · explicit approval required for writes</span>
         </div>
       </div>
     </footer>
   );
-};
-
-export default Footer;
+}

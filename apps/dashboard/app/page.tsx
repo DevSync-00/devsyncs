@@ -9,8 +9,6 @@ import HowItWorks from "@/components/landing/HowItWorks";
 import Features from "@/components/landing/Features";
 import Safety from "@/components/landing/Safety";
 import DeveloperExperience from "@/components/landing/DeveloperExperience";
-import Integrations from "@/components/landing/Integrations";
-import UseCases from "@/components/landing/UseCases";
 import CallToAction from "@/components/landing/CallToAction";
 import Footer from "@/components/landing/Footer";
 import { Plus, FolderKanban, Clock, Activity, TrendingUp, Users } from 'lucide-react';
@@ -281,8 +279,6 @@ export default async function HomePage() {
         <Features />
         <Safety />
         <DeveloperExperience />
-        <Integrations />
-        <UseCases />
         <CallToAction />
       </main>
       <Footer />

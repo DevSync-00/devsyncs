@@ -1,82 +1,35 @@
-import { Search, FileSearch, CheckSquare } from "lucide-react";
+import { Check, FileDiff, ScanSearch, ShieldCheck } from "lucide-react";
 
 const steps = [
-  {
-    icon: Search,
-    title: "Scan",
-    description:
-      "Point DevSync at your project. It reads schema definitions (Prisma, Supabase, TypeORM, and more) and compares them to your live or inferred database.",
-    command: "devsync scan",
-  },
-  {
-    icon: FileSearch,
-    title: "Diagnose",
-    description:
-      "Get a structured report of mismatches — missing columns, type drift, outdated migrations — with enough context to act, not guess.",
-    command: "devsync status",
-  },
-  {
-    icon: CheckSquare,
-    title: "Fix & apply",
-    description:
-      "Generate migration previews, review in CLI or dashboard, then apply only when your team explicitly approves. No silent writes.",
-    command: "devsync fix → apply",
-  },
+  { icon: ScanSearch, number: "01", title: "Detect", command: "dev-sync scan --check", text: "Normalize your ORM schema and compare it with the selected database environment." },
+  { icon: FileDiff, number: "02", title: "Review", command: "dev-sync fix --preview", text: "Inspect object-level drift, generated SQL, lock estimates, and rollback coverage." },
+  { icon: ShieldCheck, number: "03", title: "Ship", command: "dev-sync apply --confirm", text: "Require explicit approval, execute the migration, and retain a complete audit trail." },
 ];
 
-const HowItWorks = () => {
+export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="py-28 px-6 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/[0.02] to-transparent pointer-events-none" />
-
-      <div className="container mx-auto max-w-6xl relative z-10">
-        <div className="text-center mb-20 max-w-2xl mx-auto">
-          <p className="text-sm font-medium text-primary mb-3 tracking-wide uppercase">
-            Workflow
-          </p>
-          <h2 className="font-display text-4xl md:text-5xl font-bold mb-4">
-            Three steps to <span className="text-gradient">confident sync</span>
-          </h2>
-          <p className="text-lg text-muted-foreground">
-            A deliberate pipeline — not a black box that mutates your database.
-          </p>
+    <section id="workflow" className="border-b py-20">
+      <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
+        <div className="mb-10 max-w-2xl">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary">Change pipeline</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight">Detect. Review. Ship.</h2>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">A visible workflow with explicit state transitions—not a black box connected to production.</p>
         </div>
-
-        <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
-          {steps.map((step, index) => (
-            <div key={step.title} className="relative group">
-              {index < steps.length - 1 && (
-                <div
-                  className="hidden lg:block absolute top-16 -right-4 w-8 h-px bg-gradient-to-r from-primary/50 to-transparent z-10"
-                  aria-hidden
-                />
-              )}
-
-              <div className="h-full p-8 rounded-2xl gradient-card border border-border/80 hover:border-primary/40 transition-all duration-300 hover:shadow-elevated">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shadow-lg">
-                    <step.icon className="w-7 h-7 text-primary-foreground" />
-                  </div>
-                  <span className="font-display text-5xl font-bold text-muted-foreground/20">
-                    0{index + 1}
-                  </span>
-                </div>
-
-                <h3 className="font-display text-2xl font-bold mb-3">{step.title}</h3>
-                <p className="text-muted-foreground leading-relaxed mb-6">
-                  {step.description}
-                </p>
-
-                <code className="inline-block font-mono text-xs px-3 py-1.5 rounded-lg bg-background/80 border border-border text-primary">
-                  {step.command}
-                </code>
+        <div className="grid overflow-hidden rounded-lg border bg-card lg:grid-cols-3">
+          {steps.map((step) => (
+            <article key={step.title} className="border-b p-5 last:border-b-0 lg:border-b-0 lg:border-r lg:last:border-r-0">
+              <div className="flex items-center justify-between">
+                <step.icon className="h-4 w-4 text-primary" />
+                <span className="font-mono text-[10px] text-muted-foreground">{step.number}</span>
               </div>
-            </div>
+              <h3 className="mt-8 font-mono text-sm font-semibold">{step.title}</h3>
+              <p className="mt-2 min-h-12 text-xs leading-5 text-muted-foreground">{step.text}</p>
+              <code className="mt-5 block rounded border bg-background px-3 py-2 font-mono text-[10px] text-cyan-400">$ {step.command}</code>
+              <div className="mt-4 flex items-center gap-2 font-mono text-[9px] uppercase text-emerald-400"><Check className="h-3 w-3" /> observable and auditable</div>
+            </article>
           ))}
         </div>
       </div>
     </section>
   );
-};
-
-export default HowItWorks;
+}

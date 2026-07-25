@@ -1,68 +1,39 @@
-import { Eye, ShieldCheck, Undo2, KeyRound } from "lucide-react";
+import { Check, LockKeyhole, ShieldCheck } from "lucide-react";
 
-const pillars = [
-  {
-    icon: Eye,
-    title: "Read-only first",
-    description:
-      "Scans inspect your project and database without writing changes. You stay in control from the first command.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Preview every fix",
-    description:
-      "Migrations and fixes are generated for review. Nothing hits your database until you explicitly approve apply.",
-  },
-  {
-    icon: Undo2,
-    title: "Reversible workflow",
-    description:
-      "Migration history and rollback paths help teams recover confidently when schema changes need to be undone.",
-  },
-  {
-    icon: KeyRound,
-    title: "Secrets stay local",
-    description:
-      "Credentials are masked in output. Auth tokens use secure storage in the extension and restricted config on CLI.",
-  },
+const checks = [
+  ["Connection mode", "READ ONLY"],
+  ["Destructive changes", "0"],
+  ["Tables locked", "1"],
+  ["Estimated duration", "240ms"],
+  ["Rollback", "GENERATED"],
+  ["Team approval", "REQUIRED"],
 ];
 
 export default function Safety() {
   return (
-    <section id="safety" className="py-28 px-6 relative overflow-hidden">
-      <div className="absolute inset-0 mesh-grid opacity-40 pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="container mx-auto max-w-6xl relative z-10">
-        <div className="text-center mb-16 max-w-2xl mx-auto">
-          <p className="text-sm font-medium text-primary mb-3 tracking-wide uppercase">
-            Safety by design
-          </p>
-          <h2 className="font-display text-4xl md:text-5xl font-bold mb-4">
-            Production databases deserve{" "}
-            <span className="text-gradient">caution, not chaos</span>
-          </h2>
-          <p className="text-lg text-muted-foreground">
-            DevSync is built for teams who treat every schema change as a risk —
-            and want tooling that respects that.
-          </p>
+    <section id="safety" className="border-b bg-card/30 py-20">
+      <div className="mx-auto grid max-w-[1100px] gap-10 px-4 sm:px-6 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary">Production safety</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight">Every migration gets a preflight.</h2>
+          <p className="mt-4 text-sm leading-6 text-muted-foreground">Scanning never writes. Migration execution requires explicit authorization and leaves an audit trail your team can inspect.</p>
+          <div className="mt-6 space-y-3 text-xs">
+            {["Credentials are masked and encrypted", "Destructive operations are policy-gated", "Rollback SQL is generated before execution"].map((item) => (
+              <div key={item} className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-emerald-400" /> {item}</div>
+            ))}
+          </div>
         </div>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {pillars.map((pillar) => (
-            <div
-              key={pillar.title}
-              className="group p-6 rounded-2xl glass hover:border-primary/30 transition-all duration-300"
-            >
-              <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
-                <pillar.icon className="w-5 h-5 text-primary" />
-              </div>
-              <h3 className="font-semibold text-lg mb-2">{pillar.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {pillar.description}
-              </p>
-            </div>
-          ))}
+        <div className="overflow-hidden rounded-lg border bg-background">
+          <div className="flex h-11 items-center justify-between border-b px-4">
+            <div className="flex items-center gap-2 font-mono text-[10px]"><ShieldCheck className="h-3.5 w-3.5 text-emerald-400" /> migration_preflight.json</div>
+            <span className="flex items-center gap-1 font-mono text-[9px] text-emerald-400"><LockKeyhole className="h-3 w-3" /> POLICY ENFORCED</span>
+          </div>
+          <div className="divide-y">
+            {checks.map(([label, value]) => (
+              <div key={label} className="grid grid-cols-2 px-4 py-3 font-mono text-[10px]"><span className="text-muted-foreground">{label}</span><span className={value === "READ ONLY" || value === "GENERATED" ? "text-emerald-400" : value === "REQUIRED" ? "text-amber-400" : ""}>{value}</span></div>
+            ))}
+          </div>
+          <div className="border-t bg-muted/20 px-4 py-3 font-mono text-[9px] text-muted-foreground">sha256:a89d2f3c · actor: deploy-bot · environment: production</div>
         </div>
       </div>
     </section>
