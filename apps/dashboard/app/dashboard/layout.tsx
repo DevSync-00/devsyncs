@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { LogOut, Settings, Key } from 'lucide-react';
 import Logo from '@/components/Logo';
 import ThemeToggle from '@/components/ThemeToggle';
+import CommandPalette from '@/components/dashboard/CommandPalette';
 
 export default async function DashboardLayout({
   children,
@@ -72,6 +73,7 @@ export default async function DashboardLayout({
               </div>
             </div>
             <div className="flex items-center gap-4">
+              <CommandPalette />
               <ThemeToggle />
               <Link
                 href="/dashboard/settings"

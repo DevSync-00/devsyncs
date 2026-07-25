@@ -7,6 +7,7 @@ import ProjectsList from '@/components/ProjectsList';
 import { ProjectCardSkeleton } from '@/components/LoadingSkeleton';
 import { NotificationCenter } from '@/components/notifications';
 import { getNotificationPreferences } from '@/lib/notifications';
+import MissionControl from '@/components/dashboard/MissionControl';
 
 export const dynamic = 'force-dynamic';
 
@@ -140,6 +141,15 @@ export default async function DashboardPage() {
               New Project
             </Button>
           </Link>
+        </div>
+      </div>
+
+      <MissionControl projects={projects || []} scans={latestScans || []} />
+
+      <div className="flex items-end justify-between border-t pt-8">
+        <div>
+          <h2 className="text-xl font-semibold">Your projects</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Open a project to inspect drift, migrations, and history.</p>
         </div>
       </div>
 
