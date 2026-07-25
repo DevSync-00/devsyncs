@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import GitHubConnectionsManager from '@/components/github/GitHubConnectionsManager';
-import AccountProfileForm from '@/components/settings/AccountProfileForm';
+import SettingsControlPlane from '@/components/settings/SettingsControlPlane';
+import { getNotificationPreferences } from '@/lib/notifications';
 
 export default async function AccountSettingsPage() {
   const supabase = await createClient();
@@ -14,38 +14,38 @@ export default async function AccountSettingsPage() {
     .eq('id', user.id)
     .maybeSingle();
   const initialName = profile?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || '';
+  const [notificationPreferences, projectsResult, membershipsResult] = await Promise.all([
+    getNotificationPreferences(supabase, user.id).catch(() => ({
+      emailEnabled: true,
+      inAppEnabled: true,
+      teamDigestEnabled: false,
+    })),
+    supabase.from('projects').select('id, name, schema_type').eq('user_id', user.id).order('created_at', { ascending: false }),
+    supabase.from('team_members').select('role, teams(id, name)').eq('user_id', user.id),
+  ]);
+
+  const teams = (membershipsResult.data || []).flatMap((membership: any) => {
+    const team = Array.isArray(membership.teams) ? membership.teams[0] : membership.teams;
+    return team ? [{ id: team.id, name: team.name, role: membership.role }] : [];
+  });
 
   return (
-    <div className="mx-auto max-w-5xl space-y-10">
+    <div className="mx-auto max-w-[1280px] space-y-5">
       <div>
-        <h1 className="text-3xl font-bold">Account settings</h1>
-        <p className="mt-2 text-muted-foreground">Manage your account and connected services.</p>
+        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Control plane</div>
+        <h1 className="mt-1 text-xl font-semibold tracking-tight">Settings</h1>
+        <p className="mt-1 text-xs text-muted-foreground">Account, developer workflow, integrations, policies, security, and billing.</p>
       </div>
-
-      <div className="grid gap-10 md:grid-cols-[180px_minmax(0,1fr)]">
-        <nav className="space-y-1" aria-label="Account settings">
-          <a href="#profile" className="block rounded-md bg-accent px-3 py-2 text-sm font-medium">Profile</a>
-          <a href="#github" className="block rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground">GitHub</a>
-        </nav>
-
-        <div className="min-w-0 space-y-10">
-          <section id="profile" className="scroll-mt-24 space-y-5 border-b pb-10">
-            <div>
-              <h2 className="text-xl font-semibold">Profile</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Your personal details across DevSync.</p>
-            </div>
-            <AccountProfileForm
-              userId={user.id}
-              email={user.email || ''}
-              initialName={initialName}
-            />
-          </section>
-
-          <section id="github" className="scroll-mt-24">
-            <GitHubConnectionsManager />
-          </section>
-        </div>
-      </div>
+      <SettingsControlPlane
+        userId={user.id}
+        email={user.email || ''}
+        initialName={initialName}
+        createdAt={user.created_at}
+        lastSignInAt={user.last_sign_in_at}
+        notificationPreferences={notificationPreferences}
+        projects={projectsResult.data || []}
+        teams={teams}
+      />
     </div>
   );
 }
