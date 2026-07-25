@@ -116,12 +116,13 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Projects</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your projects and view scan reports
+          <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Workspace overview</div>
+          <h1 className="text-xl font-semibold tracking-tight">Engineering control plane</h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Monitor schema drift, scan execution, and migration readiness.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -136,9 +137,9 @@ export default async function DashboardPage() {
             }}
           />
           <Link href="/dashboard/projects/new">
-            <Button size="lg">
+            <Button size="sm" className="font-mono text-xs">
               <Plus className="w-4 h-4 mr-2" />
-              New Project
+              Connect project
             </Button>
           </Link>
         </div>
@@ -146,10 +147,10 @@ export default async function DashboardPage() {
 
       <MissionControl projects={projects || []} scans={latestScans || []} />
 
-      <div className="flex items-end justify-between border-t pt-8">
+      <div id="projects" className="flex items-end justify-between border-t pt-5">
         <div>
-          <h2 className="text-xl font-semibold">Your projects</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Open a project to inspect drift, migrations, and history.</p>
+          <h2 className="font-mono text-sm font-semibold">Projects</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Schema state across connected repositories and environments.</p>
         </div>
       </div>
 

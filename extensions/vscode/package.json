@@ -279,6 +279,48 @@
         "icon": "$(rocket)"
       },
       {
+        "command": "devsync.platform.showPlan",
+        "title": "Show Evidence-backed Change Plan",
+        "category": "DevSync",
+        "icon": "$(list-ordered)"
+      },
+      {
+        "command": "devsync.platform.showPolicies",
+        "title": "View or Change Safety Policy",
+        "category": "DevSync",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "devsync.platform.promotions",
+        "title": "Plan Environment Promotion",
+        "category": "DevSync",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "devsync.platform.monitorPromotion",
+        "title": "Monitor Promotion",
+        "category": "DevSync",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "devsync.platform.approvePromotion",
+        "title": "Approve Promotion",
+        "category": "DevSync",
+        "icon": "$(verified)"
+      },
+      {
+        "command": "devsync.platform.executePromotion",
+        "title": "Execute Approved Promotion",
+        "category": "DevSync",
+        "icon": "$(run-all)"
+      },
+      {
+        "command": "devsync.platform.cancelPromotion",
+        "title": "Cancel Promotion",
+        "category": "DevSync",
+        "icon": "$(debug-stop)"
+      },
+      {
         "command": "devsync.queue.pause",
         "title": "Pause Task Queue",
         "category": "DevSync",

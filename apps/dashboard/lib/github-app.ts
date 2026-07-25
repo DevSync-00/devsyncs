@@ -164,6 +164,58 @@ export async function createInstallationToken(installationId: number, repository
   return data.token;
 }
 
+export async function createPullRequestReviewToken(installationId: number, repository: string) {
+  const data = await githubRequest<{ token: string; expires_at: string }>(
+    `https://api.github.com/app/installations/${installationId}/access_tokens`,
+    createGitHubAppJwt(),
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        repositories: [repository],
+        permissions: {
+          contents: 'read',
+          checks: 'write',
+          pull_requests: 'read',
+        },
+      }),
+    },
+  );
+  return data.token;
+}
+
+export async function createGitHubCheckRun(input: {
+  token: string;
+  owner: string;
+  repository: string;
+  headSha: string;
+  status: 'queued' | 'in_progress' | 'completed';
+  conclusion?: 'success' | 'failure' | 'neutral' | 'action_required';
+  title: string;
+  summary: string;
+  text?: string;
+  detailsUrl?: string;
+}) {
+  return githubRequest<any>(
+    `https://api.github.com/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repository)}/check-runs`,
+    input.token,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'DevSync Database Safety',
+        head_sha: input.headSha,
+        status: input.status,
+        ...(input.conclusion ? { conclusion: input.conclusion, completed_at: new Date().toISOString() } : {}),
+        ...(input.detailsUrl ? { details_url: input.detailsUrl } : {}),
+        output: {
+          title: input.title.slice(0, 255),
+          summary: input.summary.slice(0, 65_535),
+          text: input.text?.slice(0, 65_535),
+        },
+      }),
+    },
+  );
+}
+
 export async function getRepositoriesForInstallation(installationId: number) {
   const token = await createInstallationToken(installationId);
   const repositories: any[] = [];

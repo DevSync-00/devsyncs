@@ -11,6 +11,7 @@ import {
 import { ensureGitClone, parseGitHubRepository } from '@/lib/codebase-storage';
 import { getGitHubAccessTokenForRepository } from '@/lib/github-app';
 import { evaluateChangeSafety } from '@/lib/change-intelligence';
+import { assertWithinLimit, loadTeamEntitlements, recordUsage } from '@/lib/entitlements';
 
 export const dynamic = 'force-dynamic';
 
@@ -188,6 +189,18 @@ export async function POST(request: NextRequest) {
       scanMetadata.warnings = finalCodeSchema.metadata.warnings || [];
     }
 
+    if (project.team_id) {
+      const entitlements = await loadTeamEntitlements(adminSupabase, project.team_id);
+      const monthStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString();
+      const { data: usage } = await adminSupabase.from('usage_events').select('quantity')
+        .eq('team_id', project.team_id).eq('metric', 'scans').gte('occurred_at', monthStart);
+      try {
+        assertWithinLimit(entitlements.limits.scansPerMonth, (usage || []).reduce((sum: number, item: any) => sum + item.quantity, 0), 'Monthly scans');
+      } catch (error) {
+        return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 402 });
+      }
+    }
+
     // Create scan report
     const { data: scanReport, error: insertError } = await adminSupabase
       .from('scan_reports')
@@ -209,6 +222,22 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to create scan report', details: insertError.message },
         { status: 500 }
       );
+    }
+    if (project.team_id) {
+      await recordUsage(adminSupabase, {
+        teamId: project.team_id, projectId, metric: 'scans',
+        idempotencyKey: `scan:${scanReport.id}`, metadata: { mode: scanMetadata.mode },
+      });
+    }
+    if (finalMismatches.length > 0) {
+      const { enqueueTeamEvent } = await import('@/lib/team-integrations');
+      await enqueueTeamEvent(adminSupabase, {
+        projectId,
+        type: 'drift.detected',
+        title: `Schema drift detected`,
+        message: `${finalMismatches.length} schema difference${finalMismatches.length === 1 ? '' : 's'} found; highest application risk is ${scanMetadata.applicationImpact?.summary?.risk || 'unknown'}.`,
+        url: `${request.nextUrl.origin}/dashboard/projects/${projectId}/scan-reports/${scanReport.id}`,
+      }).catch(() => undefined);
     }
 
     // Record analytics (async, don't block response)

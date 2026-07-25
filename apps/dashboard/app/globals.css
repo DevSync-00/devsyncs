@@ -150,6 +150,15 @@
     @apply bg-background text-foreground antialiased;
   }
 
+  ::selection {
+    background: hsl(var(--primary) / 0.25);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
   html {
     scroll-behavior: smooth;
   }

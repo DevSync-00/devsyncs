@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Save, Trash2, AlertTriangle } from 'lucide-react';
 import TeamSettingsForm from '@/components/teams/TeamSettingsForm';
 import DeleteTeamButton from '@/components/teams/DeleteTeamButton';
+import TeamIntegrations from '@/components/teams/TeamIntegrations';
+import EnterpriseControlCenter from '@/components/teams/EnterpriseControlCenter';
 
 export default async function TeamSettingsPage({
   params,
@@ -70,6 +72,8 @@ export default async function TeamSettingsPage({
       {/* Team Settings Form */}
       <div className="space-y-8">
         <TeamSettingsForm team={team} />
+        <EnterpriseControlCenter teamId={team.id} />
+        <TeamIntegrations teamId={team.id} />
 
         {/* Danger Zone */}
         <div className="p-6 bg-destructive/10 border border-destructive/20 rounded-lg">

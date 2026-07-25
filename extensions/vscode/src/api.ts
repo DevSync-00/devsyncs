@@ -435,6 +435,14 @@ export class DevSyncApiClient implements IApiClient {
     return { Authorization: `Bearer ${apiKey}` };
   }
 
+  async platformRequest<T>(path: string, method: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'GET', payload?: unknown): Promise<T> {
+    return requestJson<T>(this.buildUrl(path), {
+      method,
+      headers: await this.buildAuthHeaders(),
+      ...(payload === undefined ? {} : { json: payload }),
+    });
+  }
+
   private async post<T>(path: string, payload: unknown): Promise<T> {
     try {
       return await requestJson<T>(this.buildUrl(path), {

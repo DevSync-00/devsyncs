@@ -7,6 +7,7 @@ import ApplyMigrationButton from './ApplyMigrationButton';
 import RollbackMigrationButton from './RollbackMigrationButton';
 import MigrationHistory from './MigrationHistory';
 import { useToast } from '@/hooks/use-toast';
+import MigrationRehearsal from './rehearsals/MigrationRehearsal';
 
 interface MigrationPreviewProps {
   migration: {
@@ -89,6 +90,8 @@ export default function MigrationPreview({ migration, onApply }: MigrationPrevie
           <code>{migration.content}</code>
         </pre>
       </div>
+
+      <MigrationRehearsal migrationId={migration.id} />
 
       <div className="flex items-center gap-2">
         <Button

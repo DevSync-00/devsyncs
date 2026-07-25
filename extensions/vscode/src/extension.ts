@@ -59,6 +59,107 @@ export async function activate(context: vscode.ExtensionContext) {
   const commands = container.getCommands();
   const codeActions = container.getCodeActions();
   const config = container.getConfig();
+  const platformApi = apiClient as any;
+  const promotionStatus = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 95);
+  promotionStatus.command = 'devsync.platform.monitorPromotion';
+  context.subscriptions.push(promotionStatus);
+
+  const requireProjectId = () => {
+    const id = typeof platformApi.getProjectId === 'function' ? platformApi.getProjectId() : vscode.workspace.getConfiguration('devsync').get<string>('projectId');
+    if (!id) throw new Error('Select a DevSync dashboard project first.');
+    return id;
+  };
+  const platformCommand = (id: string, callback: () => Promise<void>) => vscode.commands.registerCommand(id, async () => {
+    try { await callback(); } catch (error) {
+      vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
+    }
+  });
+  context.subscriptions.push(
+    platformCommand('devsync.platform.showPlan', async () => {
+      const report = await apiClient.getLatestScanReport();
+      if (!report) return void vscode.window.showInformationMessage('No scan report exists for this project.');
+      const result = await platformApi.platformRequest(`/api/scan-reports/${report.id}/change-plans`);
+      const plan = result.plans?.[0];
+      const version = [...(plan?.versions || [])].sort((a: any, b: any) => b.version - a.version)[0] as any;
+      if (!version) return void vscode.window.showInformationMessage('No change plan exists for the latest scan.');
+      const document = await vscode.workspace.openTextDocument({
+        language: 'markdown',
+        content: [
+          `# DevSync Change Plan v${version.version}`,
+          `**Status:** ${version.status}  ·  **Risk:** ${version.risk_score}/100  ·  **Confidence:** ${Math.round(Number(version.confidence) * 100)}%`,
+          '', ...(version.steps || []).map((step: any) => `## ${step.phase}: ${step.title}\n${step.description}\n\nEvidence: ${(step.citations || []).join(', ')}`),
+        ].join('\n'),
+      });
+      await vscode.window.showTextDocument(document, { preview: true });
+    }),
+    platformCommand('devsync.platform.showPolicies', async () => {
+      const result = await platformApi.platformRequest(`/api/projects/${requireProjectId()}/policies`);
+      const policy = result.policies?.[0];
+      const selected = await vscode.window.showQuickPick(['observe', 'warn', 'block'], { placeHolder: `Policy enforcement: ${policy?.enforcement || 'not enabled'}` });
+      if (selected && policy) {
+        await platformApi.platformRequest(`/api/projects/${requireProjectId()}/policies`, 'PATCH', { policyId: policy.id, enforcement: selected });
+        vscode.window.showInformationMessage(`DevSync policy changed to ${selected}.`);
+      }
+    }),
+    platformCommand('devsync.platform.promotions', async () => {
+      const result = await platformApi.platformRequest(`/api/projects/${requireProjectId()}/promotions`);
+      const selected: any = await vscode.window.showQuickPick((result.targets || []).map((target: any) => ({
+        label: target.environment.name,
+        description: `${target.readiness.decision} · ${target.readiness.score}/100`,
+        detail: target.readiness.summary,
+        target,
+      })), { placeHolder: 'Select a target to create or refresh its promotion plan' });
+      if (selected) {
+        const created = await platformApi.platformRequest(`/api/projects/${requireProjectId()}/promotions`, 'POST', {
+          targetEnvironmentId: selected.target.environment.id,
+          migrationId: result.migration?.id,
+        });
+        vscode.window.showInformationMessage(created.readiness.summary);
+      }
+    }),
+    platformCommand('devsync.platform.monitorPromotion', async () => {
+      const id = await vscode.window.showInputBox({ prompt: 'Promotion ID to monitor' });
+      if (!id) return;
+      promotionStatus.show();
+      let active = true;
+      while (active) {
+        const result = await platformApi.platformRequest(`/api/promotions/${id}/execution`);
+        const status = result.promotion.status;
+        const percent = result.job?.progress?.percent || (status === 'deployed' ? 100 : 0);
+        promotionStatus.text = `${['queued', 'deploying'].includes(status) ? '$(sync~spin)' : status === 'deployed' ? '$(check)' : '$(error)'} DevSync: ${status} ${percent}%`;
+        promotionStatus.tooltip = result.job?.last_error || result.job?.progress?.stage || 'Promotion execution';
+        active = ['queued', 'deploying'].includes(status);
+        if (active) await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+    }),
+    platformCommand('devsync.platform.approvePromotion', async () => {
+      const id = await vscode.window.showInputBox({ prompt: 'Promotion ID to approve' });
+      if (!id) return;
+      const result = await platformApi.platformRequest(`/api/promotions/${id}/approve`, 'POST');
+      vscode.window.showInformationMessage(`Promotion is now ${result.promotion.status}.`);
+    }),
+    platformCommand('devsync.platform.executePromotion', async () => {
+      const id = await vscode.window.showInputBox({ prompt: 'Approved promotion ID to execute' });
+      if (!id) return;
+      const current = await platformApi.platformRequest(`/api/promotions/${id}/execution`);
+      const expected = current.promotion.confirmation_text;
+      const confirmationText = await vscode.window.showInputBox({
+        prompt: `Type "${expected}" to queue execution`,
+        placeHolder: expected,
+        validateInput: (value) => value === expected ? undefined : 'Confirmation does not match.',
+      });
+      if (!confirmationText) return;
+      const result = await platformApi.platformRequest(`/api/promotions/${id}/execute`, 'POST', { confirmationText });
+      vscode.window.showInformationMessage(`Promotion queued as job ${result.job.id}.`);
+      await vscode.commands.executeCommand('devsync.platform.monitorPromotion');
+    }),
+    platformCommand('devsync.platform.cancelPromotion', async () => {
+      const id = await vscode.window.showInputBox({ prompt: 'Promotion ID to cancel' });
+      if (!id) return;
+      await platformApi.platformRequest(`/api/promotions/${id}/execution`, 'DELETE');
+      vscode.window.showInformationMessage('Promotion cancellation requested.');
+    }),
+  );
 
   // Initialize security manager through DI container
   await container.initializeSecurityManager();

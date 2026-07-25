@@ -14,6 +14,7 @@ import { projectsCommand, linkProjectCommand, createProjectCommand, selectProjec
 import { logoutCommand, sessionCommand } from './commands/session.js';
 import { reportCommand } from './commands/report.js';
 import { homeCommand } from './commands/home.js';
+import { plansCommand, policyCommand, promoteCommand } from './commands/platform.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -25,6 +26,41 @@ program
   .description('Database-first schema synchronization assistant (safe by default)')
   .version(version)
   .action(() => homeCommand());
+
+program
+  .command('plan')
+  .description('View or generate an evidence-backed change plan')
+  .option('-p, --path <path>', 'Project path', process.cwd())
+  .option('--project <id>', 'DevSync project ID')
+  .option('--generate', 'Generate a new immutable plan')
+  .option('--objective <text>', 'Optional plan objective')
+  .option('--json', 'Machine-readable output')
+  .action(plansCommand);
+
+program
+  .command('policy')
+  .description('View or update the project safety policy')
+  .option('-p, --path <path>', 'Project path', process.cwd())
+  .option('--project <id>', 'DevSync project ID')
+  .option('--enforcement <mode>', 'observe|warn|block')
+  .option('--json', 'Machine-readable output')
+  .action(policyCommand);
+
+program
+  .command('promote')
+  .description('Plan, approve, execute, monitor, or cancel a controlled promotion')
+  .option('-p, --path <path>', 'Project path', process.cwd())
+  .option('--project <id>', 'DevSync project ID')
+  .option('--target <environment-id>', 'Create a plan for an environment')
+  .option('--migration <id>', 'Migration to promote')
+  .option('--approve <promotion-id>', 'Record an approval')
+  .option('--execute <promotion-id>', 'Queue an approved promotion')
+  .option('--confirm <text>', 'Exact execution confirmation')
+  .option('--status <promotion-id>', 'Read execution status')
+  .option('--wait', 'Poll until execution reaches a terminal state')
+  .option('--cancel <promotion-id>', 'Request cancellation')
+  .option('--json', 'Machine-readable output')
+  .action(promoteCommand);
 
 program
   .command('init')

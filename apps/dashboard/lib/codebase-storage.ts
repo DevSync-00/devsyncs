@@ -27,9 +27,10 @@ export async function ensureGitClone(
   projectId: string,
   gitUrl: string,
   existingClonePath?: string | null,
-  accessToken?: string | null
+  accessToken?: string | null,
+  ref?: string | null,
 ) {
-  if (existingClonePath && existsSync(existingClonePath)) {
+  if (!ref && existingClonePath && existsSync(existingClonePath)) {
     return existingClonePath;
   }
 
@@ -41,7 +42,7 @@ export async function ensureGitClone(
   await fs.mkdir(cloneDir, { recursive: true });
 
   try {
-    await downloadAndExtractGitHubArchive(gitUrl, cloneDir, accessToken);
+    await downloadAndExtractGitHubArchive(gitUrl, cloneDir, accessToken, ref);
   } catch (error) {
     await fs.rm(cloneDir, { recursive: true, force: true });
     throw error;
@@ -53,12 +54,13 @@ export async function ensureGitClone(
 async function downloadAndExtractGitHubArchive(
   gitUrl: string,
   cloneDir: string,
-  accessToken?: string | null
+  accessToken?: string | null,
+  ref?: string | null,
 ) {
   const { owner, repository } = parseGitHubRepository(gitUrl);
   const token = accessToken || process.env.GITHUB_TOKEN?.trim();
   const response = await fetch(
-    `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/tarball`,
+    `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/tarball${ref ? `/${encodeURIComponent(ref)}` : ''}`,
     {
       headers: {
         Accept: 'application/vnd.github+json',

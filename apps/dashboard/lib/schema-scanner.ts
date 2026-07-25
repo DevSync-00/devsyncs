@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 import { Pool } from 'pg';
 import mysql from 'mysql2/promise';
+import { extractAstReferences } from './ast-dependency-analyzer';
 
 export interface ScannedColumn {
   name: string;
@@ -761,6 +762,7 @@ export function analyzeApplicationImpact(
     const kind = classifyReferenceKind(relativeFile);
     const content = readFileSync(filePath, 'utf8');
     const lines = content.split(/\r?\n/);
+    references.push(...extractAstReferences(content, relativeFile, kind, codeSchema.tables));
 
     lines.forEach((line, index) => {
       const normalized = line.toLowerCase();
@@ -790,11 +792,16 @@ export function analyzeApplicationImpact(
   }
 
   const deduplicated = Array.from(
-    new Map(references.map((reference) => [
-      `${reference.table}:${reference.column || '*'}:${reference.file}:${reference.line}`,
-      reference,
-    ])).values(),
+    new Map(
+      references
+        .sort((left, right) => left.confidence - right.confidence)
+        .map((reference) => [
+          `${reference.table}:${reference.column || '*'}:${reference.file}:${reference.line}`,
+          reference,
+        ]),
+    ).values(),
   );
+  deduplicated.forEach((reference, index) => { reference.id = `ref-${index + 1}`; });
 
   const findings = mismatches.map((mismatch, mismatchIndex) => {
     const table = mismatch.table || mismatch.model;

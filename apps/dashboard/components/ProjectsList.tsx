@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { FolderKanban, Clock, ChevronLeft, ChevronRight, Loader2, Search, Package, Pencil, Trash2, AlertTriangle, X } from 'lucide-react';
+import { FolderKanban, ChevronLeft, ChevronRight, Loader2, Search, Pencil, Trash2, AlertTriangle, X, GitBranch, MoreHorizontal, Terminal, Database } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ProjectCardSkeleton } from './LoadingSkeleton';
@@ -72,6 +72,7 @@ export default function ProjectsList({
   const [confirmDeleteProjectId, setConfirmDeleteProjectId] = useState<string | null>(null);
   const [confirmDeleteText, setConfirmDeleteText] = useState('');
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
+  const [actionsProjectId, setActionsProjectId] = useState<string | null>(null);
   const { toast } = useToast();
   const projectIdsRef = useRef(new Set(initialProjects.map(p => p.id)));
   const prevSearchQueryRef = useRef<string>('');
@@ -358,16 +359,16 @@ export default function ProjectsList({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Search Bar */}
-      <div className="relative">
+      <div className="relative max-w-xl">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
         <Input
           type="text"
           placeholder="Search projects by name, schema type, or slug..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
+          className="h-9 rounded-md bg-card pl-10 font-mono text-xs"
         />
       </div>
 
@@ -378,7 +379,7 @@ export default function ProjectsList({
         </div>
       )}
 
-      <div className="relative">
+      <div className="relative overflow-hidden rounded-lg border bg-card">
         {loading && projects.length > 0 && (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/80 backdrop-blur-sm border border-border">
             <div className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="assertive">
@@ -387,7 +388,15 @@ export default function ProjectsList({
             </div>
           </div>
         )}
-        <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-3 ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div className={loading ? 'pointer-events-none opacity-50' : ''}>
+          <div className="hidden grid-cols-[minmax(220px,1.5fr)_120px_125px_100px_125px_86px] gap-3 border-b bg-muted/20 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground md:grid">
+            <span>Project</span>
+            <span>Stack</span>
+            <span>Environment</span>
+            <span>Status</span>
+            <span>Last scan</span>
+            <span className="text-right">Actions</span>
+          </div>
         {paginatedProjects.map((project) => {
           const latestScan = scanMap.get(project.id);
           const mismatchCount = (latestScan?.mismatches as any[])?.length || 0;
@@ -396,80 +405,79 @@ export default function ProjectsList({
           const isDeleting = deletingProjectId === project.id;
 
           return (
-            <div
-              key={project.id}
-              className="bg-card border border-border rounded-lg hover:border-primary/50 transition-colors overflow-hidden"
-            >
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <Link href={`/dashboard/projects/${project.id}`} aria-label={`Open ${project.name}`}>
-                    <FolderKanban className="w-8 h-8 text-primary" />
-                  </Link>
-                  <div className="flex items-center gap-2">
-                    {latestScan && (
-                      <span
-                        className={`text-xs px-2 py-1 rounded ${
-                          latestScan.status === 'completed'
-                            ? mismatchCount === 0
-                              ? 'bg-green-500/10 text-green-500'
-                              : 'bg-yellow-500/10 text-yellow-500'
-                            : 'bg-gray-500/10 text-gray-500'
-                        }`}
-                      >
-                        {latestScan.status}
-                      </span>
-                    )}
+            <div key={project.id} className="border-b last:border-b-0">
+              <div className="grid gap-3 px-4 py-3 transition-colors hover:bg-muted/20 md:grid-cols-[minmax(220px,1.5fr)_120px_125px_100px_125px_86px] md:items-center">
+                <Link href={`/dashboard/projects/${project.id}`} className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border bg-background">
+                    <Database className="h-4 w-4 text-primary" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-mono text-xs font-medium">{project.name}</span>
+                    <span className="mt-0.5 flex items-center gap-1 truncate font-mono text-[10px] text-muted-foreground">
+                      <GitBranch className="h-3 w-3" /> main · /{project.slug}
+                    </span>
+                  </span>
+                </Link>
+                <div className="font-mono text-[11px] text-muted-foreground">{formatSchemaType(project.schema_type)}</div>
+                <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> production
+                </div>
+                <div>
+                  <span className={`inline-flex items-center gap-1.5 rounded border px-1.5 py-1 font-mono text-[9px] uppercase ${
+                    !latestScan ? 'text-muted-foreground' :
+                    latestScan.status !== 'completed' ? 'border-red-500/20 bg-red-500/10 text-red-400' :
+                    mismatchCount ? 'border-amber-500/20 bg-amber-500/10 text-amber-400' :
+                    'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
+                  }`}>
+                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                    {!latestScan ? 'unscanned' : latestScan.status !== 'completed' ? latestScan.status : mismatchCount ? `${mismatchCount} drift` : 'in sync'}
+                  </span>
+                </div>
+                <div className="font-mono text-[10px] text-muted-foreground">
+                  {latestScan ? new Date(latestScan.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                </div>
+                <div className="relative flex items-center justify-end gap-0.5">
                     <Link
-                      href={`/dashboard/projects/${project.id}/edit`}
-                      className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8')}
-                      aria-label={`Edit ${project.name}`}
-                      title="Edit project"
+                      href={`/dashboard/projects/${project.id}`}
+                      className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-7 w-7')}
+                      aria-label={`Open scan reports for ${project.name}`}
+                      title="Open reports"
                     >
-                      <Pencil className="w-4 h-4" />
+                      <Terminal className="h-3.5 w-3.5" />
                     </Link>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => {
-                        setConfirmDeleteProjectId(project.id);
-                        setConfirmDeleteText('');
-                      }}
-                      aria-label={`Delete ${project.name}`}
-                      title="Delete project"
+                      className="h-7 w-7 text-muted-foreground"
+                      onClick={() => setActionsProjectId((value) => value === project.id ? null : project.id)}
+                      aria-label={`More actions for ${project.name}`}
+                      title="More actions"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <MoreHorizontal className="h-4 w-4" />
                     </Button>
-                  </div>
-                </div>
-                <Link href={`/dashboard/projects/${project.id}`} className="block">
-                  <div className="mb-2">
-                    <h3 className="font-semibold text-lg">{project.name}</h3>
-                    {project.slug && (
-                      <p className="text-xs text-muted-foreground mt-1">/{project.slug}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Package className="w-4 h-4 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
-                      {formatSchemaType(project.schema_type)} schema
-                    </p>
-                  </div>
-                  {latestScan && (
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        {new Date(latestScan.created_at).toLocaleDateString()}
+                    {actionsProjectId === project.id && (
+                      <div className="absolute right-0 top-8 z-20 w-36 overflow-hidden rounded-md border bg-popover p-1 shadow-lg">
+                        <Link
+                          href={`/dashboard/projects/${project.id}/edit`}
+                          className="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted"
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Edit project
+                        </Link>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            setActionsProjectId(null);
+                            setConfirmDeleteProjectId(project.id);
+                            setConfirmDeleteText('');
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Delete project
+                        </button>
                       </div>
-                      {mismatchCount > 0 && (
-                        <span className="text-yellow-500">
-                          {mismatchCount} mismatch{mismatchCount !== 1 ? 'es' : ''}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </Link>
+                    )}
+                </div>
               </div>
 
               {confirmDelete && (

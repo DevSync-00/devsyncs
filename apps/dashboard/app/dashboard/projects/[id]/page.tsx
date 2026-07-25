@@ -11,6 +11,9 @@ import MigrationTimeline from '@/components/MigrationTimeline';
 import RunScanButton from '@/components/RunScanButton';
 import { ScanReportSkeleton } from '@/components/LoadingSkeleton';
 import { Button } from '@/components/ui/button';
+import EnvironmentPipeline from '@/components/environments/EnvironmentPipeline';
+import PolicyCenter from '@/components/policies/PolicyCenter';
+import PullRequestReviews from '@/components/github/PullRequestReviews';
 
 function formatSchemaType(schemaType: string): string {
   const schemaTypeMap: Record<string, string> = {
@@ -98,6 +101,13 @@ export default async function ProjectDetailPage({
 
       {/* Codebase Status */}
       <CodebaseStatus projectId={params.id} />
+
+      {/* Environment topology and release promotion */}
+      <EnvironmentPipeline projectId={params.id} />
+
+      <PolicyCenter projectId={params.id} />
+
+      <PullRequestReviews projectId={params.id} />
 
       {/* Analytics Widget */}
       <Suspense fallback={<div className="h-32 bg-card border rounded-lg animate-pulse" />}>

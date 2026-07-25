@@ -136,6 +136,22 @@ export class ApiClient {
     );
   }
 
+  async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(init.headers as Record<string, string> || {}),
+    };
+    if (this.apiKey) headers.Authorization = `Bearer ${this.apiKey}`;
+    const response = await withTimeout(
+      fetch(`${this.apiUrl}${path.startsWith('/') ? path : `/${path}`}`, { ...init, headers }),
+      this.timeout,
+      `Request to ${path} timed out`,
+    );
+    const body = await response.json().catch(() => ({})) as any;
+    if (!response.ok) throw new Error(body.details || body.error || `${response.status} ${response.statusText}`);
+    return body as T;
+  }
+
   async triggerScan(projectId: string): Promise<ScanReportResponse> {
     return this.sendScanReport({ projectId });
   }

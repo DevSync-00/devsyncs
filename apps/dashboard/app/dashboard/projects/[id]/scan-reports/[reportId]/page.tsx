@@ -13,6 +13,7 @@ import ExportButton from '@/components/ExportButton';
 import { MessageSquare } from 'lucide-react';
 import ApplicationImpact from '@/components/impact/ApplicationImpact';
 import SafetyGates from '@/components/impact/SafetyGates';
+import ChangePlan from '@/components/plans/ChangePlan';
 
 function formatMismatchPath(mismatch: any): string {
   const model = formatMismatchValue(mismatch.model, 'Unknown');
@@ -184,6 +185,8 @@ export default async function ScanReportDetailPage({
       {scanMetadata.changeSafety && (
         <SafetyGates report={scanMetadata.changeSafety} />
       )}
+
+      {hasMismatches && <ChangePlan scanReportId={params.reportId} />}
 
       {/* AI Features */}
       {hasMismatches && (
