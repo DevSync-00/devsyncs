@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { createClient } from '@/lib/supabase/client';
 import { Loader2, Shield, User, Crown, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { robustFetchJSON, getErrorMessage } from '@/lib/fetch';
@@ -12,7 +12,6 @@ interface MemberActionsProps {
   teamId: string;
   currentRole: string;
   isCurrentUser: boolean;
-  onUpdate?: () => void;
 }
 
 export default function MemberActions({
@@ -20,9 +19,8 @@ export default function MemberActions({
   teamId,
   currentRole,
   isCurrentUser,
-  onUpdate,
 }: MemberActionsProps) {
-  const supabase = createClient();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const { toast } = useToast();
@@ -43,7 +41,7 @@ export default function MemberActions({
       });
 
       setShowRoleMenu(false);
-      onUpdate?.();
+      router.refresh();
     } catch (err: any) {
       toast({
         title: 'Unable to update role',
@@ -71,7 +69,7 @@ export default function MemberActions({
         description: 'Team member has been removed successfully.',
       });
 
-      onUpdate?.();
+      router.refresh();
     } catch (err: any) {
       toast({
         title: 'Unable to remove member',

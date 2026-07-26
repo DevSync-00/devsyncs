@@ -258,7 +258,6 @@ export default async function TeamDetailPage({
                               teamId={params.id}
                               currentRole={member.role}
                               isCurrentUser={isCurrentUser}
-                              onUpdate={() => window.location.reload()}
                             />
                           )}
                         </td>
