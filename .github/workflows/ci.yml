@@ -54,7 +54,7 @@ jobs:
       - name: Run extension integration tests
         env:
           VSCODE_TEST_VERSION: '1.96.2'
-        run: npm run test
+        run: xvfb-run -a npm run test
 
   dashboard:
     name: Dashboard
