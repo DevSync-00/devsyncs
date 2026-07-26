@@ -187,19 +187,38 @@ export class StateStore {
     }
 
     this.persistStateDebounced = setTimeout(() => {
-      try {
-        // Don't persist history to avoid storage bloat
-        const stateToPersist: Partial<AppState> = {
-          scan: this.state.scan,
-          migration: this.state.migration,
-          ui: this.state.ui,
-        };
-
-        this.context.globalState.update('devsync.state', stateToPersist);
-      } catch (error) {
-        console.error('Failed to persist state:', error);
-      }
+      this.persistStateDebounced = null;
+      void this.writePersistedState();
     }, 500); // 500ms debounce
+  }
+
+  /**
+   * Flush pending state to VS Code storage.
+   *
+   * Workflow boundaries can await this before creating another container or
+   * reading state from a fresh extension session.
+   */
+  async flush(): Promise<void> {
+    if (this.persistStateDebounced) {
+      clearTimeout(this.persistStateDebounced);
+      this.persistStateDebounced = null;
+    }
+    await this.writePersistedState();
+  }
+
+  private async writePersistedState(): Promise<void> {
+    try {
+      // Don't persist history to avoid storage bloat.
+      const stateToPersist: Partial<AppState> = {
+        scan: this.state.scan,
+        migration: this.state.migration,
+        ui: this.state.ui,
+      };
+
+      await this.context.globalState.update('devsync.state', stateToPersist);
+    } catch (error) {
+      console.error('Failed to persist state:', error);
+    }
   }
 
   /**
@@ -213,11 +232,12 @@ export class StateStore {
    * Dispose the store
    */
   dispose(): void {
-    // Persist state one final time
+    // Persist immediately rather than scheduling work after disposal.
     if (this.persistStateDebounced) {
       clearTimeout(this.persistStateDebounced);
+      this.persistStateDebounced = null;
     }
-    this.persistState();
+    void this.writePersistedState();
     this.onStateChangeEmitter.dispose();
   }
 }

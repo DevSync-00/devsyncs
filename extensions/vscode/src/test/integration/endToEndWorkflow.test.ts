@@ -11,7 +11,7 @@ import { suite, test, setup, teardown } from 'mocha';
 import { ContainerFactory } from '../../di/factory';
 import { createMockExtensionContext } from '../utils/mocks';
 import { delay } from '../utils/testHelpers';
-import { ActionType } from '../../state/types';
+import { StateStore, uiActions } from '../../state';
 
 suite('End-to-End Workflow Tests', () => {
   let mockContext: vscode.ExtensionContext;
@@ -152,14 +152,16 @@ suite('End-to-End Workflow Tests', () => {
       const initialState = stateStore.getState();
       assert.ok(initialState);
       
-      stateStore.dispatch({
-        type: ActionType.SET_SELECTED_VIEW,
-        payload: 'scan',
-        timestamp: Date.now(),
-      });
+      stateStore.dispatch(uiActions.setSelectedView('scan'));
 
       const newState = stateStore.getState();
       assert.strictEqual(newState.ui.selectedView, 'scan');
+
+      // Await storage before simulating a new workflow/container session.
+      await stateStore.flush();
+      const restoredStore = new StateStore(mockContext);
+      assert.strictEqual(restoredStore.getState().ui.selectedView, 'scan');
+      restoredStore.dispose();
     });
   });
 });

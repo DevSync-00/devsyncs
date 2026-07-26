@@ -393,6 +393,7 @@ export interface IStateStore {
   undo(): void;
   redo(): void;
   reset(): void;
+  flush(): Promise<void>;
   onStateChange: vscode.Event<import('../state').StateChangeEvent>;
 }
 

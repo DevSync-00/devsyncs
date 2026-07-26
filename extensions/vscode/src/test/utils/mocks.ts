@@ -455,6 +455,10 @@ export class MockStateStore implements IStateStore {
     this.state = {};
   }
 
+  async flush(): Promise<void> {
+    // Mock state is already stored synchronously in memory.
+  }
+
   get onStateChange(): vscode.Event<any> {
     return this.emitter.event;
   }
