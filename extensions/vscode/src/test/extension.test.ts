@@ -6,11 +6,11 @@ suite('DevSync Extension Tests', () => {
   vscode.window.showInformationMessage('Start all tests.');
 
   test('Extension should be present', () => {
-    assert.ok(vscode.extensions.getExtension('devsync.devsync'));
+    assert.ok(vscode.extensions.getExtension('Dev-sync.devsync'));
   });
 
   test('Extension should activate', async () => {
-    const extension = vscode.extensions.getExtension('devsync.devsync');
+    const extension = vscode.extensions.getExtension('Dev-sync.devsync');
     if (extension) {
       await extension.activate();
       assert.ok(extension.isActive);

@@ -113,14 +113,10 @@ suite('Performance Regression Tests', () => {
       this.timeout(60000);
       
       const container = ContainerFactory.create(mockContext);
-      const commands = container.getCommands();
+      const scanService = container.getScanService();
 
       const startTime = performance.now();
-      try {
-        await commands.scan();
-      } catch {
-        // Ignore errors
-      }
+      await scanService.executeScan('');
       const duration = performance.now() - startTime;
 
       // Only check if operation completed
@@ -138,14 +134,10 @@ suite('Performance Regression Tests', () => {
       this.timeout(10000);
       
       const container = ContainerFactory.create(mockContext);
-      const commands = container.getCommands();
+      const migrationService = container.getMigrationService();
 
       const startTime = performance.now();
-      try {
-        await commands.generateMigration();
-      } catch {
-        // Ignore errors
-      }
+      await migrationService.generateMigration('');
       const duration = performance.now() - startTime;
 
       // Only check if operation completed

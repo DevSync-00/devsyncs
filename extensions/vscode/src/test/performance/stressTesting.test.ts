@@ -51,15 +51,12 @@ suite('Stress Testing', () => {
       this.timeout(10000);
       
       const container = ContainerFactory.create(mockContext);
-      const commands = container.getCommands();
+      const migrationService = container.getMigrationService();
 
       // Attempt operations that may fail
       for (let i = 0; i < 5; i++) {
-        try {
-          await commands.generateMigration();
-        } catch {
-          // Expected to fail
-        }
+        const result = await migrationService.generateMigration('');
+        assert.strictEqual(result.success, false);
         await delay(50);
       }
 
@@ -100,12 +97,12 @@ suite('Stress Testing', () => {
       
       const container = ContainerFactory.create(mockContext);
       const apiClient = container.getApiClient();
-      const commands = container.getCommands();
+      const scanService = container.getScanService();
 
       // Concurrent operations
       const operations = [
         ...Array.from({ length: 10 }, () => apiClient.getLatestScanReport().catch(() => null)),
-        ...Array.from({ length: 3 }, () => commands.scan().catch(() => null)),
+        ...Array.from({ length: 3 }, () => scanService.executeScan('').catch(() => null)),
       ];
 
       await Promise.all(operations);

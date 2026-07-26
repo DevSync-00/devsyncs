@@ -11,6 +11,7 @@ import { suite, test, setup, teardown } from 'mocha';
 import { ContainerFactory } from '../../di/factory';
 import { createMockExtensionContext } from '../utils/mocks';
 import { delay } from '../utils/testHelpers';
+import { ActionType } from '../../state/types';
 
 suite('End-to-End Workflow Tests', () => {
   let mockContext: vscode.ExtensionContext;
@@ -122,36 +123,22 @@ suite('End-to-End Workflow Tests', () => {
     test('should recover from scan errors', async function () {
       this.timeout(30000);
       
-      const commands = container.getCommands();
+      const scanService = container.getScanService();
       
-      try {
-        // Attempt scan with invalid configuration
-        await commands.scan();
-      } catch (error) {
-        // Should handle error gracefully
-        assert.ok(error instanceof Error);
-        
-        // Should be able to retry
-        try {
-          await commands.scan();
-        } catch (retryError) {
-          assert.ok(retryError instanceof Error);
-        }
-      }
+      const firstResult = await scanService.executeScan('');
+      assert.strictEqual(firstResult.success, false);
+
+      const retryResult = await scanService.executeScan('');
+      assert.strictEqual(retryResult.success, false);
     });
 
     test('should handle migration generation errors', async function () {
       this.timeout(30000);
       
-      const commands = container.getCommands();
-      
-      try {
-        // Attempt migration without scan
-        await commands.generateMigration();
-        assert.fail('Should have thrown an error');
-      } catch (error) {
-        assert.ok(error instanceof Error);
-      }
+      const migrationService = container.getMigrationService();
+      const result = await migrationService.generateMigration('');
+      assert.strictEqual(result.success, false);
+      assert.strictEqual(result.error, 'Scan report ID is required');
     });
   });
 
@@ -160,24 +147,19 @@ suite('End-to-End Workflow Tests', () => {
       this.timeout(30000);
       
       const stateStore = container.getStateStore();
-      const commands = container.getCommands();
       
       // Get initial state
       const initialState = stateStore.getState();
       assert.ok(initialState);
       
-      try {
-        // Execute operation that changes state
-        await commands.scan();
-        
-        // State should have changed
-        const newState = stateStore.getState();
-        assert.ok(newState);
-      } catch (error) {
-        // May fail, but state should still be accessible
-        const state = stateStore.getState();
-        assert.ok(state);
-      }
+      stateStore.dispatch({
+        type: ActionType.SET_SELECTED_VIEW,
+        payload: 'scan',
+        timestamp: Date.now(),
+      });
+
+      const newState = stateStore.getState();
+      assert.strictEqual(newState.ui.selectedView, 'scan');
     });
   });
 });

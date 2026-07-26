@@ -42,11 +42,11 @@ suite('Load Testing', () => {
       this.timeout(60000);
       
       const container = ContainerFactory.create(mockContext);
-      const commands = container.getCommands();
+      const scanService = container.getScanService();
 
-      // Execute multiple scans concurrently
+      // Exercise the concurrent scan boundary without opening interactive UI.
       const promises = Array.from({ length: 3 }, () =>
-        commands.scan().catch(() => null)
+        scanService.executeScan('').catch(() => null)
       );
 
       const results = await Promise.all(promises);

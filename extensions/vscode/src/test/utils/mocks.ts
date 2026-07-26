@@ -69,7 +69,7 @@ export function createMockExtensionContext(): vscode.ExtensionContext {
     extensionMode: vscode.ExtensionMode.Test,
     environmentVariableCollection: {} as vscode.EnvironmentVariableCollection,
     extension: {
-      id: 'devsync.devsync',
+      id: 'Dev-sync.devsync',
       extensionUri: vscode.Uri.parse('file:///mock/extension/path'),
       extensionPath: '/mock/extension/path',
       isActive: true,

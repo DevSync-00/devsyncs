@@ -46,7 +46,7 @@ suite('Startup Performance Tests', () => {
       const benchmark = new PerformanceBenchmark();
       benchmark.start();
 
-      const extension = vscode.extensions.getExtension('devsync.devsync');
+      const extension = vscode.extensions.getExtension('Dev-sync.devsync');
       if (extension) {
         await extension.activate();
         const duration = benchmark.end();

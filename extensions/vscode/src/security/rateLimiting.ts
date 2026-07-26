@@ -92,9 +92,9 @@ export class RateLimiter {
     if (!entry || now >= entry.resetTime) {
       // Create new entry or reset expired entry
       const newEntry: RateLimitEntry = {
-        count: 0,
+        count: 1,
         resetTime: now + this.config.windowMs,
-        requests: [],
+        requests: [now],
       };
       this.entries.set(identifier, newEntry);
       return {
@@ -194,6 +194,8 @@ export class RateLimiter {
     this.cleanupInterval = setInterval(() => {
       this.cleanup();
     }, this.cleanupIntervalMs);
+    // Cleanup is maintenance work and must not keep CLI/test processes alive.
+    this.cleanupInterval.unref?.();
   }
 
   /**

@@ -56,38 +56,27 @@ suite('Operation Performance Tests', () => {
     test('should execute scan within acceptable time', async function () {
       this.timeout(30000);
       
-      const commands = container.getCommands();
+      const scanService = container.getScanService();
       const startTime = performance.now();
 
-      try {
-        await commands.scan();
-        const duration = performance.now() - startTime;
-        metrics.record('scan', duration);
+      const result = await scanService.executeScan('');
+      const duration = performance.now() - startTime;
+      metrics.record('scan', duration);
 
-        // Scan should complete within 30 seconds
-        assert.ok(duration < 30000, `Scan took ${duration}ms, expected < 30000ms`);
-      } catch (error) {
-        // May fail in test environment
-        const duration = performance.now() - startTime;
-        metrics.record('scan', duration);
-        assert.ok(error instanceof Error);
-      }
+      assert.strictEqual(result.success, false);
+      assert.ok(duration < 30000, `Scan validation took ${duration}ms, expected < 30000ms`);
     });
 
     test('should handle multiple scans efficiently', async function () {
       this.timeout(60000);
       
-      const commands = container.getCommands();
+      const scanService = container.getScanService();
       const durations: number[] = [];
 
       for (let i = 0; i < 3; i++) {
         const startTime = performance.now();
-        try {
-          await commands.scan();
-          durations.push(performance.now() - startTime);
-        } catch {
-          // Ignore errors
-        }
+        await scanService.executeScan('');
+        durations.push(performance.now() - startTime);
         await delay(100);
       }
 
@@ -103,22 +92,15 @@ suite('Operation Performance Tests', () => {
     test('should generate migration quickly', async function () {
       this.timeout(10000);
       
-      const commands = container.getCommands();
+      const migrationService = container.getMigrationService();
       const startTime = performance.now();
 
-      try {
-        await commands.generateMigration();
-        const duration = performance.now() - startTime;
-        metrics.record('migration', duration);
+      const result = await migrationService.generateMigration('');
+      const duration = performance.now() - startTime;
+      metrics.record('migration', duration);
 
-        // Migration generation should be fast (< 5 seconds)
-        assert.ok(duration < 5000, `Migration generation took ${duration}ms, expected < 5000ms`);
-      } catch (error) {
-        // Expected if no scan report exists
-        const duration = performance.now() - startTime;
-        metrics.record('migration', duration);
-        assert.ok(error instanceof Error);
-      }
+      assert.strictEqual(result.success, false);
+      assert.ok(duration < 5000, `Migration validation took ${duration}ms, expected < 5000ms`);
     });
   });
 
