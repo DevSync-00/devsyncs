@@ -64,7 +64,7 @@ For optimal performance, set up scheduled tasks to:
 ```bash
 # Run daily at 2 AM
 0 2 * * * curl -X POST https://your-domain.com/api/analytics/background-jobs \
-  -H "Authorization: Bearer YOUR_SECRET_KEY" \
+  -H "Authorization: Bearer <YOUR_ANALYTICS_CRON_SECRET>" \
   -H "Content-Type: application/json" \
   -d '{"jobs": ["stability"]}'
 ```
@@ -84,7 +84,7 @@ jobs:
       - name: Run Stability Calculation
         run: |
           curl -X POST ${{ secrets.API_URL }}/api/analytics/background-jobs \
-            -H "Authorization: Bearer ${{ secrets.ANALYTICS_CRON_SECRET }}" \
+            -H "Authorization: Bearer <YOUR_ANALYTICS_CRON_SECRET>" \
             -H "Content-Type: application/json" \
             -d '{"jobs": ["stability"]}'
 ```
@@ -107,7 +107,7 @@ Add to `vercel.json`:
 ```bash
 # Run weekly on Sunday at 3 AM
 0 3 * * 0 curl -X POST https://your-domain.com/api/analytics/background-jobs \
-  -H "Authorization: Bearer YOUR_SECRET_KEY" \
+  -H "Authorization: Bearer <YOUR_ANALYTICS_CRON_SECRET>" \
   -H "Content-Type: application/json" \
   -d '{"jobs": ["cleanup"]}'
 ```
@@ -141,7 +141,7 @@ GET /api/analytics/stability?projectId=xxx&days=90
 ### Run Background Jobs
 ```
 POST /api/analytics/background-jobs
-Authorization: Bearer YOUR_SECRET_KEY
+Authorization: Bearer <YOUR_ANALYTICS_CRON_SECRET>
 Content-Type: application/json
 
 {

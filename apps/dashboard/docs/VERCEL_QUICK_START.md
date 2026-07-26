@@ -31,7 +31,7 @@ git push
 4. **Add Environment Variables**:
    ```
    NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
    NEXT_PUBLIC_ANALYZER_URL=https://your-analyzer-url.com
    ```
 5. **Click "Deploy"** → Wait 2-5 minutes
@@ -54,7 +54,7 @@ git push
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 NEXT_PUBLIC_ANALYZER_URL=your-analyzer-url
 ```
 
