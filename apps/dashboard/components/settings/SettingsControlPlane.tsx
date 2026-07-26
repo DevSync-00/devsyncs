@@ -58,6 +58,12 @@ const defaults: LocalPreferences = {
   explanationDepth: 'concise',
 };
 
+function formatTimestamp(value?: string, dateOnly = false) {
+  if (!value) return 'Unavailable';
+  const normalized = value.replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC').replace(/Z$/, ' UTC');
+  return dateOnly ? normalized.slice(0, 10) : normalized;
+}
+
 const sections = [
   { id: 'general', label: 'General', icon: UserRound },
   { id: 'appearance', label: 'Appearance', icon: Palette },
@@ -330,8 +336,8 @@ export default function SettingsControlPlane({
 
         <SettingSection id="security" title="Security" description="Authentication, active session details, enterprise access, and audit controls.">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-md border bg-background p-4"><div className="flex items-center gap-2 text-xs"><LockKeyhole className="h-4 w-4 text-emerald-400" /> Current session</div><div className="mt-3 font-mono text-[10px] text-muted-foreground">Last sign-in: {lastSignInAt ? new Date(lastSignInAt).toLocaleString() : 'Unavailable'}</div></div>
-            <div className="rounded-md border bg-background p-4"><div className="flex items-center gap-2 text-xs"><UserRound className="h-4 w-4 text-primary" /> Account age</div><div className="mt-3 font-mono text-[10px] text-muted-foreground">Created: {createdAt ? new Date(createdAt).toLocaleDateString() : 'Unavailable'}</div></div>
+            <div className="rounded-md border bg-background p-4"><div className="flex items-center gap-2 text-xs"><LockKeyhole className="h-4 w-4 text-emerald-400" /> Current session</div><div className="mt-3 font-mono text-[10px] text-muted-foreground">Last sign-in: {formatTimestamp(lastSignInAt)}</div></div>
+            <div className="rounded-md border bg-background p-4"><div className="flex items-center gap-2 text-xs"><UserRound className="h-4 w-4 text-primary" /> Account age</div><div className="mt-3 font-mono text-[10px] text-muted-foreground">Created: {formatTimestamp(createdAt, true)}</div></div>
           </div>
           <div className="mt-5 divide-y">
             <ResourceRow icon={KeyRound} title="Authentication tokens" meta="Inspect the current CLI and editor credential" href="/dashboard/api-keys" />

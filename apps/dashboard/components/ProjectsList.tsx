@@ -434,7 +434,7 @@ export default function ProjectsList({
                   </span>
                 </div>
                 <div className="font-mono text-[10px] text-muted-foreground">
-                  {latestScan ? new Date(latestScan.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                  {latestScan ? latestScan.created_at.replace('T', ' ').slice(0, 16) + ' UTC' : '—'}
                 </div>
                 <div className="relative flex items-center justify-end gap-0.5">
                     <Link

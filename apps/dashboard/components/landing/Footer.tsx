@@ -25,7 +25,7 @@ export default function Footer() {
           <div className="sm:ml-auto flex items-center gap-1.5 font-mono text-[9px] text-slate-500"><Activity className="h-3 w-3 text-emerald-400" /> All systems operational</div>
         </div>
         <div className="mt-7 flex flex-col gap-2 border-t border-white/10 pt-5 font-mono text-[9px] text-slate-600 sm:flex-row sm:justify-between">
-          <span>© {new Date().getFullYear()} Dev-Sync.dev</span>
+          <span suppressHydrationWarning>© {new Date().getFullYear()} Dev-Sync.dev</span>
           <span>Read-only by default · explicit approval required for writes</span>
         </div>
       </div>

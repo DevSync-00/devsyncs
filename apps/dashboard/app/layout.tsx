@@ -22,6 +22,10 @@ export const metadata: Metadata = {
   title: "Dev-Sync.dev — Schema sync & migration safety",
   description:
     "Detect database schema drift, preview fixes, and apply migrations safely across CLI, VS Code, and your team dashboard.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
@@ -30,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
