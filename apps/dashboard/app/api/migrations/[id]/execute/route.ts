@@ -90,30 +90,6 @@ export async function POST(
       );
     }
 
-    const safety = analyzeMigrationSafety(migration.content);
-    if (!dryRun && safety.destructive && !allowDestructive) {
-      return NextResponse.json(
-        {
-          error: 'Destructive migration blocked',
-          message: 'Set allowDestructive: true and provide the required confirmationText to execute destructive SQL.',
-          requiredConfirmationText: `EXECUTE ${params.id}`,
-          findings: safety.findings,
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!dryRun && safety.destructive && confirmationText !== `EXECUTE ${params.id}`) {
-      return NextResponse.json(
-        {
-          error: 'Destructive migration confirmation required',
-          requiredConfirmationText: `EXECUTE ${params.id}`,
-          findings: safety.findings,
-        },
-        { status: 400 }
-      );
-    }
-
     // Check if migration is already applied
     if (migration.applied && !dryRun) {
       return NextResponse.json(
@@ -134,6 +110,37 @@ export async function POST(
     if (!dbConnectionString) {
       return NextResponse.json(
         { error: 'Database connection string not configured for this project' },
+        { status: 400 }
+      );
+    }
+
+    if (typeof migration.content !== 'string' || !migration.content.trim()) {
+      return NextResponse.json(
+        { error: 'Migration SQL content is missing' },
+        { status: 400 }
+      );
+    }
+
+    const safety = analyzeMigrationSafety(migration.content);
+    if (!dryRun && safety.destructive && !allowDestructive) {
+      return NextResponse.json(
+        {
+          error: 'Destructive migration blocked',
+          message: 'Set allowDestructive: true and provide the required confirmationText to execute destructive SQL.',
+          requiredConfirmationText: `EXECUTE ${params.id}`,
+          findings: safety.findings,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!dryRun && safety.destructive && confirmationText !== `EXECUTE ${params.id}`) {
+      return NextResponse.json(
+        {
+          error: 'Destructive migration confirmation required',
+          requiredConfirmationText: `EXECUTE ${params.id}`,
+          findings: safety.findings,
+        },
         { status: 400 }
       );
     }

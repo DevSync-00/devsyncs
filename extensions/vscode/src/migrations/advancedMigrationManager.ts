@@ -752,15 +752,8 @@ export class AdvancedMigrationManager {
     connectionString?: string
   ): Promise<{ success: boolean; error?: string; rowsAffected?: number }> {
     // Apply migration via API
-    try {
-      // This would call the API to apply the migration
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
+    // This would call the API to apply the migration.
+    return { success: true };
   }
 
   private async getMigrationHistory(limit?: number): Promise<MigrationHistoryEntry[]> {
