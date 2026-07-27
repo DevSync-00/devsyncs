@@ -24,10 +24,9 @@ import CommandPalette from '@/components/dashboard/CommandPalette';
 
 const primaryNavigation = [
   { label: 'Overview', href: '/dashboard', icon: Activity, exact: true },
-  { label: 'Projects', href: '/dashboard#projects', icon: Braces },
-  { label: 'Scans', href: '/dashboard#activity', icon: TerminalSquare },
-  { label: 'Migrations', href: '/dashboard#activity', icon: GitBranch },
-  { label: 'Environments', href: '/dashboard#environments', icon: Database },
+  { label: 'Projects', href: '/dashboard/projects', icon: Braces },
+  { label: 'Scans', href: '/dashboard/scans', icon: TerminalSquare },
+  { label: 'Environments', href: '/dashboard/environments', icon: Database },
 ];
 
 const workspaceNavigation = [
@@ -43,14 +42,13 @@ function NavItem({
   item: (typeof primaryNavigation)[number];
   pathname: string;
 }) {
-  const path = item.href.split('#')[0];
-  const active = item.exact ? pathname === path : path !== '/dashboard' && pathname.startsWith(path);
+  const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
 
   return (
     <Link
       href={item.href}
       className={cn(
-        'group flex h-9 items-center gap-3 border-l-2 px-4 text-[13px] transition-colors',
+        'group flex h-9 items-center gap-3 border-l-2 px-4 text-[13px] font-medium transition-colors',
         active
           ? 'border-primary bg-primary/[0.08] text-foreground'
           : 'border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground',
@@ -73,6 +71,10 @@ export default function DashboardShell({
 }) {
   const pathname = usePathname();
 
+  const currentSegment = pathname === '/dashboard' 
+    ? 'overview' 
+    : pathname.replace('/dashboard/', '').split('/')[0] || 'overview';
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <aside className="fixed inset-y-0 left-0 z-50 hidden w-60 border-r bg-card/95 lg:flex lg:flex-col">
@@ -87,7 +89,7 @@ export default function DashboardShell({
         </div>
 
         <div className="border-b p-3">
-          <button className="flex w-full items-center gap-2 rounded-md border bg-background px-2.5 py-2 text-left">
+          <button className="flex w-full items-center gap-2 rounded-md border bg-background px-2.5 py-2 text-left hover:border-primary/40 transition-colors">
             <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 font-mono text-[10px] font-bold text-primary">
               DS
             </span>
@@ -95,7 +97,7 @@ export default function DashboardShell({
             <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
           </button>
           <div className="mt-2 flex items-center gap-2 px-1 font-mono text-[10px] text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             production
             <span className="text-border">/</span>
             main
@@ -134,7 +136,7 @@ export default function DashboardShell({
           <div className="hidden items-center gap-2 font-mono text-xs text-muted-foreground sm:flex">
             <span>workspace</span>
             <span>/</span>
-            <span className="text-foreground">overview</span>
+            <span className="text-foreground capitalize">{currentSegment}</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <CommandPalette />

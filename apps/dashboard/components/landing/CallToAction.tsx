@@ -28,12 +28,12 @@ export default function CallToAction() {
                 <Link href="/docs" className="rounded-md border px-4 py-2.5 font-mono text-xs hover:bg-muted">Read quickstart</Link>
               </div>
             </div>
-            <button onClick={copy} className="group border-t bg-[#080c12] p-6 text-left lg:border-l lg:border-t-0">
-              <div className="mb-5 flex items-center justify-between font-mono text-[10px] text-slate-500"><span className="flex items-center gap-2"><Terminal className="h-3.5 w-3.5" /> install.sh</span>{copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Clipboard className="h-3.5 w-3.5 group-hover:text-slate-300" />}</div>
+            <button onClick={copy} className="group border-t bg-muted/20 p-6 text-left lg:border-l lg:border-t-0 hover:bg-muted/40 transition-colors">
+              <div className="mb-5 flex items-center justify-between font-mono text-[10px] text-muted-foreground"><span className="flex items-center gap-2"><Terminal className="h-3.5 w-3.5 text-primary" /> quickstart.sh</span>{copied ? <Check className="h-3.5 w-3.5 text-emerald-500 font-bold" /> : <Clipboard className="h-3.5 w-3.5 group-hover:text-foreground transition-colors" />}</div>
               <div className="space-y-3 font-mono text-[11px]">
-                {commands.map((command) => <div key={command}><span className="text-cyan-400">$</span> <span className="text-slate-300">{command}</span></div>)}
+                {commands.map((command) => <div key={command}><span className="text-primary font-bold">$</span> <span className="text-foreground font-medium">{command}</span></div>)}
               </div>
-              <div className="mt-6 font-mono text-[9px] text-slate-600">click to copy all commands</div>
+              <div className="mt-6 font-mono text-[9px] text-muted-foreground">click to copy terminal commands</div>
             </button>
           </div>
         </div>

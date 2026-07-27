@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { FolderKanban, ChevronLeft, ChevronRight, Loader2, Search, Pencil, Trash2, AlertTriangle, X, GitBranch, MoreHorizontal, Terminal, Database } from 'lucide-react';
+import { FolderKanban, ChevronLeft, ChevronRight, Loader2, Search, Pencil, Trash2, AlertTriangle, X, GitBranch, MoreHorizontal, Terminal, Database, LayoutGrid, List } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ProjectCardSkeleton } from './LoadingSkeleton';
@@ -73,6 +73,8 @@ export default function ProjectsList({
   const [confirmDeleteText, setConfirmDeleteText] = useState('');
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [actionsProjectId, setActionsProjectId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'drift' | 'sync' | 'failed'>('all');
   const { toast } = useToast();
   const projectIdsRef = useRef(new Set(initialProjects.map(p => p.id)));
   const prevSearchQueryRef = useRef<string>('');
@@ -279,21 +281,34 @@ export default function ProjectsList({
     onPayload: refreshProjects,
   });
 
-  // Filter projects based on search query
+  // Filter projects based on search query and status filter
   const filteredProjects = useMemo(() => {
+    let result = projects;
+
+    if (filterStatus !== 'all') {
+      result = result.filter(project => {
+        const scan = scanMap.get(project.id);
+        const count = (scan?.mismatches as any[])?.length || 0;
+        if (filterStatus === 'drift') return scan && scan.status === 'completed' && count > 0;
+        if (filterStatus === 'sync') return scan && scan.status === 'completed' && count === 0;
+        if (filterStatus === 'failed') return scan && scan.status === 'failed';
+        return true;
+      });
+    }
+
     if (!searchQuery.trim()) {
-      return projects;
+      return result;
     }
     
     const query = searchQuery.toLowerCase();
-    return projects.filter(project => {
+    return result.filter(project => {
       const nameMatch = project.name.toLowerCase().includes(query);
       const schemaMatch = formatSchemaType(project.schema_type).toLowerCase().includes(query);
       const slugMatch = project.slug?.toLowerCase().includes(query);
       
       return nameMatch || schemaMatch || slugMatch;
     });
-  }, [projects, searchQuery]);
+  }, [projects, searchQuery, filterStatus, scanMap]);
 
   // Reset to page 1 when search query changes
   useEffect(() => {
@@ -360,22 +375,76 @@ export default function ProjectsList({
 
   return (
     <div className="space-y-3">
-      {/* Search Bar */}
-      <div className="relative max-w-xl">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-        <Input
-          type="text"
-          placeholder="Search projects by name, schema type, or slug..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-9 rounded-md bg-card pl-10 font-mono text-xs"
-        />
+      {/* Toolbar: Search, Filters, View Mode Toggle */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <Input
+            type="text"
+            placeholder="Search projects by name, schema type, or slug..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-9 rounded-md bg-card pl-9 font-mono text-xs"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Status Filters */}
+          <div className="flex items-center rounded-md border bg-card p-0.5 font-mono text-[10px]">
+            {[
+              { id: 'all', label: 'All' },
+              { id: 'drift', label: 'Drift' },
+              { id: 'sync', label: 'In Sync' },
+              { id: 'failed', label: 'Failed' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setFilterStatus(tab.id as any)}
+                className={cn(
+                  'rounded px-2 py-1 font-medium transition-colors',
+                  filterStatus === tab.id
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* View Mode Toggle */}
+          <div className="flex items-center rounded-md border bg-card p-0.5">
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={cn(
+                'rounded p-1 text-muted-foreground transition-colors',
+                viewMode === 'table' ? 'bg-muted text-foreground' : 'hover:text-foreground'
+              )}
+              title="Table View"
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={cn(
+                'rounded p-1 text-muted-foreground transition-colors',
+                viewMode === 'grid' ? 'bg-muted text-foreground' : 'hover:text-foreground'
+              )}
+              title="Grid View"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Results count */}
-      {searchQuery && (
-        <div className="text-sm text-muted-foreground">
-          Found {filteredProjects.length} project{filteredProjects.length !== 1 ? 's' : ''} matching "{searchQuery}"
+      {(searchQuery || filterStatus !== 'all') && (
+        <div className="text-xs text-muted-foreground font-mono">
+          Showing {filteredProjects.length} of {projects.length} projects
         </div>
       )}
 
@@ -388,15 +457,17 @@ export default function ProjectsList({
             </div>
           </div>
         )}
-        <div className={loading ? 'pointer-events-none opacity-50' : ''}>
-          <div className="hidden grid-cols-[minmax(220px,1.5fr)_120px_125px_100px_125px_86px] gap-3 border-b bg-muted/20 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground md:grid">
-            <span>Project</span>
-            <span>Stack</span>
-            <span>Environment</span>
-            <span>Status</span>
-            <span>Last scan</span>
-            <span className="text-right">Actions</span>
-          </div>
+        <div className={cn(loading ? 'pointer-events-none opacity-50' : '', viewMode === 'grid' ? 'p-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3' : '')}>
+          {viewMode === 'table' && (
+            <div className="hidden grid-cols-[minmax(220px,1.5fr)_120px_125px_100px_125px_86px] gap-3 border-b bg-muted/20 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground md:grid">
+              <span>Project</span>
+              <span>Stack</span>
+              <span>Environment</span>
+              <span>Status</span>
+              <span>Last scan</span>
+              <span className="text-right">Actions</span>
+            </div>
+          )}
         {paginatedProjects.map((project) => {
           const latestScan = scanMap.get(project.id);
           const mismatchCount = (latestScan?.mismatches as any[])?.length || 0;

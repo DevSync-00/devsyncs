@@ -129,33 +129,33 @@ export default function MissionControl({ projects, scans }: MissionControlProps)
           )}
         </div>
 
-        <div id="activity" className="overflow-hidden rounded-lg border bg-[#080c12] text-slate-300">
-          <div className="flex h-11 items-center justify-between border-b border-white/10 px-4">
+        <div id="activity" className="overflow-hidden rounded-lg border bg-card text-foreground">
+          <div className="flex h-11 items-center justify-between border-b px-4">
             <div className="flex items-center gap-2">
-              <Terminal className="h-3.5 w-3.5 text-cyan-400" />
+              <Terminal className="h-3.5 w-3.5 text-primary" />
               <h3 className="font-mono text-xs font-semibold">Activity log</h3>
             </div>
-            <div className="flex items-center gap-1.5 font-mono text-[9px] text-slate-500">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> STREAMING
+            <div className="flex items-center gap-1.5 font-mono text-[9px] text-muted-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> STREAMING
             </div>
           </div>
-          <div className="min-h-44 divide-y divide-white/5">
+          <div className="min-h-44 divide-y">
             {recent.length ? recent.map((scan) => {
               const count = mismatchCount(scan.mismatches);
               return (
-                <Link key={scan.id} href={`/dashboard/projects/${scan.project_id}/scan-reports/${scan.id}`} className="grid grid-cols-[42px_60px_minmax(0,1fr)] gap-2 px-4 py-2.5 font-mono text-[10px] hover:bg-white/[0.03]">
-                  <span className="text-slate-600">{timeAgo(scan.created_at)}</span>
-                  <span className={scan.status === 'failed' ? 'text-red-400' : count ? 'text-amber-400' : 'text-emerald-400'}>
+                <Link key={scan.id} href={`/dashboard/projects/${scan.project_id}/scan-reports/${scan.id}`} className="grid grid-cols-[42px_60px_minmax(0,1fr)] gap-2 px-4 py-2.5 font-mono text-[10px] hover:bg-muted/40 transition-colors">
+                  <span className="text-muted-foreground">{timeAgo(scan.created_at)}</span>
+                  <span className={scan.status === 'failed' ? 'text-red-500 font-semibold' : count ? 'text-amber-500 font-semibold' : 'text-emerald-500 font-semibold'}>
                     {scan.status === 'failed' ? 'ERROR' : count ? 'WARN' : 'PASS'}
                   </span>
                   <span className="truncate">
-                    scan <span className="text-cyan-300">{projectMap.get(scan.project_id)?.name || 'project'}</span>
-                    <span className="text-slate-500"> — {scan.status === 'failed' ? 'execution failed' : count ? `${count} changes found` : 'schema verified'}</span>
+                    scan <span className="text-primary font-medium">{projectMap.get(scan.project_id)?.name || 'project'}</span>
+                    <span className="text-muted-foreground"> — {scan.status === 'failed' ? 'execution failed' : count ? `${count} changes found` : 'schema verified'}</span>
                   </span>
                 </Link>
               );
             }) : (
-              <div className="p-4 font-mono text-[10px] text-slate-500">$ waiting for first scan...</div>
+              <div className="p-4 font-mono text-[10px] text-muted-foreground">$ waiting for first scan...</div>
             )}
           </div>
         </div>
