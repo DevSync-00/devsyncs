@@ -14,7 +14,7 @@ export default function SchemaMeshBg() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
       <svg
-        className="w-full h-full opacity-30 dark:opacity-40"
+        className="w-full h-full opacity-65 dark:opacity-45"
         xmlns="http://www.w3.org/2000/svg"
       >
         <style dangerouslySetInnerHTML={{ __html: `
@@ -33,12 +33,12 @@ export default function SchemaMeshBg() {
             80% { transform: translate(-15px, -10px); }
           }
           @keyframes schemaPulse {
-            0%, 100% { stroke-dashoffset: 100; stroke-width: 1px; opacity: 0.15; }
-            50% { stroke-dashoffset: 0; stroke-width: 1.5px; opacity: 0.35; }
+            0%, 100% { stroke-dashoffset: 100; stroke-width: 1.5px; opacity: 0.35; }
+            50% { stroke-dashoffset: 0; stroke-width: 2px; opacity: 0.75; }
           }
           @keyframes textFade {
-            0%, 100% { opacity: 0.05; }
-            50% { opacity: 0.25; }
+            0%, 100% { opacity: 0.35; }
+            50% { opacity: 0.75; }
           }
           .node-group-1 { animation: driftNode1 20s ease-in-out infinite; }
           .node-group-2 { animation: driftNode2 25s ease-in-out infinite; }

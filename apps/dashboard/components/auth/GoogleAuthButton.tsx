@@ -36,14 +36,14 @@ export default function GoogleAuthButton({ label, onError }: GoogleAuthButtonPro
     <Button
       type="button"
       variant="outline"
-      className="w-full h-11 rounded-xl bg-card/50"
+      className="w-full h-11 rounded-xl border border-border/80 bg-background/80 hover:bg-muted/60 dark:bg-muted/30 dark:hover:bg-muted/60 text-foreground font-mono text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-2"
       onClick={handleGoogleAuth}
       disabled={loading}
     >
       {loading ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
-        <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+        <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
           <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.39-.18-2.05H12v3.87h5.38a4.6 4.6 0 0 1-2 3.02v2.51h3.24c1.9-1.75 2.98-4.33 2.98-7.35Z" />
           <path fill="#34A853" d="M12 22c2.7 0 4.98-.9 6.63-2.42l-3.24-2.51c-.9.6-2.05.96-3.39.96-2.61 0-4.82-1.76-5.61-4.13H3.04v2.59A10 10 0 0 0 12 22Z" />
           <path fill="#FBBC05" d="M6.39 13.9A6.01 6.01 0 0 1 6.08 12c0-.66.11-1.3.31-1.9V7.51H3.04A10 10 0 0 0 2 12c0 1.61.38 3.14 1.04 4.49l3.35-2.59Z" />

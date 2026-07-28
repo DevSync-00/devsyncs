@@ -1,174 +1,169 @@
-import Link from 'next/link';
-import { Book, FileText, Code, HelpCircle, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import Link from "next/link";
+import {
+  Book,
+  Terminal,
+  Code,
+  Workflow,
+  Database,
+  ShieldCheck,
+  HelpCircle,
+  ArrowRight,
+  Sparkles,
+  GitBranch,
+} from "lucide-react";
+import CodeBlock from "@/components/docs/CodeBlock";
+
+const categoryCards = [
+  {
+    title: "How DevSync Works",
+    description: "Learn about AST schema normalization, drift detection pipelines, and read-only preflight execution.",
+    href: "/docs/how-devsync-works",
+    icon: Sparkles,
+    badge: "Core Architecture",
+  },
+  {
+    title: "User Guide & Quickstart",
+    description: "Complete walk-through for setting up projects, linking codebases, and inspecting scan reports.",
+    href: "/docs/user-guide",
+    icon: Book,
+    badge: "Getting Started",
+  },
+  {
+    title: "@devsync/cli Reference",
+    description: "Command line reference for dev-sync scan, fix, apply, init, login, and environment flags.",
+    href: "/docs/cli-reference",
+    icon: Terminal,
+    badge: "v0.2.0 CLI",
+  },
+  {
+    title: "GitHub Actions CI/CD",
+    description: "Automate schema drift checks and migration safety rehearsals directly in your PR workflows.",
+    href: "/docs/github-actions",
+    icon: Workflow,
+    badge: "Automation",
+  },
+  {
+    title: "VS Code Extension",
+    description: "Get inline schema diagnostics, instant warnings, and interactive ERD webviews directly in VS Code.",
+    href: "/docs/vscode-extension",
+    icon: Code,
+    badge: "IDE Plugin",
+  },
+  {
+    title: "Supported Stack & Drivers",
+    description: "Detailed compatibility guides for Prisma, Supabase, Neon, Drizzle, TypeORM, Kysely, and Raw SQL.",
+    href: "/docs/supported-frameworks",
+    icon: Database,
+    badge: "Drivers",
+  },
+  {
+    title: "Migration Execution",
+    description: "Apply migrations with dry-run safety validation, transaction locks, and rollback coverage.",
+    href: "/docs/migration-execution",
+    icon: GitBranch,
+    badge: "Safety Control",
+  },
+  {
+    title: "API Reference",
+    description: "Official REST API endpoints for user projects, scan reports, and migration execution records.",
+    href: "/docs/api-reference",
+    icon: Code,
+    badge: "REST API",
+  },
+  {
+    title: "Troubleshooting",
+    description: "Error dictionary, PostgreSQL error code resolutions, connection fixes, and RLS policy setup.",
+    href: "/docs/troubleshooting",
+    icon: HelpCircle,
+    badge: "Support",
+  },
+];
 
 export default function DocumentationPage() {
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold">Documentation</h1>
-        <p className="text-xl text-muted-foreground">
-          Everything you need to know about using Dev-Sync.dev
+    <div className="space-y-12">
+      {/* Documentation Hero Header */}
+      <div className="space-y-4 pb-8 border-b border-border/60">
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-primary font-semibold">
+          Developer Documentation & API Guides
+        </p>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">DevSync Platform Documentation</h1>
+        <p className="text-base text-muted-foreground leading-relaxed max-w-3xl">
+          Everything you need to detect schema drift, validate database migrations in CI/CD, and enforce safety across Prisma, Supabase, Neon, and ORMs.
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-12">
-        {/* Getting Started */}
-        <Link
-          href="/docs/user-guide"
-          className="block p-6 bg-card border border-border rounded-lg hover:border-primary/50 transition-colors group"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <Book className="w-6 h-6 text-primary" />
-            <h2 className="text-xl font-semibold">User Guide</h2>
-          </div>
-          <p className="text-sm text-muted-foreground mb-4">
-            Complete guide to using the Dev-Sync.dev dashboard. Perfect for new users.
-          </p>
-          <div className="flex items-center gap-2 text-sm text-primary group-hover:gap-3 transition-all">
-            <span>Get started</span>
-            <ArrowRight className="w-4 h-4" />
-          </div>
-        </Link>
-
-        {/* Migration Execution */}
-        <Link
-          href="/docs/migration-execution"
-          className="block p-6 bg-card border border-border rounded-lg hover:border-primary/50 transition-colors group"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <FileText className="w-6 h-6 text-primary" />
-            <h2 className="text-xl font-semibold">Migration Execution</h2>
-          </div>
-          <p className="text-sm text-muted-foreground mb-4">
-            Learn how to apply migrations directly from the dashboard with safety checks.
-          </p>
-          <div className="flex items-center gap-2 text-sm text-primary group-hover:gap-3 transition-all">
-            <span>Read guide</span>
-            <ArrowRight className="w-4 h-4" />
-          </div>
-        </Link>
-
-        {/* Migration History */}
-        <Link
-          href="/docs/migration-history"
-          className="block p-6 bg-card border border-border rounded-lg hover:border-primary/50 transition-colors group"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <FileText className="w-6 h-6 text-primary" />
-            <h2 className="text-xl font-semibold">Migration History</h2>
-          </div>
-          <p className="text-sm text-muted-foreground mb-4">
-            Track and monitor all migration executions with complete audit trail.
-          </p>
-          <div className="flex items-center gap-2 text-sm text-primary group-hover:gap-3 transition-all">
-            <span>Read guide</span>
-            <ArrowRight className="w-4 h-4" />
-          </div>
-        </Link>
-
-        {/* API Reference */}
-        <Link
-          href="/docs/api-reference"
-          className="block p-6 bg-card border border-border rounded-lg hover:border-primary/50 transition-colors group"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <Code className="w-6 h-6 text-primary" />
-            <h2 className="text-xl font-semibold">API Reference</h2>
-          </div>
-          <p className="text-sm text-muted-foreground mb-4">
-            Complete API endpoint documentation with request/response examples.
-          </p>
-          <div className="flex items-center gap-2 text-sm text-primary group-hover:gap-3 transition-all">
-            <span>View API docs</span>
-            <ArrowRight className="w-4 h-4" />
-          </div>
-        </Link>
-
-        {/* Best Practices */}
-        <Link
-          href="/docs/best-practices"
-          className="block p-6 bg-card border border-border rounded-lg hover:border-primary/50 transition-colors group"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <FileText className="w-6 h-6 text-primary" />
-            <h2 className="text-xl font-semibold">Best Practices</h2>
-          </div>
-          <p className="text-sm text-muted-foreground mb-4">
-            Best practices for using Dev-Sync.dev effectively and safely.
-          </p>
-          <div className="flex items-center gap-2 text-sm text-primary group-hover:gap-3 transition-all">
-            <span>Read guide</span>
-            <ArrowRight className="w-4 h-4" />
-          </div>
-        </Link>
-
-        {/* Troubleshooting */}
-        <Link
-          href="/docs/troubleshooting"
-          className="block p-6 bg-card border border-border rounded-lg hover:border-primary/50 transition-colors group"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <HelpCircle className="w-6 h-6 text-primary" />
-            <h2 className="text-xl font-semibold">Troubleshooting</h2>
-          </div>
-          <p className="text-sm text-muted-foreground mb-4">
-            Common issues and solutions. Debug errors and fix problems quickly.
-          </p>
-          <div className="flex items-center gap-2 text-sm text-primary group-hover:gap-3 transition-all">
-            <span>Get help</span>
-            <ArrowRight className="w-4 h-4" />
-          </div>
-        </Link>
+      {/* Quickstart Installation Block */}
+      <div className="rounded-2xl border border-glass bg-card/80 p-6 backdrop-blur-xl shadow-xl space-y-3">
+        <div className="flex items-center justify-between font-mono text-xs">
+          <span className="font-semibold text-foreground flex items-center gap-2">
+            <Terminal className="h-4 w-4 text-primary" /> Quickstart CLI Installation
+          </span>
+          <span className="text-muted-foreground text-[11px]">Node.js v18+ required</span>
+        </div>
+        <CodeBlock
+          tabs={[
+            { label: "npm", code: "npm install -g @devsync/cli\ndev-sync init\ndev-sync scan" },
+            { label: "pnpm", code: "pnpm add -g @devsync/cli\ndev-sync init\ndev-sync scan" },
+            { label: "yarn", code: "yarn global add @devsync/cli\ndev-sync init\ndev-sync scan" },
+            { label: "bun", code: "bun add -g @devsync/cli\ndev-sync init\ndev-sync scan" },
+          ]}
+        />
       </div>
 
-      {/* Quick Links */}
-      <div className="mt-12 p-6 bg-card border border-border rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">Quick Links</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <h3 className="font-medium mb-2">Getting Started</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>
-                <Link href="/docs/user-guide#getting-started" className="hover:text-primary">
-                  → First Steps
-                </Link>
-              </li>
-              <li>
-                <Link href="/docs/user-guide#creating-projects" className="hover:text-primary">
-                  → Creating Projects
-                </Link>
-              </li>
-              <li>
-                <Link href="/docs/user-guide#running-scans" className="hover:text-primary">
-                  → Running Scans
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-medium mb-2">Common Tasks</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>
-                <Link href="/docs/migration-execution" className="hover:text-primary">
-                  → Apply Migrations
-                </Link>
-              </li>
-              <li>
-                <Link href="/docs/migration-history" className="hover:text-primary">
-                  → View History
-                </Link>
-              </li>
-              <li>
-                <Link href="/docs/troubleshooting" className="hover:text-primary">
-                  → Fix Errors
-                </Link>
-              </li>
-            </ul>
-          </div>
+      {/* Grid Category Cards */}
+      <div className="space-y-4">
+        <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+          Explore Documentation Categories
+        </h2>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {categoryCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <Link
+                key={card.href}
+                href={card.href}
+                className="group flex flex-col justify-between rounded-xl border border-glass bg-card/70 p-6 backdrop-blur-xl hover:border-primary/40 hover:bg-card/90 transition-all shadow-md hover:shadow-lg"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <span className="rounded-full border border-glass bg-muted px-2.5 py-0.5 font-mono text-[9px] font-medium text-muted-foreground">
+                      {card.badge}
+                    </span>
+                  </div>
+                  <h3 className="font-mono text-base font-semibold text-foreground group-hover:text-primary transition-colors">
+                    {card.title}
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {card.description}
+                  </p>
+                </div>
+                <div className="pt-4 flex items-center gap-2 font-mono text-xs text-primary font-medium group-hover:gap-3 transition-all">
+                  <span>Read guide</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Driver Compatibility Matrix Banner */}
+      <div className="rounded-2xl border border-glass bg-card/60 p-6 backdrop-blur-xl font-mono space-y-3">
+        <div className="text-xs font-semibold text-foreground uppercase tracking-wider">
+          Supported Schema Parsers & Driver Matrix
+        </div>
+        <div className="flex flex-wrap gap-2 pt-1">
+          {["Prisma ORM", "Supabase Postgres", "Neon Serverless", "Drizzle ORM", "TypeORM", "Kysely SQL", "Raw SQL"].map((driver) => (
+            <span key={driver} className="rounded-full border border-glass bg-muted/40 px-3 py-1 text-xs text-foreground/90">
+              ✓ {driver}
+            </span>
+          ))}
         </div>
       </div>
     </div>
   );
 }
-

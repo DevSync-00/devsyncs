@@ -36,14 +36,14 @@ export default function GitHubAuthButton({ label, onError }: GitHubAuthButtonPro
     <Button
       type="button"
       variant="outline"
-      className="h-11 w-full rounded-xl bg-card/50"
+      className="w-full h-11 rounded-xl border border-border/80 bg-background/80 hover:bg-muted/60 dark:bg-muted/30 dark:hover:bg-muted/60 text-foreground font-mono text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-2"
       onClick={handleGitHubAuth}
       disabled={loading}
     >
       {loading ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
-        <Github className="mr-2 h-4 w-4" />
+        <Github className="h-4 w-4" />
       )}
       {label}
     </Button>

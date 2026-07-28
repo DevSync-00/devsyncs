@@ -16,6 +16,7 @@ import { fetchUserStats } from '@/lib/db-optimizations';
 import Logo from '@/components/Logo';
 import ThemeToggle from '@/components/ThemeToggle';
 import SyncAnimation from '@/components/animations/SyncAnimation';
+import ElasticGridBackground from '@/components/animations/ElasticGridBackground';
 
 function formatSchemaType(schemaType: string): string {
   const schemaTypeMap: Record<string, string> = {
@@ -270,18 +271,21 @@ export default async function HomePage() {
 
   // If user is not logged in, show landing page
   return (
-    <div className="min-h-screen bg-background">
-      <LandingNav />
-      <main>
-        <Hero />
-        <TrustStrip />
-        <HowItWorks />
-        <Features />
-        <Safety />
-        <DeveloperExperience />
-        <CallToAction />
-      </main>
-      <Footer />
+    <div className="relative min-h-screen bg-background overflow-x-hidden">
+      <ElasticGridBackground />
+      <div className="relative z-10">
+        <LandingNav />
+        <main>
+          <Hero />
+          <TrustStrip />
+          <HowItWorks />
+          <Features />
+          <Safety />
+          <DeveloperExperience />
+          <CallToAction />
+        </main>
+        <Footer />
+      </div>
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X, Activity } from "lucide-react";
+import { Menu, X, ArrowRight } from "lucide-react";
 import Logo from "@/components/Logo";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -18,52 +18,91 @@ export default function LandingNav() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b bg-background/90 backdrop-blur-xl">
-      <div className="mx-auto flex h-14 max-w-[1400px] items-center px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2.5">
-          <Logo variant="original" width={25} height={25} />
-          <span className="font-mono text-sm font-semibold">dev-sync</span>
-          <span className="rounded border border-primary/20 bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] text-primary">v0.1</span>
+    <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-[1240px] transition-all duration-300">
+      {/* Premium Glassmorphic Pill Header */}
+      <div className="flex h-16 items-center justify-between rounded-full border border-white/20 dark:border-white/10 bg-card/60 dark:bg-card/40 px-6 backdrop-blur-3xl backdrop-saturate-150 shadow-2xl shadow-black/10 transition-all">
+        {/* Brand Logo */}
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <Logo variant="original" width={26} height={26} />
+          <span className="font-mono text-base font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors">
+            dev-sync
+          </span>
         </Link>
-        <nav className="ml-10 hidden items-center gap-6 lg:flex">
+
+        {/* Center Nav Links */}
+        <nav className="hidden items-center gap-2 lg:flex">
           {links.map((link) => (
-            <Link key={link.href} href={link.href} className="text-xs text-muted-foreground transition-colors hover:text-foreground">
+            <Link
+              key={link.href}
+              href={link.href}
+              className="rounded-full px-4 py-2 font-mono text-xs font-medium text-muted-foreground transition-all hover:bg-muted/50 hover:text-foreground"
+            >
               {link.label}
             </Link>
           ))}
         </nav>
-        <div className="ml-auto hidden items-center gap-3 md:flex">
-          <a
-            href="https://github.com/DevSync-00/devsyncs"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-md border bg-muted/30 px-2.5 py-1 font-mono text-[11px] text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
-          >
-            <span className="text-amber-400">★</span> 2.4k
-          </a>
-          <div className="flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground border-l pl-3">
-            <Activity className="h-3 w-3 text-emerald-500 animate-pulse" /> Live engine
-          </div>
+
+        {/* Right Action Group */}
+        <div className="hidden items-center gap-3.5 md:flex">
           <ThemeToggle />
-          <Link href="/auth/login" className="rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">Sign in</Link>
-          <Link href="/auth/signup" className="rounded-md bg-primary px-3.5 py-1.5 font-mono text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-all shadow-sm shadow-primary/20">
-            Start scanning →
+
+          <Link
+            href="/auth/login"
+            className="rounded-full px-3.5 py-2 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Sign in
+          </Link>
+
+          <Link
+            href="/auth/signup"
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 font-mono text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-all shadow-md shadow-primary/25"
+          >
+            Start scanning <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
-        <button className="ml-auto rounded-md border p-2 md:hidden" onClick={() => setOpen(!open)} aria-label="Toggle menu">
-          {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-        </button>
+
+        {/* Mobile Action Controls */}
+        <div className="flex items-center gap-2 md:hidden">
+          <ThemeToggle />
+          <button
+            type="button"
+            className="rounded-full border border-white/20 dark:border-white/10 p-2 hover:bg-muted transition-colors"
+            onClick={() => setOpen(!open)}
+            aria-label="Toggle menu"
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
+
+      {/* Mobile Menu Dropdown */}
       {open && (
-        <div className="border-t bg-card p-4 md:hidden">
-          {links.map((link) => (
-            <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className="block rounded px-3 py-2 text-sm text-muted-foreground hover:bg-muted">
-              {link.label}
+        <div className="mt-2 rounded-3xl border border-white/20 dark:border-white/10 bg-card/95 p-5 backdrop-blur-3xl backdrop-saturate-150 shadow-2xl md:hidden space-y-3">
+          <div className="space-y-1">
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setOpen(false)}
+                className="block rounded-xl px-4 py-2.5 font-mono text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+          <div className="pt-3 border-t border-border/60 grid grid-cols-2 gap-2">
+            <Link
+              href="/auth/login"
+              className="rounded-full border px-4 py-2.5 text-center font-mono text-xs hover:bg-muted transition-colors text-foreground"
+            >
+              Sign in
             </Link>
-          ))}
-          <div className="mt-3 grid grid-cols-2 gap-2 border-t pt-3">
-            <Link href="/auth/login" className="rounded border px-3 py-2 text-center text-xs">Sign in</Link>
-            <Link href="/auth/signup" className="rounded bg-primary px-3 py-2 text-center text-xs text-primary-foreground">Start scanning</Link>
+            <Link
+              href="/auth/signup"
+              className="rounded-full bg-primary px-4 py-2.5 text-center font-mono text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              Start scanning
+            </Link>
           </div>
         </div>
       )}

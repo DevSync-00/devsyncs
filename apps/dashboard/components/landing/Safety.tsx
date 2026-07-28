@@ -23,8 +23,8 @@ export default function Safety() {
             ))}
           </div>
         </div>
-        <div className="overflow-hidden rounded-lg border bg-background">
-          <div className="flex h-11 items-center justify-between border-b px-4">
+        <div className="overflow-x-auto rounded-lg border bg-background">
+          <div className="flex h-11 items-center justify-between border-b px-4 min-w-[480px]">
             <div className="flex items-center gap-2 font-mono text-[10px]"><ShieldCheck className="h-3.5 w-3.5 text-emerald-400" /> migration_preflight.json</div>
             <span className="flex items-center gap-1 font-mono text-[9px] text-emerald-400"><LockKeyhole className="h-3 w-3" /> POLICY ENFORCED</span>
           </div>

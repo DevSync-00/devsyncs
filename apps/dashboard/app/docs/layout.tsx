@@ -1,6 +1,10 @@
-import Link from 'next/link';
-import { ArrowLeft, Book } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import Link from "next/link";
+import LandingNav from "@/components/landing/LandingNav";
+import Footer from "@/components/landing/Footer";
+import DocsSidebar from "@/components/docs/DocsSidebar";
+import DocsSearchModal from "@/components/docs/DocsSearchModal";
+import TableOfContents from "@/components/docs/TableOfContents";
+import ElasticGridBackground from "@/components/animations/ElasticGridBackground";
 
 export default function DocsLayout({
   children,
@@ -8,27 +12,47 @@ export default function DocsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background">
-      <nav className="border-b border-border bg-card">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link href="/docs" className="flex items-center gap-2">
-                <Book className="w-5 h-5 text-primary" />
-                <span className="text-lg font-semibold">Documentation</span>
-              </Link>
+    <div className="relative min-h-screen bg-background text-foreground overflow-x-hidden">
+      {/* Rubber Canvas Mesh */}
+      <ElasticGridBackground />
+
+      <div className="relative z-10 space-y-8 pt-24 sm:pt-28">
+        {/* Floating Glass Pill Header */}
+        <LandingNav />
+
+        {/* Search Bar Sub-Header Container */}
+        <div className="mx-auto max-w-[1400px] px-4 sm:px-8">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-4 font-mono text-xs">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Link href="/" className="hover:text-foreground">dev-sync</Link>
+              <span>/</span>
+              <Link href="/docs" className="text-foreground font-semibold">docs</Link>
             </div>
-            <Link href="/dashboard">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Dashboard
-              </Button>
-            </Link>
+            <DocsSearchModal />
           </div>
         </div>
-      </nav>
-      <main className="container mx-auto px-6 py-8">{children}</main>
+
+        {/* 3-Column Documentation Layout Shell */}
+        <div className="mx-auto max-w-[1400px] px-4 sm:px-8 pb-24">
+          <div className="flex gap-12">
+            {/* Left Sidebar Navigation Tree */}
+            <div className="hidden lg:block">
+              <DocsSidebar />
+            </div>
+
+            {/* Center Main Documentation Article */}
+            <main className="flex-1 min-w-0">
+              {children}
+            </main>
+
+            {/* Right Table of Contents */}
+            <TableOfContents />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <Footer />
+      </div>
     </div>
   );
 }
-
