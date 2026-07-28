@@ -376,22 +376,22 @@ export default function Hero() {
                       {vscodeFixed ? (
                         <>
                           <div className="pl-4 text-emerald-300 font-medium">
-                            publishedAt <span className="text-cyan-400">DateTime?</span> <span className="text-emerald-400">// ✓ Synchronized with DB (TIMESTAMP)</span>
+                            publishedAt <span className="text-cyan-400">DateTime?</span> <span className="text-emerald-400">{'// ✓ Synchronized with DB (TIMESTAMP)'}</span>
                           </div>
                           <div className="pl-4 text-emerald-300 font-medium">
-                            authorId <span className="text-cyan-400">Int</span> <span className="text-emerald-400">// ✓ Migration preview generated</span>
+                            authorId <span className="text-cyan-400">Int</span> <span className="text-emerald-400">{'// ✓ Migration preview generated'}</span>
                           </div>
                         </>
                       ) : (
                         <>
                           <div className="pl-4 relative inline-block group">
                             <span>publishedAt <span className="text-cyan-400">String?</span></span>
-                            <span className="text-amber-400 font-medium ml-4">// ⚠️ Warning: Type in production DB is TIMESTAMP</span>
+                            <span className="text-amber-400 font-medium ml-4">{'// ⚠️ Warning: Type in production DB is TIMESTAMP'}</span>
                             <div className="absolute left-0 bottom-0 w-full h-[2px] bg-amber-400/80 underline decoration-wavy decoration-amber-400" />
                           </div>
                           <div className="pl-4 relative inline-block group">
                             <span>authorId <span className="text-cyan-400">Int</span></span>
-                            <span className="text-rose-400 font-medium ml-4">// ❌ Error: Column 'author_id' does not exist in target database</span>
+                            <span className="text-rose-400 font-medium ml-4">{'// ❌ Error: Column \'author_id\' does not exist in target database'}</span>
                             <div className="absolute left-0 bottom-0 w-full h-[2px] bg-rose-500/80 underline decoration-wavy decoration-rose-500" />
                           </div>
                         </>
