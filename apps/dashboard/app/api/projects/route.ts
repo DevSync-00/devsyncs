@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getAdminClient } from '@/lib/supabase/admin';
 import {
   buildCodebaseConfig,
+  dataClientForUser,
   DEFAULT_PROJECT_LIMIT,
   formatProjectSummary,
   generateSlug,
@@ -119,6 +120,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const dataClient = dataClientForUser(user, supabase);
     const searchParams = req.nextUrl.searchParams;
     const search = searchParams.get('search')?.trim();
     const limitParam = Number.parseInt(searchParams.get('limit') || '', 10);
@@ -126,7 +128,7 @@ export async function GET(request: NextRequest) {
       ? DEFAULT_PROJECT_LIMIT
       : Math.max(1, Math.min(limitParam, 100));
 
-    let query = supabase
+    let query = dataClient
       .from('projects')
       .select('id, name, slug, schema_type, created_at, updated_at, team_id, config')
       .eq('user_id', user.id)
@@ -147,11 +149,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const projectIds = projects?.map((project) => project.id) || [];
+    const projectIds = projects?.map((project: any) => project.id) || [];
     const latestScanMap = new Map<string, any>();
 
     if (projectIds.length > 0) {
-      const { data: scans, error: scansError } = await supabase
+      const { data: scans, error: scansError } = await dataClient
         .from('scan_reports')
         .select('id, project_id, status, created_at, mismatches')
         .in('project_id', projectIds)
@@ -166,7 +168,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const projectsWithMeta = (projects || []).map((project) =>
+    const projectsWithMeta = (projects || []).map((project: any) =>
       formatProjectSummary(project, latestScanMap.get(project.id))
     );
 

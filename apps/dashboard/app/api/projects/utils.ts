@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { verifyJwt } from '@/lib/auth/tokens';
+import { getAdminClient } from '@/lib/supabase/admin';
 
 export const DEFAULT_PROJECT_LIMIT = 50;
 
@@ -42,6 +43,7 @@ export async function resolveUser(
         return {
           id: devsyncToken.sub,
           email: devsyncToken.email || '',
+          _authSource: 'devsync',
         } as any;
       }
 
@@ -69,6 +71,12 @@ export async function resolveUser(
   }
 
   return null;
+}
+
+export function dataClientForUser(user: any, sessionClient: any) {
+  return user?._authSource === 'devsync'
+    ? getAdminClient()
+    : sessionClient;
 }
 
 export function formatProjectSummary(project: any, latestScan?: any) {

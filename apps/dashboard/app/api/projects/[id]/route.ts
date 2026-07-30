@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import {
   buildCodebaseConfig,
+  dataClientForUser,
   formatProjectSummary,
   generateSlug,
   maskConnectionString,
@@ -50,12 +51,13 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { project, error } = await fetchProjectWithAccess(supabase, params.id, user.id);
+    const dataClient = dataClientForUser(user, supabase);
+    const { project, error } = await fetchProjectWithAccess(dataClient, params.id, user.id);
     if (error) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
-    const { data: latestScan } = await supabase
+    const { data: latestScan } = await dataClient
       .from('scan_reports')
       .select('id, status, created_at, mismatches')
       .eq('project_id', params.id)
@@ -94,7 +96,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { project, error } = await fetchProjectWithAccess(supabase, params.id, user.id);
+    const dataClient = dataClientForUser(user, supabase);
+    const { project, error } = await fetchProjectWithAccess(dataClient, params.id, user.id);
     if (error) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
@@ -146,7 +149,7 @@ export async function PATCH(
 
     updates.updated_at = new Date().toISOString();
 
-    const { data: updatedProject, error: updateError } = await supabase
+    const { data: updatedProject, error: updateError } = await dataClient
       .from('projects')
       .update(updates)
       .eq('id', params.id)
@@ -161,7 +164,7 @@ export async function PATCH(
       );
     }
 
-    const { data: latestScan } = await supabase
+    const { data: latestScan } = await dataClient
       .from('scan_reports')
       .select('id, status, created_at, mismatches')
       .eq('project_id', params.id)
@@ -200,12 +203,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { error } = await fetchProjectWithAccess(supabase, params.id, user.id);
+    const dataClient = dataClientForUser(user, supabase);
+    const { error } = await fetchProjectWithAccess(dataClient, params.id, user.id);
     if (error) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await dataClient
       .from('projects')
       .delete()
       .eq('id', params.id);
