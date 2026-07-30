@@ -35,12 +35,8 @@ export async function resolveUser(
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.replace('Bearer ', '').trim();
     if (token.length > 0) {
-      // Try Supabase JWT validation first
-      const { data: { user: tokenUser }, error } = await supabase.auth.getUser(token);
-      if (!error && tokenUser) {
-        return tokenUser;
-      }
-      
+      // Device-flow tokens are issued by Dev-Sync rather than Supabase. Verify
+      // them first so they are not unnecessarily sent to Supabase Auth.
       const devsyncToken = verifyJwt(token, 'access');
       if (devsyncToken) {
         return {
@@ -48,6 +44,18 @@ export async function resolveUser(
           email: devsyncToken.email || '',
         } as any;
       }
+
+      // Browser/API clients may provide a native Supabase access token.
+      const { data: { user: tokenUser }, error } = await supabase.auth.getUser(token);
+      if (!error && tokenUser) {
+        return tokenUser;
+      }
+
+      console.warn('Bearer authentication rejected', {
+        route: '/api/projects',
+        tokenSegments: token.split('.').length,
+        supabaseError: error?.message || null,
+      });
     }
   }
 
