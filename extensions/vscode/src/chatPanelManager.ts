@@ -119,7 +119,7 @@ export class ChatPanelManager {
 
   async logout() {
     await this.auth.logout();
-    this.sendInfo('Signed out of DevSync.');
+    this.sendInfo('Signed out of Dev-Sync.');
   }
 
   async newConversation() {
@@ -309,7 +309,7 @@ export class ChatPanelManager {
   private async sendAssistantResponse(query: string) {
     const session = this.auth.getSession();
     if (session.status !== 'authenticated') {
-      this.sendError('Sign in to DevSync to use chat.');
+      this.sendError('Sign in to Dev-Sync to use chat.');
       return;
     }
 
@@ -338,7 +338,7 @@ export class ChatPanelManager {
     try {
       const scan = await this.api.getLatestScanReport(projectId);
       if (!scan) {
-        throw new Error('No scan reports found. Run a DevSync scan first.');
+        throw new Error('No scan reports found. Run a Dev-Sync scan first.');
       }
 
       assistantMessage.metadata = {
@@ -361,7 +361,7 @@ export class ChatPanelManager {
       
       // Log model info to output channel (only show once per session)
       if (!this.view?.visible) {
-        const outputChannel = vscode.window.createOutputChannel('DevSync Chat');
+        const outputChannel = vscode.window.createOutputChannel('Dev-Sync Chat');
         outputChannel.appendLine(`🤖 AI Model: ${modelInfo.displayName} (${modelInfo.provider})`);
       }
       
@@ -446,7 +446,7 @@ export class ChatPanelManager {
 
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (!workspaceFolder) {
-      this.sendError('Open a workspace folder before running DevSync commands.');
+      this.sendError('Open a workspace folder before running Dev-Sync commands.');
       return;
     }
 

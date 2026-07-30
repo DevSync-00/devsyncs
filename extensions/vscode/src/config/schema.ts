@@ -78,7 +78,7 @@ export const CONFIG_SCHEMA: Record<keyof DevSyncConfig, ConfigProperty> = {
   apiUrl: {
     key: 'apiUrl',
     type: 'string',
-    default: 'https://dev-sync.dev',
+    default: 'https://www.dev-sync.dev',
     required: false,
     description: 'DevSync dashboard API URL',
     pattern: '^https?://.+',
@@ -111,7 +111,7 @@ export const CONFIG_SCHEMA: Record<keyof DevSyncConfig, ConfigProperty> = {
   analyzerUrl: {
     key: 'analyzerUrl',
     type: 'string',
-    default: 'https://dev-sync.dev',
+    default: 'https://www.dev-sync.dev',
     required: false,
     description: 'DevSync dashboard URL for device authentication (authentication endpoints are in the dashboard)',
     pattern: '^https?://.+',

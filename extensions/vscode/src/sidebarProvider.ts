@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { CliCommandResult } from './cliRunner';
-import { IAuthManager, ICliRunner } from './interfaces';
+import { IApiClient, IAuthManager, ICliRunner } from './interfaces';
 import { ScanReport, Mismatch } from './api';
 import { safeParseScanReport } from './types/validation';
 import { getScanResultsPath, getMigrationsDir, getFilesInDir, readJsonFile } from './utils/paths';
@@ -28,11 +28,19 @@ export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTr
   private enhancedProvider?: EnhancedSidebarProvider;
   private context?: vscode.ExtensionContext;
   private authManager?: IAuthManager;
+  private apiClient?: IApiClient;
+  private dashboardSync = 0;
 
-  constructor(cliRunner: ICliRunner, context?: vscode.ExtensionContext, authManager?: IAuthManager) {
+  constructor(
+    cliRunner: ICliRunner,
+    context?: vscode.ExtensionContext,
+    authManager?: IAuthManager,
+    apiClient?: IApiClient
+  ) {
     this.cliRunner = cliRunner;
     this.context = context;
     this.authManager = authManager;
+    this.apiClient = apiClient;
     if (context) {
       this.enhancedProvider = new EnhancedSidebarProvider(cliRunner, context);
       // Forward events from enhanced provider
@@ -45,6 +53,7 @@ export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTr
     }
     this.loadScanResults();
     this.loadMigrationHistory();
+    void this.syncDashboardState();
   }
 
   /**
@@ -94,6 +103,24 @@ export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTr
     this.loadScanResults();
     this.loadMigrationHistory();
     this._onDidChangeTreeData.fire();
+    void this.syncDashboardState();
+  }
+
+  private async syncDashboardState(): Promise<void> {
+    const sync = ++this.dashboardSync;
+    const projectId = vscode.workspace.getConfiguration('devsync').get<string>('projectId', '').trim();
+    if (!projectId || !this.apiClient || this.authManager?.getSession().status !== 'authenticated') {
+      return;
+    }
+    try {
+      const report = await this.apiClient.getLatestScanReport();
+      if (sync === this.dashboardSync && report) {
+        this.scanResults = report;
+        this._onDidChangeTreeData.fire();
+      }
+    } catch {
+      // Keep local results visible when the dashboard is temporarily unavailable.
+    }
   }
 
   getTreeItem(element: DevSyncTreeItem): vscode.TreeItem {
@@ -154,12 +181,12 @@ export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTr
       const authenticated = session?.status === 'authenticated';
       const items = [
         new DevSyncTreeItem(
-          authenticated ? 'Connected to DevSync' : session?.status === 'authenticating' ? 'Connecting to DevSync...' : 'Sign in to DevSync',
+          authenticated ? 'Connected to Dev-Sync' : session?.status === 'authenticating' ? 'Connecting to Dev-Sync...' : 'Sign in to Dev-Sync',
           vscode.TreeItemCollapsibleState.None,
           authenticated ? 'verified-filled' : session?.status === 'authenticating' ? 'loading~spin' : 'sign-in',
           authenticated ? undefined : {
             command: 'devsync.chat.login',
-            title: 'Sign in to DevSync',
+            title: 'Sign in to Dev-Sync',
             arguments: []
           },
           authenticated ? 'account-connected' : 'account-sign-in',
@@ -196,15 +223,16 @@ export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTr
 
     if (element.contextValue === 'project') {
       const projectId = vscode.workspace.getConfiguration('devsync').get<string>('projectId', '').trim();
+      const projectName = this.context?.workspaceState.get<string>('devsync.selectedProjectName');
       const items: DevSyncTreeItem[] = [
         projectId
           ? new DevSyncTreeItem(
-              'Connected Project',
+              projectName || 'Connected project',
               vscode.TreeItemCollapsibleState.None,
               'pass-filled',
               undefined,
               'project-connected',
-              projectId
+              projectName ? projectId : 'Connected to dashboard'
             )
           : new DevSyncTreeItem(
               'No project selected',
@@ -225,7 +253,7 @@ export class DevSyncSidebarProvider implements vscode.TreeDataProvider<DevSyncTr
           'project-create'
         ),
         new DevSyncTreeItem(
-          'Select Project',
+          projectId ? 'Switch Project' : 'Select Project',
           vscode.TreeItemCollapsibleState.None,
           'folder-opened',
           {

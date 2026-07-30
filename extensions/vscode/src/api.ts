@@ -239,11 +239,23 @@ export class DevSyncApiClient implements IApiClient {
    * Gets the current API URL, reading from config manager if available.
    */
   private getApiUrl(): string {
+    let value: string;
     if (this.configManager) {
       const config = this.configManager.getAll();
-      return config.apiUrl || this.apiUrl;
+      value = config.apiUrl || this.apiUrl;
+    } else {
+      value = this.apiUrl;
     }
-    return this.apiUrl;
+    const normalized = value.trim().replace(/\/+$/, '');
+    try {
+      const parsed = new URL(normalized);
+      if (parsed.hostname === 'dev-sync.dev') {
+        parsed.hostname = 'www.dev-sync.dev';
+      }
+      return parsed.toString().replace(/\/+$/, '');
+    } catch {
+      return normalized;
+    }
   }
 
   /**
@@ -366,7 +378,9 @@ export class DevSyncApiClient implements IApiClient {
   }
 
   getDashboardUrl(): string {
-    return `${this.getApiUrl()}/dashboard/projects/${this.projectId}`;
+    return this.projectId
+      ? `${this.getApiUrl()}/dashboard/projects/${this.projectId}`
+      : `${this.getApiUrl()}/dashboard`;
   }
 
   private normalizeScanReport(report: any): unknown {

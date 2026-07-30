@@ -397,7 +397,7 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
     <div
       ref={containerRef}
       style={{ width, height }}
-      className="relative overflow-hidden border border-border/40 rounded-xl bg-card select-none"
+      className="relative h-full overflow-hidden bg-[#070b12] select-none [background-image:radial-gradient(rgba(71,85,105,0.28)_1px,transparent_1px)] [background-size:20px_20px]"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -405,29 +405,29 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
       onWheel={handleWheel}
     >
       {/* Controls Overlay */}
-      <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5 p-1 bg-card/85 backdrop-blur border border-border/50 rounded-lg shadow-sm">
+      <div className="absolute bottom-3 right-3 z-10 flex items-center gap-0.5 rounded-md border border-slate-700/80 bg-slate-950/90 p-1 shadow-2xl backdrop-blur">
         <button
           onClick={handleZoomIn}
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-muted text-xs font-semibold"
+          className="flex h-7 w-7 items-center justify-center rounded text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-[#26B2F2]"
           title="Zoom In"
         >
           +
         </button>
         <button
           onClick={handleZoomOut}
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-muted text-xs font-semibold"
+          className="flex h-7 w-7 items-center justify-center rounded text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-[#26B2F2]"
           title="Zoom Out"
         >
           −
         </button>
         <button
           onClick={handleFitView}
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-muted text-[10px] font-medium"
+          className="flex h-7 items-center justify-center rounded px-2 font-mono text-[9px] font-medium text-slate-400 hover:bg-slate-800 hover:text-[#26B2F2]"
           title="Fit view"
         >
           Fit
         </button>
-        <div className="text-[9px] font-mono text-muted-foreground text-center pt-1 border-t">
+        <div className="border-l border-slate-800 px-2 font-mono text-[9px] text-slate-500">
           {Math.round(zoom * 100)}%
         </div>
       </div>
@@ -558,11 +558,10 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
               <rect
                 width={200}
                 height={150}
-                fill="hsl(var(--card))"
+                fill="#0d1421"
                 stroke={finalStrokeColor}
                 strokeWidth={finalStrokeWidth}
-                rx={8}
-                className="shadow-sm hover:shadow transition-shadow"
+                rx={5}
                 style={{ cursor: isCurrentDragging ? 'grabbing' : 'grab' }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -577,8 +576,8 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
                 y={1}
                 width={198}
                 height={28}
-                fill="hsl(var(--muted) / 0.4)"
-                rx={7}
+                fill="#111c2c"
+                rx={4}
                 style={{ pointerEvents: 'none' }}
               />
 
@@ -586,9 +585,9 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
               <text
                 x={100}
                 y={19}
-                fill="hsl(var(--foreground))"
+                fill="#e2e8f0"
                 fontSize={11}
-                fontWeight="semibold"
+                fontWeight="600"
                 textAnchor="middle"
                 style={{ pointerEvents: 'none' }}
               >
@@ -602,18 +601,18 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
                   key={col.name}
                   x={12}
                   y={46 + idx * 14}
-                  fill="hsl(var(--foreground))"
+                  fill="#cbd5e1"
                   fontSize={9}
                   style={{ pointerEvents: 'none' }}
                   className="font-mono"
                 >
-                  <tspan fill={col.primaryKey ? 'hsl(var(--accent))' : 'hsl(var(--muted-foreground))'}>
-                    {col.primaryKey ? '🔑' : '  '} 
+                  <tspan fill={col.primaryKey ? '#26B2F2' : '#64748b'} fontSize="7" fontWeight="700">
+                    {col.primaryKey ? 'PK ' : '   '}
                   </tspan>
                   <tspan fontWeight={col.primaryKey ? 'bold' : 'normal'}>
                     {col.name}
                   </tspan>
-                  <tspan fill="hsl(var(--muted-foreground))">
+                  <tspan fill="#64748b">
                     : {col.type}{col.nullable ? '?' : ''}
                   </tspan>
                 </text>
@@ -624,7 +623,7 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
                 <text
                   x={12}
                   y={46 + 7 * 14}
-                  fill="hsl(var(--muted-foreground))"
+                  fill="#64748b"
                   fontSize={8}
                   style={{ pointerEvents: 'none' }}
                   className="italic"

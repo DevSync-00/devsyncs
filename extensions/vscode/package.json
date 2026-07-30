@@ -2,7 +2,7 @@
   "name": "devsync",
   "displayName": "Dev-Sync Schema Guard",
   "description": "Detect database schema drift and review safer migration plans in Visual Studio Code.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "publisher": "Dev-sync",
   "icon": "resources/devsync-marketplace.png",
   "license": "MIT",
@@ -11,7 +11,7 @@
     "url": "https://github.com/DevSync-00/devsyncs.git",
     "directory": "extensions/vscode"
   },
-  "homepage": "https://dev-sync.dev",
+  "homepage": "https://www.dev-sync.dev",
   "bugs": {
     "url": "https://github.com/DevSync-00/devsyncs/issues"
   },
@@ -357,7 +357,7 @@
       "properties": {
         "devsync.apiUrl": {
           "type": "string",
-          "default": "https://dev-sync.dev",
+          "default": "https://www.dev-sync.dev",
           "description": "Dev-Sync dashboard API URL"
         },
         "devsync.apiKey": {
@@ -419,7 +419,7 @@
         },
         "devsync.analyzerUrl": {
           "type": "string",
-          "default": "https://dev-sync.dev",
+          "default": "https://www.dev-sync.dev",
           "description": "Dev-Sync dashboard URL for device authentication (authentication endpoints are in the dashboard, not a separate analyzer service)"
         }
       }

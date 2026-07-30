@@ -34,7 +34,7 @@ import { detectProjectInfo } from './utils/project-detector';
  * @see https://code.visualstudio.com/api/references/vscode-api#ExtensionContext
  */
 export async function activate(context: vscode.ExtensionContext) {
-  console.log('DevSync extension is now active!');
+  console.log('Dev-Sync extension is now active!');
 
   // Initialize startup optimizer first
   StartupOptimizer.initialize(context);
@@ -66,7 +66,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const requireProjectId = () => {
     const id = typeof platformApi.getProjectId === 'function' ? platformApi.getProjectId() : vscode.workspace.getConfiguration('devsync').get<string>('projectId');
-    if (!id) throw new Error('Select a DevSync dashboard project first.');
+    if (!id) throw new Error('Select a Dev-Sync dashboard project first.');
     return id;
   };
   const platformCommand = (id: string, callback: () => Promise<void>) => vscode.commands.registerCommand(id, async () => {
@@ -85,7 +85,7 @@ export async function activate(context: vscode.ExtensionContext) {
       const document = await vscode.workspace.openTextDocument({
         language: 'markdown',
         content: [
-          `# DevSync Change Plan v${version.version}`,
+          `# Dev-Sync Change Plan v${version.version}`,
           `**Status:** ${version.status}  ·  **Risk:** ${version.risk_score}/100  ·  **Confidence:** ${Math.round(Number(version.confidence) * 100)}%`,
           '', ...(version.steps || []).map((step: any) => `## ${step.phase}: ${step.title}\n${step.description}\n\nEvidence: ${(step.citations || []).join(', ')}`),
         ].join('\n'),
@@ -98,7 +98,7 @@ export async function activate(context: vscode.ExtensionContext) {
       const selected = await vscode.window.showQuickPick(['observe', 'warn', 'block'], { placeHolder: `Policy enforcement: ${policy?.enforcement || 'not enabled'}` });
       if (selected && policy) {
         await platformApi.platformRequest(`/api/projects/${requireProjectId()}/policies`, 'PATCH', { policyId: policy.id, enforcement: selected });
-        vscode.window.showInformationMessage(`DevSync policy changed to ${selected}.`);
+        vscode.window.showInformationMessage(`Dev-Sync policy changed to ${selected}.`);
       }
     }),
     platformCommand('devsync.platform.promotions', async () => {
@@ -126,7 +126,7 @@ export async function activate(context: vscode.ExtensionContext) {
         const result = await platformApi.platformRequest(`/api/promotions/${id}/execution`);
         const status = result.promotion.status;
         const percent = result.job?.progress?.percent || (status === 'deployed' ? 100 : 0);
-        promotionStatus.text = `${['queued', 'deploying'].includes(status) ? '$(sync~spin)' : status === 'deployed' ? '$(check)' : '$(error)'} DevSync: ${status} ${percent}%`;
+        promotionStatus.text = `${['queued', 'deploying'].includes(status) ? '$(sync~spin)' : status === 'deployed' ? '$(check)' : '$(error)'} Dev-Sync: ${status} ${percent}%`;
         promotionStatus.tooltip = result.job?.last_error || result.job?.progress?.stage || 'Promotion execution';
         active = ['queued', 'deploying'].includes(status);
         if (active) await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -229,7 +229,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const enhancedCodeActions = new DevSyncCodeActions(apiClient, diagnostics);
 
   // Initialize sidebar with enhanced features
-  const sidebarProvider = new DevSyncSidebarProvider(cliRunner, context, authManager);
+  const sidebarProvider = new DevSyncSidebarProvider(cliRunner, context, authManager, apiClient);
   const sidebarCommands = new SidebarCommands(sidebarProvider, cliRunner);
 
   // Register tree data provider for sidebar
@@ -461,7 +461,7 @@ export async function activate(context: vscode.ExtensionContext) {
       );
       if (choice) {
         sidebarProvider.setFilterPreset(choice.value as 'all' | 'errors' | 'warnings' | 'info');
-        vscode.window.showInformationMessage(`DevSync sidebar filter set to ${choice.label}`);
+        vscode.window.showInformationMessage(`Dev-Sync sidebar filter set to ${choice.label}`);
       }
     }
   );
@@ -474,10 +474,22 @@ export async function activate(context: vscode.ExtensionContext) {
   const chatLogoutCommand = vscode.commands.registerCommand('devsync.chat.logout', () => chatManager.logout());
   const selectProjectCommand = vscode.commands.registerCommand('devsync.selectProject', async () => {
     try {
-      const projects = await apiClient.listProjects();
+      if (authManager.getSession().status !== 'authenticated') {
+        await vscode.commands.executeCommand('devsync.chat.login');
+        if (authManager.getSession().status !== 'authenticated') return;
+      }
+
+      const projects = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: 'Dev-Sync: Loading projects',
+          cancellable: false,
+        },
+        () => apiClient.listProjects()
+      );
       if (projects.length === 0) {
         const action = await vscode.window.showInformationMessage(
-          'No DevSync projects are available for this account.',
+          'No Dev-Sync projects are available for this account.',
           'Open Dashboard'
         );
         if (action === 'Open Dashboard') {
@@ -486,27 +498,38 @@ export async function activate(context: vscode.ExtensionContext) {
         return;
       }
 
+      const currentProjectId = configManager.get('projectId');
       const selected = await vscode.window.showQuickPick(
         projects.map((project) => ({
-          label: project.name,
-          description: project.schemaType || project.schema_type || 'Project',
-          detail: project.id,
+          label: `${project.id === currentProjectId ? '$(check) ' : '$(database) '}${project.name}`,
+          description: project.schemaType || project.schema_type || 'database',
+          detail: project.id === currentProjectId
+            ? 'Currently connected to this workspace'
+            : `Connect ${project.name} to this workspace`,
           projectId: project.id,
+          projectName: project.name,
         })),
-        { placeHolder: 'Select the DevSync project for this workspace', matchOnDetail: true }
+        {
+          title: 'Dev-Sync projects',
+          placeHolder: 'Use ↑/↓ to choose a project, then press Enter',
+          matchOnDescription: true,
+          matchOnDetail: true,
+          ignoreFocusOut: true,
+        }
       );
       if (!selected) return;
 
       await configManager.update('projectId', selected.projectId, vscode.ConfigurationTarget.Workspace);
+      await context.workspaceState.update('devsync.selectedProjectName', selected.projectName);
       if (typeof (apiClient as any).setProjectId === 'function') {
         (apiClient as any).setProjectId(selected.projectId);
       }
       sidebarProvider.refresh();
-      await vscode.window.showInformationMessage(`DevSync project selected: ${selected.label}`);
+      await vscode.window.showInformationMessage(`Dev-Sync is connected to ${selected.projectName}.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const action = await vscode.window.showErrorMessage(
-        `Unable to load DevSync projects: ${message}`,
+        `Unable to load Dev-Sync projects: ${message}`,
         'Sign In'
       );
       if (action === 'Sign In') {
@@ -517,13 +540,13 @@ export async function activate(context: vscode.ExtensionContext) {
   const createProjectCommand = vscode.commands.registerCommand('devsync.createProject', async () => {
     const folder = vscode.workspace.workspaceFolders?.[0];
     if (!folder) {
-      await vscode.window.showErrorMessage('Open a project folder before creating a DevSync project.');
+      await vscode.window.showErrorMessage('Open a project folder before creating a Dev-Sync project.');
       return;
     }
 
     const detected = detectProjectInfo(folder.uri.fsPath);
     const name = await vscode.window.showInputBox({
-      title: 'Create DevSync Project',
+      title: 'Create Dev-Sync Project',
       prompt: 'Project name',
       value: detected.name,
       validateInput: (value) => value.trim() ? undefined : 'A project name is required',
@@ -532,7 +555,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     const schemaTypes = ['prisma', 'supabase', 'typeorm', 'kysely', 'sequelize', 'drizzle', 'django', 'sqlalchemy', 'raw-sql'];
     const schemaType = await vscode.window.showQuickPick(schemaTypes, {
-      title: 'Create DevSync Project',
+      title: 'Create Dev-Sync Project',
       placeHolder: 'Select the schema type',
       ...(detected.schemaType ? { activeItem: detected.schemaType } : {}),
     });
@@ -559,7 +582,7 @@ export async function activate(context: vscode.ExtensionContext) {
     if (localConfig.project.id) {
       await configManager.update('projectId', localConfig.project.id, vscode.ConfigurationTarget.Workspace);
       sidebarProvider.refresh();
-      await vscode.window.showInformationMessage(`DevSync project is already connected: ${name.trim()}`);
+      await vscode.window.showInformationMessage(`Dev-Sync project is already connected: ${name.trim()}`);
       return;
     }
 
@@ -576,7 +599,7 @@ export async function activate(context: vscode.ExtensionContext) {
         (apiClient as any).setProjectId(project.id);
       }
       sidebarProvider.refresh();
-      await vscode.window.showInformationMessage(`Created and connected DevSync project: ${project.name}`);
+      await vscode.window.showInformationMessage(`Created and connected Dev-Sync project: ${project.name}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const action = await vscode.window.showWarningMessage(
@@ -594,15 +617,15 @@ export async function activate(context: vscode.ExtensionContext) {
       return;
     }
     if (!(await cliRunner.checkCliAvailable())) {
-      await vscode.window.showErrorMessage('The DevSync CLI is required for offline scans. Install it with `npm install --global @dev-sync/cli`.');
+      await vscode.window.showErrorMessage('The Dev-Sync CLI is required for offline scans. Install it with `npm install --global @dev-sync/cli`.');
       return;
     }
     cliRunner.showOutput();
     const result = await cliRunner.executeCliCommand('scan', { local: true, format: 'table' });
     if (result.success) {
-      await vscode.window.showInformationMessage('DevSync local scan completed.');
+      await vscode.window.showInformationMessage('Dev-Sync local scan completed.');
     } else {
-      await vscode.window.showErrorMessage(`DevSync local scan failed: ${result.error || 'Unknown error'}`);
+      await vscode.window.showErrorMessage(`Dev-Sync local scan failed: ${result.error || 'Unknown error'}`);
     }
   });
   
@@ -707,7 +730,7 @@ export async function activate(context: vscode.ExtensionContext) {
       const config = vscode.workspace.getConfiguration('devsync');
       if (config.get<boolean>('aiAnalysis', false)) {
         const modelInfo = getModelInfoFromConfig(vscode);
-        const outputChannel = vscode.window.createOutputChannel('DevSync');
+        const outputChannel = vscode.window.createOutputChannel('Dev-Sync');
         outputChannel.appendLine(`🤖 Using AI Model: ${modelInfo.displayName}`);
         outputChannel.appendLine(`   Provider: ${modelInfo.provider} | Model: ${modelInfo.model}`);
         outputChannel.show(true);
@@ -890,7 +913,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // Show onboarding after a short delay to let extension fully initialize
     const onboardingTimeout = setTimeout(async () => {
       const shouldStart = await vscode.window.showInformationMessage(
-        'Welcome to DevSync! Would you like to run the setup wizard?',
+        'Welcome to Dev-Sync! Would you like to run the setup wizard?',
         'Start Setup',
         'Skip'
       );
@@ -967,7 +990,7 @@ export async function activate(context: vscode.ExtensionContext) {
  * - The extension is being reloaded (session persists - tokens are restored)
  */
 export function deactivate() {
-  console.log('DevSync extension is now deactivated!');
+  console.log('Dev-Sync extension is now deactivated!');
   // Cleanup is handled automatically through VS Code's subscription system
   // All disposables registered with context.subscriptions are automatically disposed
   // 

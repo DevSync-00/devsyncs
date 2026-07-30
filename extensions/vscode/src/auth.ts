@@ -370,7 +370,16 @@ export class AuthManager implements IAuthManager {
   }
 
   private normalizeUrl(url: string): string {
-    return url.replace(/\/$/, '');
+    const normalized = url.trim().replace(/\/+$/, '');
+    try {
+      const parsed = new URL(normalized);
+      if (parsed.hostname === 'dev-sync.dev') {
+        parsed.hostname = 'www.dev-sync.dev';
+      }
+      return parsed.toString().replace(/\/+$/, '');
+    } catch {
+      return normalized;
+    }
   }
 }
 
