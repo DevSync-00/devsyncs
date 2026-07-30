@@ -1,27 +1,16 @@
 # Change Log
 
-All notable changes to the DevSync VSCode Extension will be documented in this file.
+All notable changes to the Dev-Sync VS Code extension will be documented in this file.
 
-## [0.1.2] - 2026-07-23
-
-### Fixed
-- Added the DevSync logo to the VS Code Marketplace listing and installed extension details.
-- Reorganized the sidebar around account, project, scan, report, and migration workflows.
-
-## [0.1.1] - 2026-07-23
-
-### Fixed
-- Routed the sidebar scan and migration actions through the connected extension services.
-- Routed Initialize Project through the native project creation flow.
-- Stopped Marketplace installs from trying to build the CLI inside user workspaces.
-
-## [Unreleased]
+## [0.1.3] - 2026-07-29
 
 ### Changed
+- Standardized public branding as Dev-Sync and added cross-registry marketplace metadata.
+- Added Open VSX publication tooling for VS Code-compatible editors.
 - Added browser-based device sign-in backed by VS Code SecretStorage.
 - Added dashboard project discovery and workspace project selection.
 - Added local-first project creation with optional account synchronization.
-- Added an explicit offline scan command backed by the local DevSync CLI.
+- Added an explicit offline scan command backed by the local Dev-Sync CLI.
 - Defaulted dashboard links and API requests to `https://dev-sync.dev`.
 - Normalized dashboard scan responses for diagnostics and migration commands.
 - Added production packaging metadata, a Marketplace activity icon, and a minimized ERD webview bundle.
@@ -32,10 +21,23 @@ All notable changes to the DevSync VSCode Extension will be documented in this f
 - Registered command and view disposables for clean extension shutdown.
 - Made the Windows integration-test harness ignore inherited Electron Node mode.
 
+## [0.1.2] - 2026-07-23
+
+### Fixed
+- Added the Dev-Sync logo to the VS Code Marketplace listing and installed extension details.
+- Reorganized the sidebar around account, project, scan, report, and migration workflows.
+
+## [0.1.1] - 2026-07-23
+
+### Fixed
+- Routed the sidebar scan and migration actions through the connected extension services.
+- Routed Initialize Project through the native project creation flow.
+- Stopped Marketplace installs from trying to build the CLI inside user workspaces.
+
 ## [0.1.0] - 2024-11-01
 
 ### Added
-- Initial release of DevSync VSCode Extension
+- Initial release of Dev-Sync VSCode Extension
 - Schema scanning from VSCode
 - Inline diagnostics for schema mismatches
 - Quick fix code actions for common mismatches
@@ -49,7 +51,7 @@ All notable changes to the DevSync VSCode Extension will be documented in this f
 - **Scan Schema**: Scan Prisma schemas for mismatches
 - **Generate Migration**: Generate SQL migrations from mismatches
 - **View Report**: Open dashboard to view scan reports
-- **Open Dashboard**: Quick access to DevSync dashboard
+- **Open Dashboard**: Quick access to Dev-Sync dashboard
 - **Inline Diagnostics**: See mismatches directly in your code
 - **Quick Fixes**: Apply suggested fixes with one click
 - **Auto-scan**: Automatically scan on file save (configurable)

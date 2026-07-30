@@ -63,7 +63,7 @@ npm run build
 
 **Expected Output:**
 ```
-> @devsync/cli@0.1.0 build
+> @dev-sync/cli@0.1.0 build
 > tsc
 
 # No errors means success!

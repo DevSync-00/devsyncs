@@ -114,7 +114,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-      - run: npm install -g @devsync/cli
+      - run: npm install -g @dev-sync/cli
       - run: |
           devsync scan \
             --db ${{ secrets.DATABASE_URL }} \
@@ -127,7 +127,7 @@ jobs:
 devsync-scan:
   image: node:20
   script:
-    - npm install -g @devsync/cli
+    - npm install -g @dev-sync/cli
     - devsync scan --db $DATABASE_URL --json
   only:
     - merge_requests
@@ -141,7 +141,7 @@ jobs:
     docker:
       - image: cimg/node:20.0
     steps:
-      - run: npm install -g @devsync/cli
+      - run: npm install -g @dev-sync/cli
       - run: devsync scan --db $DATABASE_URL --json
 ```
 

@@ -333,7 +333,7 @@ export class EnhancedCliRunner {
     const cliPath = join(workspaceRoot, 'packages', 'cli', 'dist', 'index.js');
 
     if (!existsSync(cliPath)) {
-      const altPath = join(workspaceRoot, 'node_modules', '@devsync', 'cli', 'dist', 'index.js');
+      const altPath = join(workspaceRoot, 'node_modules', '@dev-sync', 'cli', 'dist', 'index.js');
       if (existsSync(altPath)) {
         return altPath;
       }

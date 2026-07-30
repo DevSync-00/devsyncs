@@ -144,7 +144,7 @@ function detectFromEnvFile(basePath: string): DetectedConnection | null {
 }
 
 /**
- * Detect connection string from DevSync config
+ * Detect connection string from Dev-Sync config
  */
 function detectFromConfig(basePath: string): DetectedConnection | null {
   const configPaths = [

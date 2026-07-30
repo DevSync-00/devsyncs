@@ -149,7 +149,7 @@ async function runDashboardScan(projectId: string, format: OutputFormat): Promis
   }
 
   const mismatchCount = report.mismatches?.length || 0;
-  console.log(chalk.green('Scan completed and saved to DevSync.'));
+  console.log(chalk.green('Scan completed and saved to Dev-Sync.'));
   console.log(chalk.gray(`Project: ${projectId}`));
   console.log(chalk.gray(`Report: ${report.id || report.scanId}`));
   console.log(chalk.gray(`Mismatches: ${mismatchCount}`));

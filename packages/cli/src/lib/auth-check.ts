@@ -46,7 +46,7 @@ export async function requireAuthenticatedCli(): Promise<AuthConfig> {
   const existing = await deps.loadAuthConfig();
 
   if (!existing) {
-    log(deps.chalk.red('❌ DevSync CLI is not logged in.'));
+    log(deps.chalk.red('❌ Dev-Sync CLI is not logged in.'));
     log(deps.chalk.gray('   Run `devsync login` to authenticate.\n'));
     process.exit(1);
   }

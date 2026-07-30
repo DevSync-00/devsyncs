@@ -594,7 +594,7 @@ export async function activate(context: vscode.ExtensionContext) {
       return;
     }
     if (!(await cliRunner.checkCliAvailable())) {
-      await vscode.window.showErrorMessage('The DevSync CLI is required for offline scans. Install it with `npm install --global @devsync/cli`.');
+      await vscode.window.showErrorMessage('The DevSync CLI is required for offline scans. Install it with `npm install --global @dev-sync/cli`.');
       return;
     }
     cliRunner.showOutput();

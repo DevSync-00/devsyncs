@@ -19,13 +19,13 @@ export async function authenticatedClient() {
 export async function selectProjectCommand(options: { path?: string }): Promise<void> {
   const projects = await (await authenticatedClient()).listProjects();
   if (projects.length === 0) {
-    console.log(chalk.yellow('No DevSync projects are available for this account.'));
+    console.log(chalk.yellow('No Dev-Sync projects are available for this account.'));
     console.log(chalk.gray('Create one with `devsync create`.'));
     return;
   }
 
   const selectedId = await promptSelect(
-    'Select a DevSync project:',
+    'Select a Dev-Sync project:',
     projects.map((project) => ({
       label: project.name,
       value: project.id,
@@ -45,11 +45,11 @@ export async function selectProjectCommand(options: { path?: string }): Promise<
 export async function projectsCommand(): Promise<void> {
   const projects = await (await authenticatedClient()).listProjects();
   if (projects.length === 0) {
-    console.log(chalk.yellow('No DevSync projects are available for this account.'));
+    console.log(chalk.yellow('No Dev-Sync projects are available for this account.'));
     return;
   }
 
-  console.log(chalk.blue('DevSync projects\n'));
+  console.log(chalk.blue('Dev-Sync projects\n'));
   for (const project of projects) {
     console.log(`${chalk.cyan(project.id)}  ${project.name}${project.teamId ? ' (team)' : ''}`);
   }
@@ -63,7 +63,7 @@ export async function linkProjectCommand(projectId: string, options: { path?: st
   const configPath = path.join(root, '.devsync', 'config.json');
   const config = await loadConfig(configPath);
   if (!config) {
-    throw new Error(`DevSync is not initialized at ${root}. Run devsync init first.`);
+    throw new Error(`Dev-Sync is not initialized at ${root}. Run devsync init first.`);
   }
 
   config.project.id = project.id;
@@ -103,7 +103,7 @@ export async function createProjectCommand(options: CreateProjectOptions): Promi
   config.project.name = name;
   config.project.schemaType = schemaType;
   await saveConfig(configPath, config);
-  console.log(chalk.green(`Created local DevSync project: ${name}`));
+  console.log(chalk.green(`Created local Dev-Sync project: ${name}`));
   console.log(chalk.gray(`Config: ${configPath}`));
 
   if (options.local) {
@@ -136,7 +136,7 @@ export async function createProjectCommand(options: CreateProjectOptions): Promi
     config.project.name = project.name;
     config.project.schemaType = project.schemaType || schemaType;
     await saveConfig(configPath, config);
-    console.log(chalk.green(`Connected to DevSync project: ${project.name}`));
+    console.log(chalk.green(`Connected to Dev-Sync project: ${project.name}`));
     console.log(chalk.gray(`Project ID: ${project.id}`));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

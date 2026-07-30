@@ -9,7 +9,7 @@ const PLACEHOLDER_HOSTS = new Set([
 ]);
 
 /**
- * Resolve the DevSync dashboard base URL from environment variables.
+ * Resolve the Dev-Sync dashboard base URL from environment variables.
  * Ignores placeholder strings like "undefined" that often appear in .env templates.
  */
 export function resolveDashboardUrl(): string {

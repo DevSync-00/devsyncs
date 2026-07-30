@@ -40,7 +40,7 @@ test('logoutCommand removes the saved session', async () => {
     });
     await logoutCommand();
     await sessionCommand();
-    assert.match(capture.lines.join('\n'), /Signed out of DevSync/);
+    assert.match(capture.lines.join('\n'), /Signed out of Dev-Sync/);
     assert.match(capture.lines.join('\n'), /Not signed in/);
   } finally {
     capture.restore();

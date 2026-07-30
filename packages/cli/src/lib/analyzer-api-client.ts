@@ -50,7 +50,7 @@ function enhanceConnectionError(error: Error, baseUrl: string): Error {
     message.includes('ECONNRESET')
   ) {
     return new Error(
-      `${message}. Ensure the DevSync dashboard is running at ${baseUrl}. ` +
+      `${message}. Ensure the Dev-Sync dashboard is running at ${baseUrl}. ` +
       'Check that the dashboard is started and accessible.'
     );
   }
@@ -102,7 +102,7 @@ export class AnalyzerApiClient {
           // Provide actionable error messages
           if (response.status === 503 || response.status === 502) {
             throw new Error(
-              `${errorMessage}. Ensure the DevSync dashboard is running at ${this.baseUrl}. ` +
+              `${errorMessage}. Ensure the Dev-Sync dashboard is running at ${this.baseUrl}. ` +
               'Check that the dashboard is started and accessible.'
             );
           }
@@ -291,7 +291,7 @@ export class AnalyzerApiClient {
 
           if (response.status === 503 || response.status === 502) {
             throw new Error(
-              `${errorMessage}. Ensure the DevSync dashboard is running at ${this.baseUrl}.`
+              `${errorMessage}. Ensure the Dev-Sync dashboard is running at ${this.baseUrl}.`
             );
           }
 

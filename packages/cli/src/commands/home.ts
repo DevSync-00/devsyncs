@@ -55,7 +55,7 @@ export async function homeCommand(root = process.cwd()): Promise<void> {
     printHome(state);
     const action = await promptSelect<HomeAction>('Choose what to do:', [
       {
-        label: state.authenticated ? 'View account' : 'Sign in to DevSync',
+        label: state.authenticated ? 'View account' : 'Sign in to Dev-Sync',
         value: 'account',
         description: state.authenticated ? state.userId || 'Connected' : 'Connect this CLI to your account',
       },
@@ -68,7 +68,7 @@ export async function homeCommand(root = process.cwd()): Promise<void> {
       ...(state.authenticated
         ? [{ label: 'Sign out', value: 'logout' as const, description: 'Remove this CLI session' }]
         : []),
-      { label: 'Exit', value: 'exit', description: 'Close DevSync' },
+      { label: 'Exit', value: 'exit', description: 'Close Dev-Sync' },
     ]);
 
     if (!action || action === 'exit') return;
@@ -99,7 +99,7 @@ export async function homeCommand(root = process.cwd()): Promise<void> {
 }
 
 function printHome(state: HomeState): void {
-  console.log(chalk.blue.bold('\nDevSync Schema Guard'));
+  console.log(chalk.blue.bold('\nDev-Sync Schema Guard'));
   console.log(chalk.gray('Account  ->  Project  ->  Scan  ->  Report  ->  Migration\n'));
   console.log(`${chalk.gray('Account:')} ${state.authenticated ? chalk.green(state.userId || 'Connected') : chalk.yellow('Not signed in')}`);
   console.log(`${chalk.gray('Project:')} ${state.projectId ? chalk.green(state.projectName || state.projectId) : chalk.yellow('Not selected')}`);

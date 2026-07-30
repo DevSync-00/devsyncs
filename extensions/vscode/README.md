@@ -1,37 +1,37 @@
-# DevSync for VS Code
+# Dev-Sync for VS Code
 
-Run DevSync schema scans, review drift, and generate migrations without leaving VS Code.
+Run Dev-Sync schema scans, review drift, and generate migrations without leaving your editor.
 
 ## Requirements
 
 - VS Code 1.80 or newer
-- A DevSync account at https://dev-sync.dev
-- A dashboard project with a configured repository and database connection
-- `@devsync/cli` installed globally when using offline scans
+- A Dev-Sync account at https://dev-sync.dev
+- A Dev-Sync dashboard project with a configured repository and database connection
+- `@dev-sync/cli` installed globally when using offline scans
 
 ## Getting started
 
-1. Run **DevSync: Sign In to DevSync** from the Command Palette.
+1. Run **Dev-Sync: Sign In to Dev-Sync** from the Command Palette.
 2. Complete browser device authorization.
-3. Open the repository associated with a DevSync dashboard project.
-4. Run **DevSync: Select Dashboard Project** and choose the project for this workspace.
-5. Run **DevSync: Scan Schema**.
+3. Open the repository associated with a Dev-Sync dashboard project.
+4. Run **Dev-Sync: Select Dashboard Project** and choose the project for this workspace.
+5. Run **Dev-Sync: Scan Schema**.
 
-Run **DevSync: Create Project** to create one without leaving VS Code. The extension writes a read-only `.devsync/config.json` first, then synchronizes the project to your account when signed in. Local configuration and scanning remain available if the service is offline.
+Run **Dev-Sync: Create Project** to create one without leaving VS Code. The extension writes a read-only `.devsync/config.json` first, then synchronizes the project to your account when signed in. Local configuration and scanning remain available if the service is offline.
 
 The selected project ID is stored in workspace settings. Access and refresh tokens are stored in VS Code SecretStorage and are never written to workspace configuration.
 
 ## Commands
 
-- **DevSync: Sign In to DevSync**
-- **DevSync: Sign Out of DevSync**
-- **DevSync: Select Dashboard Project**
-- **DevSync: Create Project**
-- **DevSync: Scan Schema**
-- **DevSync: Scan Locally (Offline)**
-- **DevSync: View Scan Report**
-- **DevSync: Generate Migration**
-- **DevSync: Open Dashboard**
+- **Dev-Sync: Sign In to Dev-Sync**
+- **Dev-Sync: Sign Out of Dev-Sync**
+- **Dev-Sync: Select Dashboard Project**
+- **Dev-Sync: Create Project**
+- **Dev-Sync: Scan Schema**
+- **Dev-Sync: Scan Locally (Offline)**
+- **Dev-Sync: View Scan Report**
+- **Dev-Sync: Generate Migration**
+- **Dev-Sync: Open Dashboard**
 
 ## Settings
 
@@ -65,7 +65,7 @@ Press `F5` from the extension project to open an Extension Development Host.
 - Authentication tokens use VS Code SecretStorage.
 - Project access is enforced by the dashboard API for every request.
 - Database credentials are not sent from the extension during cloud scans.
-- Signing out removes the locally stored DevSync session.
+- Signing out removes the locally stored Dev-Sync session.
 
 Privacy policy: https://dev-sync.dev/privacy
 

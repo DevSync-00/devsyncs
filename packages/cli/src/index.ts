@@ -31,7 +31,7 @@ program
   .command('plan')
   .description('View or generate an evidence-backed change plan')
   .option('-p, --path <path>', 'Project path', process.cwd())
-  .option('--project <id>', 'DevSync project ID')
+  .option('--project <id>', 'Dev-Sync project ID')
   .option('--generate', 'Generate a new immutable plan')
   .option('--objective <text>', 'Optional plan objective')
   .option('--json', 'Machine-readable output')
@@ -41,7 +41,7 @@ program
   .command('policy')
   .description('View or update the project safety policy')
   .option('-p, --path <path>', 'Project path', process.cwd())
-  .option('--project <id>', 'DevSync project ID')
+  .option('--project <id>', 'Dev-Sync project ID')
   .option('--enforcement <mode>', 'observe|warn|block')
   .option('--json', 'Machine-readable output')
   .action(policyCommand);
@@ -50,7 +50,7 @@ program
   .command('promote')
   .description('Plan, approve, execute, monitor, or cancel a controlled promotion')
   .option('-p, --path <path>', 'Project path', process.cwd())
-  .option('--project <id>', 'DevSync project ID')
+  .option('--project <id>', 'Dev-Sync project ID')
   .option('--target <environment-id>', 'Create a plan for an environment')
   .option('--migration <id>', 'Migration to promote')
   .option('--approve <promotion-id>', 'Record an approval')
@@ -64,7 +64,7 @@ program
 
 program
   .command('init')
-  .description('Initialize DevSync configuration with safe defaults')
+  .description('Initialize Dev-Sync configuration with safe defaults')
   .option('-p, --path <path>', 'Project path to initialize (default: current directory)', process.cwd())
   .option('--wizard', 'Interactive wizard to capture optional config (safe defaults)', false)
   .action(initCommand);
@@ -79,35 +79,35 @@ program
   .option('--allow-db-writes', 'Allow DB writes (blocked in Phase 1)', false)
   .option('-y, --yes', 'Auto-approve prompts within safe envelope', false)
   .option('--guided', 'Interactive prompts for scan steps (still read-only)', false)
-  .option('--project <id>', 'Scan a specific DevSync dashboard project')
-  .option('--config <path>', 'Path to DevSync config file')
+  .option('--project <id>', 'Scan a specific Dev-Sync dashboard project')
+  .option('--config <path>', 'Path to Dev-Sync config file')
   .option('--local', 'Run only the local offline scanner', false)
   .action(scanCommand);
 
 program
   .command('projects')
-  .description('List projects available to the signed-in DevSync account')
+  .description('List projects available to the signed-in Dev-Sync account')
   .action(projectsCommand);
 
 program
   .command('select')
-  .description('Select and link a DevSync dashboard project')
+  .description('Select and link a Dev-Sync dashboard project')
   .option('-p, --path <path>', 'Project path (default: current directory)', process.cwd())
   .action(selectProjectCommand);
 
 program
   .command('create')
-  .description('Create a local project and connect it to DevSync when signed in')
+  .description('Create a local project and connect it to Dev-Sync when signed in')
   .option('-p, --path <path>', 'Project path (default: current directory)', process.cwd())
   .option('-n, --name <name>', 'Project name (auto-detected by default)')
   .option('-s, --schema-type <type>', 'Schema type (auto-detected by default)')
-  .option('--team <id>', 'Optional DevSync team ID')
+  .option('--team <id>', 'Optional Dev-Sync team ID')
   .option('--local', 'Create only the local project without synchronizing', false)
   .action(createProjectCommand);
 
 program
   .command('link <projectId>')
-  .description('Link the current workspace to a DevSync dashboard project')
+  .description('Link the current workspace to a Dev-Sync dashboard project')
   .option('-p, --path <path>', 'Project path (default: current directory)', process.cwd())
   .action(linkProjectCommand);
 
@@ -117,14 +117,14 @@ program
   .option('-p, --path <path>', 'Project path (default: current directory)', process.cwd())
   .option('--format <format>', 'Output format: json|table', 'table')
   .option('-d, --db <connection>', 'Database connection string (optional, for conflict detection)')
-  .option('--config <path>', 'Path to DevSync config file', '.devsync/config.json')
+  .option('--config <path>', 'Path to Dev-Sync config file', '.devsync/config.json')
   .action(statusCommand);
 
 program
   .command('report')
   .description('View the latest schema report for the selected project')
   .option('-p, --path <path>', 'Project path (default: current directory)', process.cwd())
-  .option('--project <id>', 'View a specific DevSync project')
+  .option('--project <id>', 'View a specific Dev-Sync project')
   .option('--format <format>', 'Output format: json|table', 'table')
   .action(reportCommand);
 
@@ -133,7 +133,7 @@ program
   .description('Generate AI-powered fix plan with migrations (preview-only by default)')
   .option('-p, --path <path>', 'Codebase path (default: current directory)', process.cwd())
   .option('-d, --db <connection>', 'Database connection string (required)')
-  .option('--config <path>', 'Path to DevSync config file', '.devsync/config.json')
+  .option('--config <path>', 'Path to Dev-Sync config file', '.devsync/config.json')
   .option('--format <format>', 'Output format: json|table', 'table')
   .option('--output <path>', 'Save migration SQL to file path')
   .option('--include-low-risk', 'Include low-risk conflicts in fix plan', false)
@@ -166,7 +166,7 @@ program
   .description('Generate migration plan from code/database schema differences')
   .option('-p, --path <path>', 'Codebase path (default: current directory)', process.cwd())
   .option('-d, --db <connection>', 'Database connection string (required)')
-  .option('--config <path>', 'Path to DevSync config file', '.devsync/config.json')
+  .option('--config <path>', 'Path to Dev-Sync config file', '.devsync/config.json')
   .option('--output <path>', 'Write generated migration SQL to file')
   .option('--format <format>', 'Output format: sql|prisma', 'sql')
   .option('--dry-run', 'Preview migration without applying', true)
@@ -182,12 +182,12 @@ program
 
 program
   .command('logout')
-  .description('Remove the saved DevSync CLI session from this computer')
+  .description('Remove the saved Dev-Sync CLI session from this computer')
   .action(logoutCommand);
 
 program
   .command('whoami')
-  .description('Show the current DevSync CLI session')
+  .description('Show the current Dev-Sync CLI session')
   .action(sessionCommand);
 
 program
@@ -198,7 +198,7 @@ program
 
 await program.parseAsync().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
-  console.error(`DevSync error: ${message}`);
+  console.error(`Dev-Sync error: ${message}`);
   process.exitCode = 1;
 });
 

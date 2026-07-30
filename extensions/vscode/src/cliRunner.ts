@@ -44,13 +44,13 @@ export class CliRunner implements ICliRunner {
     // Check if CLI is built
     if (!existsSync(cliPath)) {
       // Try alternative path (if CLI is installed globally or in node_modules)
-      const altPath = join(workspaceRoot, 'node_modules', '@devsync', 'cli', 'dist', 'index.js');
+      const altPath = join(workspaceRoot, 'node_modules', '@dev-sync', 'cli', 'dist', 'index.js');
       if (existsSync(altPath)) {
         return altPath;
       }
       const npmPrefix = process.env.APPDATA;
       if (npmPrefix) {
-        const globalPath = join(npmPrefix, 'npm', 'node_modules', '@devsync', 'cli', 'dist', 'index.js');
+        const globalPath = join(npmPrefix, 'npm', 'node_modules', '@dev-sync', 'cli', 'dist', 'index.js');
         if (existsSync(globalPath)) {
           return globalPath;
         }

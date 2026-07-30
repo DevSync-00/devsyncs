@@ -99,7 +99,7 @@ test('AnalyzerApiClient.startDeviceFlow provides helpful error on service unavai
 
   await assert.rejects(
     () => client.startDeviceFlow('cli'),
-    /Ensure the DevSync dashboard is running/
+    /Ensure the Dev-Sync dashboard is running/
   );
 });
 

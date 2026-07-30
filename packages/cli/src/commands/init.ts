@@ -12,7 +12,7 @@ export async function initCommand(options: InitOptions) {
 
     // Check if already initialized
     if (existsSync(configFile)) {
-      console.log(chalk.yellow('⚠️  DevSync is already initialized in this project'));
+      console.log(chalk.yellow('⚠️  Dev-Sync is already initialized in this project'));
       console.log(chalk.gray(`   Config file: ${configFile}\n`));
       return;
     }
@@ -97,7 +97,7 @@ export async function initCommand(options: InitOptions) {
 
     writeFileSync(configFile, JSON.stringify(defaultConfig, null, 2));
 
-    console.log(chalk.green('✅ DevSync initialized successfully!\n'));
+    console.log(chalk.green('✅ Dev-Sync initialized successfully!\n'));
     console.log(chalk.gray(`📁 Config file created: ${configFile}\n`));
     console.log(chalk.blue('📝 Next steps:'));
     console.log(chalk.gray('  1. Edit .devsync/config.json and set database.connectionString if desired'));

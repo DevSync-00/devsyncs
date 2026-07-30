@@ -269,9 +269,9 @@ You want to check for schema mismatches in your CI/CD pipeline.
 #### 1. Install DevSync CLI
 
 ```bash
-npm install -g @devsync/cli
+npm install -g @dev-sync/cli
 # or
-yarn global add @devsync/cli
+yarn global add @dev-sync/cli
 ```
 
 #### 2. Configure Environment Variables
@@ -302,7 +302,7 @@ jobs:
           node-version: '18'
       
       - name: Install DevSync CLI
-        run: npm install -g @devsync/cli
+        run: npm install -g @dev-sync/cli
       
       - name: Run Schema Scan
         run: devsync scan --db ${{ secrets.DATABASE_URL }} --fail-on-mismatch
@@ -315,7 +315,7 @@ jobs:
 ```yaml
 schema-check:
   script:
-    - npm install -g @devsync/cli
+    - npm install -g @dev-sync/cli
     - devsync scan --db $DATABASE_URL --fail-on-mismatch
   only:
     - merge_requests

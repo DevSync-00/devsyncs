@@ -14,7 +14,7 @@ const execAsync = promisify(exec);
 export async function open(url: string): Promise<void> {
   if (!url || url.includes('undefined') || url.includes('null/')) {
     throw new Error(
-      `Invalid URL "${url}". Set DASHBOARD_URL to your DevSync dashboard (e.g. http://localhost:3000).`
+      `Invalid URL "${url}". Set DASHBOARD_URL to your Dev-Sync dashboard (e.g. http://localhost:3000).`
     );
   }
 

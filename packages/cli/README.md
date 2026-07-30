@@ -1,17 +1,17 @@
-# DevSync CLI
+# Dev-Sync CLI
 
-Run DevSync schema scans from a terminal and store the results in the DevSync dashboard.
+Run Dev-Sync schema scans from a terminal and store the results in the Dev-Sync dashboard.
 
 ## Requirements
 
 - Node.js 20 or newer
-- A DevSync account at https://dev-sync.dev
+- A Dev-Sync account at https://dev-sync.dev
 - A dashboard project with a configured repository and database connection
 
 ## Install
 
 ```bash
-npm install --global @devsync/cli
+npm install --global @dev-sync/cli
 ```
 
 ## Dashboard workflow
@@ -24,7 +24,7 @@ devsync
 
 The terminal flow follows the dashboard:
 
-1. Sign in to DevSync
+1. Sign in to Dev-Sync
 2. Create a project or select an existing project
 3. Scan the connected schema
 4. Review the latest report
@@ -41,7 +41,7 @@ devsync report
 devsync migrate --db postgresql://...
 ```
 
-`devsync login` uses browser device authorization. `devsync create` creates a local project first and synchronizes it when you are signed in; use `devsync create --local` to deliberately remain offline. `devsync select` presents projects as a numbered list and links the chosen project to the current workspace. `devsync link <project-id>` remains available for scripts. Authentication credentials remain in the user-level DevSync configuration directory.
+`devsync login` uses browser device authorization. `devsync create` creates a local project first and synchronizes it when you are signed in; use `devsync create --local` to deliberately remain offline. `devsync select` presents projects as a numbered list and links the chosen project to the current workspace. `devsync link <project-id>` remains available for scripts. Authentication credentials remain in the user-level Dev-Sync configuration directory.
 
 The linked `devsync scan` runs the same server-side scanner as the dashboard and saves the report to the selected project. `devsync report` retrieves and displays its latest report.
 
@@ -62,7 +62,7 @@ devsync logout
 
 ## Configuration
 
-DevSync creates `.devsync/config.json` in a linked workspace:
+Dev-Sync creates `.devsync/config.json` in a linked workspace:
 
 ```json
 {

@@ -50,7 +50,7 @@ test('AnalyzerApiClient surfaces analyzer hint on repeated failures', async () =
 
   await assert.rejects(
     () => client.startDeviceFlow('cli'),
-    /Ensure the DevSync dashboard is running/
+    /Ensure the Dev-Sync dashboard is running/
   );
 });
 

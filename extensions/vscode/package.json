@@ -1,11 +1,24 @@
 {
   "name": "devsync",
-  "displayName": "DevSync Schema Guard",
+  "displayName": "Dev-Sync Schema Guard",
   "description": "Detect database schema drift and review safer migration plans in Visual Studio Code.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "Dev-sync",
   "icon": "resources/devsync-marketplace.png",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DevSync-00/devsyncs.git",
+    "directory": "extensions/vscode"
+  },
+  "homepage": "https://dev-sync.dev",
+  "bugs": {
+    "url": "https://github.com/DevSync-00/devsyncs/issues"
+  },
+  "galleryBanner": {
+    "color": "#26B2F2",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -40,13 +53,13 @@
       "devsync": [
         {
           "id": "devsyncSidebar",
-          "name": "DevSync",
+          "name": "Dev-Sync",
           "when": "workspaceFolderCount > 0"
         },
         {
           "type": "webview",
           "id": "devsyncChat",
-          "name": "DevSync Chat",
+          "name": "Dev-Sync Chat",
           "when": "workspaceFolderCount > 0"
         }
       ]
@@ -55,7 +68,7 @@
       "activitybar": [
         {
           "id": "devsync",
-          "title": "DevSync",
+          "title": "Dev-Sync",
           "icon": "resources/devsync.svg"
         }
       ]
@@ -64,94 +77,94 @@
       {
         "command": "devsync.scan",
         "title": "Scan Schema",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.scanLocal",
         "title": "Scan Locally (Offline)",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.generateMigration",
         "title": "Generate Migration",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.viewReport",
         "title": "View Scan Report",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.openDashboard",
         "title": "Open Dashboard",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.selectProject",
         "title": "Select Dashboard Project",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(folder-opened)"
       },
       {
         "command": "devsync.createProject",
         "title": "Create Project",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(new-folder)"
       },
       {
         "command": "devsync.applyFix",
         "title": "Apply Fix",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.previewFix",
         "title": "Preview Fix",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.showDiff",
         "title": "Show Diff",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.batchApplyFixes",
         "title": "Apply All Fixes",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.previewMigrationImpact",
         "title": "Preview Migration Impact",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.showSchemaComparison",
         "title": "Show Schema Comparison",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.showMigrationHistory",
         "title": "Show Migration History",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.showStatus",
         "title": "Show Schema Status",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.fix",
         "title": "Propose Fixes",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.status",
         "title": "Check Schema Status",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.apply",
         "title": "Apply Fixes (Blocked)",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.sidebar.scan",
@@ -191,19 +204,19 @@
       {
         "command": "devsync.openERD",
         "title": "Open ER Diagram",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(graph)"
       },
       {
         "command": "devsync.captureSchemaSnapshot",
         "title": "Capture Schema Snapshot",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(camera)"
       },
       {
         "command": "devsync.captureSchemaFromDatabase",
         "title": "Capture Schema from Database",
-        "category": "DevSync"
+        "category": "Dev-Sync"
       },
       {
         "command": "devsync.sidebar.viewFix",
@@ -238,125 +251,125 @@
       },
       {
         "command": "devsync.chat.focus",
-        "title": "Focus DevSync Chat",
-        "category": "DevSync",
+        "title": "Focus Dev-Sync Chat",
+        "category": "Dev-Sync",
         "icon": "$(comment-discussion)"
       },
       {
         "command": "devsync.chat.newConversation",
         "title": "New Chat Conversation",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(add)"
       },
       {
         "command": "devsync.chat.login",
-        "title": "Sign In to DevSync",
-        "category": "DevSync",
+        "title": "Sign In to Dev-Sync",
+        "category": "Dev-Sync",
         "icon": "$(account)"
       },
       {
         "command": "devsync.chat.logout",
-        "title": "Sign Out of DevSync",
-        "category": "DevSync",
+        "title": "Sign Out of Dev-Sync",
+        "category": "Dev-Sync",
         "icon": "$(sign-out)"
       },
       {
         "command": "devsync.onboarding.start",
         "title": "Start Onboarding",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(play)"
       },
       {
         "command": "devsync.onboarding.restart",
         "title": "Restart Onboarding",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(refresh)"
       },
       {
         "command": "devsync.onboarding.quickStart",
         "title": "Quick Start Template",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(rocket)"
       },
       {
         "command": "devsync.platform.showPlan",
         "title": "Show Evidence-backed Change Plan",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(list-ordered)"
       },
       {
         "command": "devsync.platform.showPolicies",
         "title": "View or Change Safety Policy",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(shield)"
       },
       {
         "command": "devsync.platform.promotions",
         "title": "Plan Environment Promotion",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(rocket)"
       },
       {
         "command": "devsync.platform.monitorPromotion",
         "title": "Monitor Promotion",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(pulse)"
       },
       {
         "command": "devsync.platform.approvePromotion",
         "title": "Approve Promotion",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(verified)"
       },
       {
         "command": "devsync.platform.executePromotion",
         "title": "Execute Approved Promotion",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(run-all)"
       },
       {
         "command": "devsync.platform.cancelPromotion",
         "title": "Cancel Promotion",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(debug-stop)"
       },
       {
         "command": "devsync.queue.pause",
         "title": "Pause Task Queue",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(debug-pause)"
       },
       {
         "command": "devsync.queue.resume",
         "title": "Resume Task Queue",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(play)"
       },
       {
         "command": "devsync.undoLast",
         "title": "Undo Last Operation",
-        "category": "DevSync",
+        "category": "Dev-Sync",
         "icon": "$(discard)"
       }
     ],
     "configuration": {
-      "title": "DevSync",
+      "title": "Dev-Sync",
       "properties": {
         "devsync.apiUrl": {
           "type": "string",
           "default": "https://dev-sync.dev",
-          "description": "DevSync dashboard API URL"
+          "description": "Dev-Sync dashboard API URL"
         },
         "devsync.apiKey": {
           "type": "string",
           "default": "",
-          "description": "Legacy API token override. Prefer DevSync: Sign In to store credentials securely.",
-          "deprecationMessage": "Use DevSync: Sign In to store credentials in VS Code SecretStorage."
+          "description": "Legacy API token override. Prefer Dev-Sync: Sign In to store credentials securely.",
+          "deprecationMessage": "Use Dev-Sync: Sign In to store credentials in VS Code SecretStorage."
         },
         "devsync.projectId": {
           "type": "string",
           "default": "",
-          "description": "DevSync project ID"
+          "description": "Dev-Sync project ID"
         },
         "devsync.databaseConnection": {
           "type": "string",
@@ -407,7 +420,7 @@
         "devsync.analyzerUrl": {
           "type": "string",
           "default": "https://dev-sync.dev",
-          "description": "DevSync dashboard URL for device authentication (authentication endpoints are in the dashboard, not a separate analyzer service)"
+          "description": "Dev-Sync dashboard URL for device authentication (authentication endpoints are in the dashboard, not a separate analyzer service)"
         }
       }
     },
@@ -482,7 +495,7 @@
     "compile-tests": "tsc -p ./tsconfig.test.json",
     "test": "node ./out/test/runTest.js",
     "test-watch": "npm run compile; npm run test",
-    "lint": "eslint src",
+    "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint -c .eslintrc.ci.json src",
     "lint:fix": "eslint src --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
@@ -491,7 +504,8 @@
     "docs:watch": "typedoc --watch",
     "package": "npm run compile && vsce package",
     "package:check": "npm run compile && vsce ls",
-    "publish": "vsce publish"
+    "publish": "vsce publish",
+    "publish:openvsx": "ovsx publish"
   },
   "devDependencies": {
     "@types/glob": "^8.0.0",
@@ -505,6 +519,9 @@
     "@typescript-eslint/parser": "^7.18.0",
     "@vscode/test-electron": "^2.3.0",
     "@vscode/vsce": "^3.6.0",
+    "cross-env": "^7.0.3",
+    "ovsx": "^0.10.7",
+    "prettier": "^3.6.2",
     "dompurify": "^3.3.4",
     "eslint": "^8.57.0",
     "eslint-plugin-import": "^2.31.0",

@@ -96,9 +96,9 @@ vsce publish
 ```
 (It will prompt you for the token)
 
-**Option C: Publish to Open VSX (Alternative marketplace)**
+**Option C: Publish to Open VSX (Cursor, Antigravity, and compatible editors)**
 ```bash
-vsce publish -p <your-token> --registry https://open-vsx.org
+npx ovsx publish devsync-<version>.vsix -p <your-open-vsx-token>
 ```
 
 ### Step 7: Verify Publication

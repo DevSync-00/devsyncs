@@ -54,16 +54,21 @@ This creates a `.vsix` file (e.g., `devsync-0.1.0.vsix`).
    vsce publish -p <your-personal-access-token>
    ```
 
-### Option 2: Open VSX Registry (Alternative)
+### Option 2: Open VSX Registry (Cursor, Antigravity, and other compatible editors)
 
 1. **Create Account**:
    - Go to: https://open-vsx.org/
-   - Sign up for an account
+   - Sign in with GitHub and create an access token
+   - Claim or create the `Dev-sync` namespace
 
 2. **Publish**:
    ```bash
-   vsce publish -p <your-token> --registry https://open-vsx.org
+   npx ovsx publish devsync-<version>.vsix -p <your-open-vsx-token>
    ```
+
+The VS Code Marketplace and Open VSX are separate registries. Publish the
+exact same VSIX and version to both so VS Code and compatible editors receive
+identical code.
 
 ## Manual Installation (for Testing)
 

@@ -73,7 +73,7 @@ export async function loginCommand(): Promise<void> {
   const logError = (...args: unknown[]) => console.error(...args);
 
   try {
-    log(chalk.blue('🔐 Starting DevSync CLI authentication...\n'));
+    log(chalk.blue('🔐 Starting Dev-Sync CLI authentication...\n'));
 
     const dashboardUrl = resolveDashboardUrl();
 
@@ -100,7 +100,7 @@ export async function loginCommand(): Promise<void> {
       if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('fetch failed')) {
         logError(chalk.red('\n❌ Failed to connect to authentication service.'));
         logError(chalk.yellow('\n💡 Troubleshooting:'));
-        logError(chalk.gray('   1. Ensure the DevSync dashboard is running'));
+        logError(chalk.gray('   1. Ensure the Dev-Sync dashboard is running'));
         logError(chalk.gray(`   2. Check that ${dashboardUrl} is accessible`));
         logError(chalk.gray('   3. Start the dashboard: cd apps/dashboard && npm run dev'));
         logError(chalk.gray('   4. Verify DASHBOARD_URL environment variable if using custom URL'));
@@ -126,15 +126,18 @@ export async function loginCommand(): Promise<void> {
     log(chalk.white(`   Verification URL: ${chalk.cyan(deviceUrl)}`));
     log(chalk.white(`   User Code: ${chalk.bold(chalk.yellow(deviceFlowData.user_code))}\n`));
 
-    // Try to open browser automatically
-    try {
+    // Silent mode is used by tests and non-interactive automation. Never launch
+    // a browser in that mode because GUI processes can leave the CLI waiting.
+    if (!silent) {
+      try {
       log(chalk.gray('🌐 Opening browser...'));
-      await open(deviceUrl);
+        await open(deviceUrl);
       log(chalk.green('✅ Browser opened\n'));
-    } catch (error) {
+      } catch (error) {
       // Browser opening failed, but that's okay - user can manually open
       log(chalk.yellow('⚠️  Could not open browser automatically'));
       log(chalk.gray('   Please open the URL above manually\n'));
+      }
     }
 
     log(chalk.gray('⏳ Waiting for authorization...'));
@@ -237,7 +240,7 @@ export async function loginCommand(): Promise<void> {
     if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('fetch failed')) {
       logError(chalk.red('\n❌ Failed to connect to authentication service.'));
       logError(chalk.yellow('\n💡 Troubleshooting:'));
-      logError(chalk.gray('   1. Ensure the DevSync dashboard is running'));
+      logError(chalk.gray('   1. Ensure the Dev-Sync dashboard is running'));
       logError(chalk.gray(`   2. Check that ${resolveDashboardUrl()} is accessible`));
       logError(chalk.gray('   3. Start the dashboard: cd apps/dashboard && npm run dev'));
       logError(chalk.gray('   4. Verify DASHBOARD_URL environment variable if using custom URL'));

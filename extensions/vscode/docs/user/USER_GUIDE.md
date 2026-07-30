@@ -186,7 +186,7 @@ Apply fixes to multiple mismatches:
 Use DevSync in your CI/CD pipeline:
 ```bash
 # Install DevSync CLI
-npm install -g @devsync/cli
+npm install -g @dev-sync/cli
 
 # Run scan
 devsync scan --db $DATABASE_URL --output scan-results.json

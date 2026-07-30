@@ -50,46 +50,64 @@ suite('API Integration Tests', () => {
   suite('API Request Handling', () => {
     test('should handle network errors gracefully', async function () {
       this.timeout(10000);
-      
-      // Use invalid URL to trigger network error
-      const invalidClient = new DevSyncApiClient('http://invalid-url-that-does-not-exist.local', 'key', 'id');
-      
+
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => {
+        throw new TypeError('Simulated network failure');
+      };
+      const invalidClient = new DevSyncApiClient('https://example.invalid', 'key', 'id');
+
       try {
         await invalidClient.scan('/test/path');
         assert.fail('Should have thrown an error');
       } catch (error) {
         assert.ok(error instanceof Error);
+      } finally {
+        globalThis.fetch = originalFetch;
       }
     });
 
     test('should handle invalid API responses', async function () {
       this.timeout(10000);
-      
-      // Use mock server URL that returns invalid response
-      const mockClient = new DevSyncApiClient('http://httpbin.org/status/500', 'key', 'id');
-      
+
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => new Response(
+        JSON.stringify({ error: 'Simulated server failure' }),
+        {
+          status: 500,
+          statusText: 'Internal Server Error',
+          headers: { 'content-type': 'application/json' },
+        }
+      );
+      const mockClient = new DevSyncApiClient('https://example.invalid', 'key', 'id');
+
       try {
         await mockClient.scan('/test/path');
         assert.fail('Should have thrown an error');
       } catch (error) {
         assert.ok(error instanceof Error);
+      } finally {
+        globalThis.fetch = originalFetch;
       }
     });
 
     test('should handle timeout scenarios', async function () {
       this.timeout(15000);
-      
-      // Use a URL that will timeout
-      const timeoutClient = new DevSyncApiClient('http://httpbin.org/delay/10', 'key', 'id');
-      
+
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => new Promise<Response>(() => undefined);
+      const timeoutClient = new DevSyncApiClient('https://example.invalid', 'key', 'id');
+
       try {
         await Promise.race([
           timeoutClient.scan('/test/path'),
-          delay(5000).then(() => Promise.reject(new Error('Timeout'))),
+          delay(100).then(() => Promise.reject(new Error('Timeout'))),
         ]);
         assert.fail('Should have timed out');
       } catch (error) {
         assert.ok(error instanceof Error);
+      } finally {
+        globalThis.fetch = originalFetch;
       }
     });
   });

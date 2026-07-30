@@ -3,7 +3,7 @@ import { deleteAuthConfig, isTokenExpired, loadAuthConfig } from '../lib/auth-co
 
 export async function logoutCommand(): Promise<void> {
   await deleteAuthConfig();
-  console.log(chalk.green('Signed out of DevSync.'));
+  console.log(chalk.green('Signed out of Dev-Sync.'));
 }
 
 export async function sessionCommand(): Promise<void> {
@@ -13,7 +13,7 @@ export async function sessionCommand(): Promise<void> {
     return;
   }
 
-  console.log(chalk.green('Signed in to DevSync.'));
+  console.log(chalk.green('Signed in to Dev-Sync.'));
   if (auth.userId) console.log(chalk.gray(`User ID: ${auth.userId}`));
   console.log(chalk.gray(`Dashboard: ${auth.apiUrl || 'https://dev-sync.dev'}`));
   console.log(chalk.gray(`Access token: ${isTokenExpired(auth.expiresAt, 0) ? 'expired (refresh available)' : 'active'}`));
