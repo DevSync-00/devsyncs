@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveUser } from '@/app/api/projects/utils';
+import { dataClientForUser, resolveUser } from '@/app/api/projects/utils';
 import {
   compareSchemas,
   analyzeApplicationImpact,
@@ -322,8 +322,34 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const dataClient = dataClientForUser(user, supabase) as any;
+    const { data: project } = await dataClient
+      .from('projects')
+      .select('id, user_id, team_id')
+      .eq('id', projectId)
+      .maybeSingle();
+
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+
+    let hasAccess = project.user_id === user.id;
+    if (!hasAccess && project.team_id) {
+      const { data: membership } = await dataClient
+        .from('team_members')
+        .select('id')
+        .eq('team_id', project.team_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      hasAccess = Boolean(membership);
+    }
+
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
     // Fetch scan reports
-    const { data: scanReports, error } = await supabase
+    const { data: scanReports, error } = await dataClient
       .from('scan_reports')
       .select('*')
       .eq('project_id', projectId)

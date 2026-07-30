@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import chalk from 'chalk';
+import ora from 'ora';
 import type {
   ScanOptions,
   ScanResult,
@@ -68,10 +69,14 @@ export async function scanCommand(options: ScanOptions = {}): Promise<void> {
     return;
   }
 
-  const logProgress = (pct: number, msg: string) => {
-    if (format === 'table') {
-      console.log(chalk.gray(`[${pct.toString().padStart(3, ' ')}%] ${msg}`));
-    }
+  const localSpinner = ora({
+    text: 'Preparing project scan',
+    color: 'cyan',
+    isEnabled: format === 'table' && Boolean(process.stdout.isTTY),
+  });
+  if (format === 'table') localSpinner.start();
+  const logProgress = (_pct: number, msg: string) => {
+    if (format === 'table') localSpinner.text = msg;
   };
 
   if (guided && format === 'table') {
@@ -96,6 +101,7 @@ export async function scanCommand(options: ScanOptions = {}): Promise<void> {
   const inferredDatabases = inferProjectDatabases(schemaFiles, ormDetections, root);
   const inspectedDatabases = await inspectDatabases(connectionStrings);
   const databases = mergeDatabases(inferredDatabases, inspectedDatabases);
+  if (format === 'table') localSpinner.succeed('Project scan completed');
 
   const nextActions: string[] = [];
   if (databases.some((d) => d.reachable)) {
@@ -136,24 +142,55 @@ export async function scanCommand(options: ScanOptions = {}): Promise<void> {
 async function runDashboardScan(projectId: string, format: OutputFormat): Promise<void> {
   const auth = await requireAuthenticatedCli();
   const apiUrl = auth.apiUrl || resolveDashboardUrl();
-  const client = new ApiClient({ apiUrl, apiKey: auth.accessToken });
+  const client = new ApiClient({
+    apiUrl,
+    apiKey: auth.accessToken,
+    timeout: 5 * 60 * 1000,
+    maxRetries: 1,
+  });
+  const startedAt = Date.now();
+  const spinner = ora({
+    text: 'Starting dashboard scan',
+    color: 'cyan',
+    isEnabled: format === 'table' && Boolean(process.stdout.isTTY),
+  });
+  if (format === 'table') spinner.start();
+  const elapsedTimer = format === 'table'
+    ? setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+        spinner.text = `Scanning project on Dev-Sync (${elapsed}s)`;
+      }, 1000)
+    : undefined;
+  elapsedTimer?.unref();
 
-  if (format === 'table') {
-    console.log(chalk.blue('Running dashboard scan...'));
+  let report;
+  try {
+    report = await client.triggerScan(projectId);
+    if (format === 'table') spinner.succeed('Dashboard scan completed');
+  } catch (error) {
+    if (format === 'table') spinner.fail('Dashboard scan failed');
+    const message = error instanceof Error ? error.message : String(error);
+    if (/timed out/i.test(message)) {
+      throw new Error(
+        'The dashboard scan did not finish within 5 minutes. Check the project repository and database connection in Dev-Sync, then retry.'
+      );
+    }
+    throw error;
+  } finally {
+    if (elapsedTimer) clearInterval(elapsedTimer);
   }
 
-  const report = await client.triggerScan(projectId);
   if (format === 'json') {
     console.log(JSON.stringify(report, null, 2));
     return;
   }
 
   const mismatchCount = report.mismatches?.length || 0;
-  console.log(chalk.green('Scan completed and saved to Dev-Sync.'));
-  console.log(chalk.gray(`Project: ${projectId}`));
-  console.log(chalk.gray(`Report: ${report.id || report.scanId}`));
-  console.log(chalk.gray(`Mismatches: ${mismatchCount}`));
-  console.log(chalk.gray(`Dashboard: ${apiUrl}/dashboard/projects/${projectId}`));
+  console.log(`\n${chalk.bold('Scan summary')}`);
+  console.log(`${chalk.dim('Project')}     ${projectId}`);
+  console.log(`${chalk.dim('Report')}      ${report.id || report.scanId}`);
+  console.log(`${chalk.dim('Mismatches')}  ${mismatchCount}`);
+  console.log(`${chalk.dim('Dashboard')}   ${apiUrl}/dashboard/projects/${projectId}`);
 }
 
 export function formatLastScan(value?: string | null): string {
@@ -223,9 +260,10 @@ function emitResult(format: OutputFormat, result: ScanResult) {
   if (result.schemaFiles.length === 0) {
     console.log(chalk.gray('  (none found)'));
   } else {
-    for (const f of result.schemaFiles) {
+    for (const f of result.schemaFiles.slice(0, 8)) {
       console.log(chalk.gray(`  - ${f.type}: ${f.path} (${f.size} bytes)`));
     }
+    printRemaining(result.schemaFiles.length, 8);
   }
 
   console.log(chalk.blue('\n🛠 ORM detections'));
@@ -241,9 +279,10 @@ function emitResult(format: OutputFormat, result: ScanResult) {
   if (result.sqlFindings.length === 0) {
     console.log(chalk.gray('  (none found)'));
       } else {
-    for (const s of result.sqlFindings) {
+    for (const s of result.sqlFindings.slice(0, 8)) {
       console.log(chalk.gray(`  - ${s.kind}: ${s.path}`));
     }
+    printRemaining(result.sqlFindings.length, 8);
   }
 
   console.log(chalk.blue('\n➡️  Next actions'));
@@ -255,6 +294,12 @@ function emitResult(format: OutputFormat, result: ScanResult) {
   if (result.connectionStrings.length === 0 && result.schemaFiles.length === 0 && result.sqlFindings.length === 0) {
     console.log(chalk.yellow('\n⚠️  No obvious schema signals found.'));
     console.log(chalk.gray('   Tip: Add a database URL or schema file for deeper analysis.'));
+  }
+}
+
+function printRemaining(total: number, shown: number): void {
+  if (total > shown) {
+    console.log(chalk.dim(`  … and ${total - shown} more (use --format json for all)`));
   }
 }
 
