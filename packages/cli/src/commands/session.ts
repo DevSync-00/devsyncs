@@ -15,6 +15,6 @@ export async function sessionCommand(): Promise<void> {
 
   console.log(chalk.green('Signed in to Dev-Sync.'));
   if (auth.userId) console.log(chalk.gray(`User ID: ${auth.userId}`));
-  console.log(chalk.gray(`Dashboard: ${auth.apiUrl || 'https://dev-sync.dev'}`));
+  console.log(chalk.gray(`Dashboard: ${auth.apiUrl || 'https://www.dev-sync.dev'}`));
   console.log(chalk.gray(`Access token: ${isTokenExpired(auth.expiresAt, 0) ? 'expired (refresh available)' : 'active'}`));
 }

@@ -7,6 +7,7 @@ const PLACEHOLDER_HOSTS = new Set([
   'example.net',
   'www.example.net',
 ]);
+const PRODUCTION_DASHBOARD_URL = 'https://www.dev-sync.dev';
 
 /**
  * Resolve the Dev-Sync dashboard base URL from environment variables.
@@ -27,7 +28,7 @@ export function resolveDashboardUrl(): string {
     }
   }
 
-  return 'https://dev-sync.dev';
+  return PRODUCTION_DASHBOARD_URL;
 }
 
 /**
@@ -41,7 +42,7 @@ export function buildDeviceVerificationUrl(
   dashboardUrl: string,
   userCode: string
 ): string {
-  const base = normalizeBaseUrl(dashboardUrl) ?? 'https://dev-sync.dev';
+  const base = normalizeBaseUrl(dashboardUrl) ?? PRODUCTION_DASHBOARD_URL;
   const fromApi = normalizeAbsoluteUrl(verificationUri);
   if (fromApi && new URL(fromApi).origin === base) {
     return fromApi;
@@ -67,6 +68,12 @@ export function normalizeBaseUrl(raw?: string): string | null {
     }
     if (PLACEHOLDER_HOSTS.has(parsed.hostname.toLowerCase())) {
       return null;
+    }
+    // The apex domain redirects to www in production. Fetch removes bearer
+    // credentials on that cross-origin redirect, so always use the canonical
+    // API origin before sending authenticated requests.
+    if (parsed.hostname.toLowerCase() === 'dev-sync.dev') {
+      parsed.hostname = 'www.dev-sync.dev';
     }
     return parsed.origin;
   } catch {

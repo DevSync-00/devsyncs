@@ -19,13 +19,14 @@ test('normalizeBaseUrl rejects placeholder strings', () => {
   assert.equal(normalizeBaseUrl(''), null);
   assert.equal(normalizeBaseUrl('https://example.com'), null);
   assert.equal(normalizeBaseUrl('http://localhost:3000'), 'http://localhost:3000');
+  assert.equal(normalizeBaseUrl('https://dev-sync.dev'), 'https://www.dev-sync.dev');
 });
 
 test('resolveDashboardUrl skips invalid env values', () => {
   process.env.DASHBOARD_URL = 'undefined';
   process.env.NEXT_PUBLIC_DASHBOARD_URL = '';
   process.env.ANALYZER_URL = 'null';
-  assert.equal(resolveDashboardUrl(), 'https://dev-sync.dev');
+  assert.equal(resolveDashboardUrl(), 'https://www.dev-sync.dev');
 });
 
 test('buildDeviceVerificationUrl prefers valid API verification_uri', () => {
@@ -43,7 +44,7 @@ test('buildDeviceVerificationUrl rejects a different or placeholder origin', () 
     'https://dev-sync.dev',
     'ABCD-1234'
   );
-  assert.equal(url, 'https://dev-sync.dev/device?code=ABCD-1234');
+  assert.equal(url, 'https://www.dev-sync.dev/device?code=ABCD-1234');
 });
 
 test('buildDeviceVerificationUrl falls back to dashboard base when API uri is invalid', () => {

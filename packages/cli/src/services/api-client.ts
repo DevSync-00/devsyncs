@@ -1,5 +1,6 @@
 import type { SchemaDiff } from '../types/index.js';
 import { retry, withTimeout } from '../utils/retry.js';
+import { normalizeBaseUrl } from '../utils/dashboard-url.js';
 
 export interface ScanReportPayload {
   projectId: string;
@@ -88,7 +89,7 @@ export class ApiClient {
   private maxRetries: number;
 
   constructor(options: ApiClientOptions) {
-    this.apiUrl = options.apiUrl.replace(/\/$/, ''); // Remove trailing slash
+    this.apiUrl = normalizeBaseUrl(options.apiUrl) || options.apiUrl.replace(/\/$/, '');
     this.apiKey = options.apiKey;
     this.timeout = options.timeout || 120000; // Increased to 2 minutes for better reliability
     this.maxRetries = options.maxRetries || 3;
