@@ -127,6 +127,18 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
     }
   }, [pan, zoom, onViewportChange]);
 
+  const setViewport = useCallback((
+    nextPan: { x: number; y: number },
+    nextZoom: number,
+  ) => {
+    if (onViewportChange) {
+      onViewportChange(nextPan, nextZoom);
+    } else {
+      setInnerPan(nextPan);
+      setInnerZoom(nextZoom);
+    }
+  }, [onViewportChange]);
+
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
@@ -385,13 +397,49 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
       e.preventDefault();
       const delta = e.deltaY > 0 ? 0.9 : 1.1;
       const newZoom = Math.max(0.15, Math.min(2.5, zoom * delta));
-      setZoom(newZoom);
+      if (newZoom === zoom) return;
+
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      // Keep the schema point beneath the pointer fixed while changing scale.
+      const pointerX = e.clientX - rect.left;
+      const pointerY = e.clientY - rect.top;
+      const schemaX = (pointerX - pan.x) / zoom;
+      const schemaY = (pointerY - pan.y) / zoom;
+
+      setViewport(
+        {
+          x: pointerX - schemaX * newZoom,
+          y: pointerY - schemaY * newZoom,
+        },
+        newZoom,
+      );
     },
-    [zoom, setZoom],
+    [pan, zoom, setViewport],
   );
 
-  const handleZoomIn = useCallback(() => setZoom((z) => Math.min(2.5, z * 1.2)), [setZoom]);
-  const handleZoomOut = useCallback(() => setZoom((z) => Math.max(0.15, z * 0.8)), [setZoom]);
+  const zoomAtCanvasCenter = useCallback((factor: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const newZoom = Math.max(0.15, Math.min(2.5, zoom * factor));
+    if (newZoom === zoom) return;
+
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const schemaX = (centerX - pan.x) / zoom;
+    const schemaY = (centerY - pan.y) / zoom;
+    setViewport(
+      {
+        x: centerX - schemaX * newZoom,
+        y: centerY - schemaY * newZoom,
+      },
+      newZoom,
+    );
+  }, [pan, zoom, setViewport]);
+
+  const handleZoomIn = useCallback(() => zoomAtCanvasCenter(1.2), [zoomAtCanvasCenter]);
+  const handleZoomOut = useCallback(() => zoomAtCanvasCenter(0.8), [zoomAtCanvasCenter]);
 
   return (
     <div
