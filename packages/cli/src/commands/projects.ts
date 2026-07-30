@@ -6,7 +6,7 @@ import { ApiClient } from '../services/api-client.js';
 import { loadConfig, saveConfig } from '../utils/config.js';
 import { resolveDashboardUrl } from '../utils/dashboard-url.js';
 import { detectProjectInfo } from '../utils/project-detector.js';
-import { promptSelect } from '../utils/prompt.js';
+import { isInteractive, promptSelect } from '../utils/prompt.js';
 
 export async function authenticatedClient() {
   const auth = await requireAuthenticatedCli();
@@ -21,6 +21,12 @@ export async function selectProjectCommand(options: { path?: string }): Promise<
   if (projects.length === 0) {
     console.log(chalk.yellow('No Dev-Sync projects are available for this account.'));
     console.log(chalk.gray('Create one with `devsync create`.'));
+    return;
+  }
+
+  if (!isInteractive()) {
+    console.log(chalk.yellow('Project selection requires an interactive terminal.'));
+    console.log(chalk.gray('Run `devsync select` directly in your terminal.'));
     return;
   }
 
@@ -53,7 +59,7 @@ export async function projectsCommand(): Promise<void> {
   for (const project of projects) {
     console.log(`${chalk.cyan(project.id)}  ${project.name}${project.teamId ? ' (team)' : ''}`);
   }
-  console.log(chalk.gray('\nLink one with: devsync link <project-id>'));
+  console.log(chalk.gray('\nChoose a project interactively with: devsync select'));
 }
 
 export async function linkProjectCommand(projectId: string, options: { path?: string }): Promise<void> {
