@@ -30,10 +30,12 @@ const primaryNavigation = [
 ];
 
 const workspaceNavigation = [
+  { label: 'Database Visualizer', href: '/dashboard/visualizer', icon: Database },
   { label: 'Teams', href: '/dashboard/teams', icon: Users },
   { label: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { label: 'API keys', href: '/dashboard/api-keys', icon: KeyRound },
 ];
+
 
 function NavItem({
   item,

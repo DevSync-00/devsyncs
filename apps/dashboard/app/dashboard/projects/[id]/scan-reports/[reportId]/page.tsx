@@ -8,8 +8,9 @@ import GenerateMigrationButton from '@/components/GenerateMigrationButton';
 import AIExplanation from '@/components/AIExplanation';
 import AIQuery from '@/components/AIQuery';
 import MigrationHistory from '@/components/MigrationHistory';
-import SchemaComparison from '@/components/SchemaComparison';
+import ScanReportVisualizerWrapper from '@/components/ScanReportVisualizerWrapper';
 import ExportButton from '@/components/ExportButton';
+
 import { MessageSquare } from 'lucide-react';
 import ApplicationImpact from '@/components/impact/ApplicationImpact';
 import SafetyGates from '@/components/impact/SafetyGates';
@@ -231,13 +232,15 @@ export default async function ScanReportDetailPage({
       {/* Schema Comparison */}
       {hasMismatches && (
         <div className="space-y-6 border-t border-border pt-8">
-          <SchemaComparison
+          <ScanReportVisualizerWrapper
+            projectId={params.id}
             codeSchema={report.code_schema}
             dbSchema={report.db_schema}
             mismatches={mismatches}
           />
         </div>
       )}
+
 
       {/* Mismatches */}
       {mismatches.length > 0 ? (
