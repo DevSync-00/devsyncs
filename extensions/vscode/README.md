@@ -5,7 +5,7 @@ Run Dev-Sync schema scans, review drift, and generate migrations without leaving
 ## Requirements
 
 - VS Code 1.80 or newer
-- A Dev-Sync account at https://dev-sync.dev
+- A Dev-Sync account at https://www.dev-sync.dev
 - A Dev-Sync dashboard project with a configured repository and database connection
 - `@dev-sync/cli` installed globally when using offline scans
 
@@ -37,8 +37,8 @@ The selected project ID is stored in workspace settings. Access and refresh toke
 
 ```json
 {
-  "devsync.apiUrl": "https://dev-sync.dev",
-  "devsync.analyzerUrl": "https://dev-sync.dev",
+  "devsync.apiUrl": "https://www.dev-sync.dev",
+  "devsync.analyzerUrl": "https://www.dev-sync.dev",
   "devsync.projectId": "",
   "devsync.enableDiagnostics": true,
   "devsync.autoScan": false
@@ -67,9 +67,9 @@ Press `F5` from the extension project to open an Extension Development Host.
 - Database credentials are not sent from the extension during cloud scans.
 - Signing out removes the locally stored Dev-Sync session.
 
-Privacy policy: https://dev-sync.dev/privacy
+Privacy policy: https://www.dev-sync.dev/privacy
 
-Terms of service: https://dev-sync.dev/terms
+Terms of service: https://www.dev-sync.dev/terms
 
 ## License
 
