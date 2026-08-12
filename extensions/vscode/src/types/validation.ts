@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import { PrismaModel, DatabaseTable, SchemaValue } from './schema';
+import { PrismaModel, DatabaseTable, ScannedSchema, SchemaValue } from './schema';
 
 /**
  * Schema value validator
@@ -78,17 +78,72 @@ export const databaseTableSchema = z.object({
   })).optional(),
 });
 
+export const scannedSchemaSchema: z.ZodType<ScannedSchema> = z.object({
+  tables: z.array(z.object({
+    name: z.string(),
+    columns: z.array(z.object({
+      name: z.string(),
+      type: z.string(),
+      nullable: z.boolean(),
+      defaultValue: z.string().nullable().optional(),
+      constraints: z.array(z.string()).optional(),
+    })),
+    columnsComplete: z.boolean().optional(),
+    relationships: z.array(z.object({
+      column: z.string(),
+      referencedTable: z.string(),
+      referencedColumn: z.string().optional(),
+      constraintName: z.string().optional(),
+      source: z.string().optional(),
+    })).optional(),
+    source: z.string().optional(),
+  })),
+  metadata: z.object({
+    source: z.enum(['code', 'database']),
+    sourceType: z.string(),
+    tableCount: z.number(),
+    columnCount: z.number(),
+    inferredTableCount: z.number().optional(),
+    relationshipCount: z.number().optional(),
+    scannedAt: z.string(),
+    warnings: z.array(z.string()).optional(),
+  }),
+});
+
 /**
  * Mismatch schemas (discriminated unions)
  */
+const scannerMismatchFields = {
+  model: z.string(),
+  table: z.string().optional(),
+  field: z.string().optional(),
+  column: z.string().optional(),
+  message: z.string().optional(),
+  codeValue: schemaValueSchema.optional(),
+  dbValue: schemaValueSchema.optional(),
+  severity: z.enum(['error', 'warning', 'info']),
+  suggestedFix: z.string().optional(),
+};
+
 export const missingTableMismatchSchema = z.object({
+  ...scannerMismatchFields,
   type: z.literal('missing_table'),
   model: z.string(),
   severity: z.enum(['error', 'warning', 'info']),
   suggestedFix: z.string().optional(),
 });
 
+export const extraTableMismatchSchema = z.object({
+  ...scannerMismatchFields,
+  type: z.literal('extra_table'),
+  model: z.string(),
+  dbValue: schemaValueSchema.optional(),
+  severity: z.enum(['error', 'warning', 'info']),
+  suggestedFix: z.string().optional(),
+});
+
 export const missingFieldMismatchSchema = z.object({
+  ...scannerMismatchFields,
   type: z.literal('missing_field'),
   model: z.string(),
   field: z.string(),
@@ -97,6 +152,7 @@ export const missingFieldMismatchSchema = z.object({
 });
 
 export const typeMismatchSchema = z.object({
+  ...scannerMismatchFields,
   type: z.literal('type_mismatch'),
   model: z.string(),
   field: z.string(),
@@ -106,7 +162,19 @@ export const typeMismatchSchema = z.object({
   suggestedFix: z.string().optional(),
 });
 
+export const nullableMismatchSchema = z.object({
+  ...scannerMismatchFields,
+  type: z.literal('nullable_mismatch'),
+  model: z.string(),
+  field: z.string(),
+  codeValue: schemaValueSchema,
+  dbValue: schemaValueSchema,
+  severity: z.enum(['error', 'warning', 'info']),
+  suggestedFix: z.string().optional(),
+});
+
 export const extraFieldMismatchSchema = z.object({
+  ...scannerMismatchFields,
   type: z.literal('extra_field'),
   model: z.string(),
   field: z.string(),
@@ -115,7 +183,30 @@ export const extraFieldMismatchSchema = z.object({
   suggestedFix: z.string().optional(),
 });
 
+export const missingRelationshipMismatchSchema = z.object({
+  ...scannerMismatchFields,
+  type: z.literal('missing_relationship'),
+  model: z.string(),
+  field: z.string(),
+  codeValue: schemaValueSchema.optional(),
+  dbValue: schemaValueSchema.optional(),
+  severity: z.enum(['error', 'warning', 'info']),
+  suggestedFix: z.string().optional(),
+});
+
+export const extraRelationshipMismatchSchema = z.object({
+  ...scannerMismatchFields,
+  type: z.literal('extra_relationship'),
+  model: z.string(),
+  field: z.string(),
+  codeValue: schemaValueSchema.optional(),
+  dbValue: schemaValueSchema.optional(),
+  severity: z.enum(['error', 'warning', 'info']),
+  suggestedFix: z.string().optional(),
+});
+
 export const constraintMismatchSchema = z.object({
+  ...scannerMismatchFields,
   type: z.literal('constraint_mismatch'),
   model: z.string(),
   field: z.string().optional(),
@@ -130,9 +221,13 @@ export const constraintMismatchSchema = z.object({
  */
 export const mismatchSchema = z.discriminatedUnion('type', [
   missingTableMismatchSchema,
+  extraTableMismatchSchema,
   missingFieldMismatchSchema,
   typeMismatchSchema,
+  nullableMismatchSchema,
   extraFieldMismatchSchema,
+  missingRelationshipMismatchSchema,
+  extraRelationshipMismatchSchema,
   constraintMismatchSchema,
 ]);
 
@@ -144,8 +239,8 @@ export const scanReportSchema = z.object({
   projectId: z.string(),
   status: z.enum(['pending', 'running', 'completed', 'failed']),
   mismatches: z.array(mismatchSchema),
-  codeSchema: z.array(prismaModelSchema).optional(),
-  dbSchema: z.array(databaseTableSchema).optional(),
+  codeSchema: scannedSchemaSchema.optional(),
+  dbSchema: scannedSchemaSchema.optional(),
   created_at: z.string(),
   completed_at: z.string().nullable().optional(),
 });
@@ -153,14 +248,67 @@ export const scanReportSchema = z.object({
 /**
  * Migration schema
  */
-export const migrationSchema = z.object({
+const migrationIssueFields = {
+  type: z.string(),
+  message: z.string(),
+  line: z.number().optional(),
+  suggestion: z.string().optional(),
+};
+
+const migrationErrorSchema = z.object({
+  ...migrationIssueFields,
+  severity: z.literal('error'),
+});
+
+const migrationWarningSchema = z.object({
+  ...migrationIssueFields,
+  severity: z.enum(['warning', 'info']),
+});
+
+const migrationValidationSchema = z.object({
+  valid: z.boolean(),
+  errors: z.array(migrationErrorSchema),
+  warnings: z.array(migrationWarningSchema),
+  breakingChanges: z.array(z.object({
+    type: z.string(),
+    severity: z.enum(['error', 'warning']),
+    message: z.string(),
+    affectedTable: z.string().optional(),
+    affectedColumn: z.string().optional(),
+    line: z.number().optional(),
+    impact: z.string().optional(),
+    mitigation: z.string().optional(),
+  })),
+  summary: z.object({
+    totalIssues: z.number(),
+    errorCount: z.number(),
+    warningCount: z.number(),
+    breakingChangeCount: z.number(),
+  }),
+});
+
+export const migrationSchema = z.preprocess((input) => {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return input;
+  }
+
+  const migration = input as Record<string, unknown>;
+  return {
+    ...migration,
+    id: migration.id ?? migration.migrationId,
+    content: migration.content ?? migration.sql,
+    applied: migration.applied ?? false,
+    created_at: migration.created_at ?? migration.createdAt,
+  };
+}, z.object({
   id: z.string(),
   filename: z.string(),
   content: z.string(),
   format: z.string(),
   applied: z.boolean(),
   created_at: z.string(),
-});
+  validation: migrationValidationSchema.nullable().optional(),
+}));
 
 /**
  * Type guard functions

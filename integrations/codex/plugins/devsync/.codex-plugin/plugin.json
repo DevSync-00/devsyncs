@@ -1,0 +1,31 @@
+{
+  "name": "devsync",
+  "version": "0.1.4",
+  "description": "Scan database schemas, inspect drift, and review safe DevSync migration plans from Codex.",
+  "author": {
+    "name": "DevSync",
+    "email": "devsync@bitlabsbuild.com",
+    "url": "https://www.dev-sync.dev"
+  },
+  "homepage": "https://www.dev-sync.dev",
+  "repository": "https://github.com/DevSync-00/devsyncs",
+  "license": "MIT",
+  "keywords": ["database", "schema", "migration", "drift"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "DevSync",
+    "shortDescription": "Schema drift scans and safe migration plans.",
+    "longDescription": "Connect Codex to DevSync for read-only schema scans, dashboard reports, project status, evidence-backed plans, and dry-run migration previews.",
+    "developerName": "DevSync",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Interactive"],
+    "websiteURL": "https://www.dev-sync.dev",
+    "defaultPrompt": [
+      "Scan this workspace for schema drift.",
+      "Summarize the latest DevSync report.",
+      "Preview a safe migration plan."
+    ],
+    "brandColor": "#685EC3"
+  },
+  "mcpServers": "./.mcp.json"
+}

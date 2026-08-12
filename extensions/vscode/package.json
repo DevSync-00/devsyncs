@@ -2,7 +2,7 @@
   "name": "devsync",
   "displayName": "Dev-Sync Schema Guard",
   "description": "Detect database schema drift and review safer migration plans in Visual Studio Code.",
-  "version": "0.1.4",
+  "version": "0.1.9",
   "publisher": "Dev-sync",
   "icon": "resources/devsync-marketplace.png",
   "license": "MIT",
@@ -41,9 +41,6 @@
     "onLanguage:javascript",
     "workspaceContains:**/schema.prisma",
     "workspaceContains:**/.devsync/config.json",
-    "onView:devsyncChat",
-    "onCommand:devsync.chat.focus",
-    "onCommand:devsync.chat.newConversation",
     "onCommand:devsync.chat.login",
     "onCommand:devsync.chat.logout"
   ],
@@ -54,12 +51,6 @@
         {
           "id": "devsyncSidebar",
           "name": "Dev-Sync",
-          "when": "workspaceFolderCount > 0"
-        },
-        {
-          "type": "webview",
-          "id": "devsyncChat",
-          "name": "Dev-Sync Chat",
           "when": "workspaceFolderCount > 0"
         }
       ]
@@ -248,18 +239,6 @@
         "command": "devsync.sidebar.clearSearch",
         "title": "Clear Search",
         "icon": "$(clear-all)"
-      },
-      {
-        "command": "devsync.chat.focus",
-        "title": "Focus Dev-Sync Chat",
-        "category": "Dev-Sync",
-        "icon": "$(comment-discussion)"
-      },
-      {
-        "command": "devsync.chat.newConversation",
-        "title": "New Chat Conversation",
-        "category": "Dev-Sync",
-        "icon": "$(add)"
       },
       {
         "command": "devsync.chat.login",

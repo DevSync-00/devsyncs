@@ -589,8 +589,30 @@ export class ChatPanelManager {
   }
 
   private async startLoginFlow() {
+    let verificationOpened = false;
     const update = (payload: AuthFlowUpdate) => {
       this.postMessage({ type: 'authFlow', payload });
+      if (payload.kind === 'deviceCode' && !verificationOpened) {
+        verificationOpened = true;
+        const url = payload.payload.verification_uri;
+        try {
+          const parsed = new URL(url);
+          if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+            void vscode.env.openExternal(vscode.Uri.parse(parsed.toString())).then(
+              (opened) => {
+                if (!opened) {
+                  this.sendError('Could not open the Dev-Sync verification page. Use Open Verification in the sign-in card.');
+                }
+              },
+              () => {
+                this.sendError('Could not open the Dev-Sync verification page. Use Open Verification in the sign-in card.');
+              }
+            );
+          }
+        } catch {
+          // The webview still displays the code and its fallback Open Verification action.
+        }
+      }
     };
     await this.auth.startDeviceFlow(update);
   }

@@ -1,0 +1,20 @@
+{
+  "name": "devsync-local",
+  "interface": {
+    "displayName": "DevSync Local"
+  },
+  "plugins": [
+    {
+      "name": "devsync",
+      "source": {
+        "source": "local",
+        "path": "./plugins/devsync"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "name": "@dev-sync/mcp-server",
+  "version": "0.1.4",
+  "description": "MCP server for DevSync schema scanning and migration planning",
+  "type": "module",
+  "bin": {
+    "devsync-mcp": "dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "npm run build && node --test tests/*.test.js",
+    "prepack": "npm test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.16.5",
+    "typescript": "^5.8.3"
+  },
+  "license": "MIT"
+}

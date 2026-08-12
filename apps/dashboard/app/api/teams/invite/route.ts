@@ -94,18 +94,6 @@ export async function POST(request: NextRequest) {
           { status: 409 }
         );
       }
-
-      const { error: memberError } = await admin
-        .from('team_members')
-        .insert({
-          team_id: teamId,
-          user_id: existingProfile.id,
-          role,
-        });
-
-      if (memberError) {
-        throw memberError;
-      }
     }
 
     const inviteToken = randomBytes(32).toString('hex');
@@ -120,8 +108,10 @@ export async function POST(request: NextRequest) {
         role,
         token_hash: tokenHash,
         invited_by: user.id,
-        accepted_by: existingProfile?.id || null,
-        accepted_at: existingProfile?.id ? new Date().toISOString() : null,
+        // An invitation is pending regardless of whether the email already has
+        // a DevSync account. Membership is created only by the accept endpoint.
+        accepted_by: null,
+        accepted_at: null,
         expires_at: expiresAt,
       }, {
         onConflict: 'team_id,email',
@@ -147,7 +137,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         ok: true,
-        addedExistingUser: Boolean(existingProfile?.id),
         message: `Invitation sent to ${normalizedEmail}`,
       },
       { status: 200 }

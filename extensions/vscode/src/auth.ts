@@ -54,10 +54,13 @@ export class AuthManager implements IAuthManager {
   private tokens?: StoredTokens;
   private authenticating = false;
   private analyzerUrl: string;
+  private readonly initialization: Promise<void>;
 
   constructor(private readonly context: vscode.ExtensionContext, analyzerUrl: string) {
     this.analyzerUrl = this.normalizeUrl(analyzerUrl);
-    void this.restoreTokens();
+    // SecretStorage is asynchronous. Keep the initialization promise so an API
+    // request made immediately after activation cannot race token restoration.
+    this.initialization = this.restoreTokens();
   }
 
   get onDidChangeSession() {
@@ -79,8 +82,10 @@ export class AuthManager implements IAuthManager {
    * the session alive indefinitely while the user is working.
    */
   async ensureAccessToken(): Promise<string> {
+    await this.initialization;
+
     if (!this.tokens) {
-      throw new Error('You must sign in to DevSync before using chat.');
+      throw new Error('You must sign in to DevSync before continuing.');
     }
 
     // Automatically refresh token if it's about to expire
@@ -106,6 +111,13 @@ export class AuthManager implements IAuthManager {
   }
 
   async startDeviceFlow(progress?: (update: AuthFlowUpdate) => void): Promise<AuthSessionState> {
+    await this.initialization;
+
+    if (this.session.status === 'authenticated') {
+      progress?.({ kind: 'status', message: 'Already signed in.' });
+      return this.session;
+    }
+
     if (this.authenticating) {
       throw new Error('Authentication is already in progress.');
     }
@@ -141,13 +153,7 @@ export class AuthManager implements IAuthManager {
 
           await this.storeTokens(pollResponse);
           progress?.({ kind: 'status', message: 'Signed in successfully.' });
-          
-          // Ensure session is updated before returning
-          if (this.session.status !== 'authenticated') {
-            console.error('[Auth] Session not updated after storing tokens');
-            throw new Error('Failed to update session after authentication');
-          }
-          
+
           return this.session;
         } catch (error) {
           const handled = this.handleDeviceError(error);
@@ -180,6 +186,8 @@ export class AuthManager implements IAuthManager {
    * Sessions are lifecycle-based and don't expire based on time.
    */
   async logout(): Promise<void> {
+    await this.initialization;
+
     // Clear tokens from memory
     this.tokens = undefined;
     // Delete tokens from secure storage
@@ -249,13 +257,16 @@ export class AuthManager implements IAuthManager {
    * the session is restored. This allows sessions to persist across VS Code reloads.
    */
   private async restoreTokens(): Promise<void> {
-    const raw = await this.context.secrets.get(TOKENS_KEY);
-    if (!raw) {
-      return;
-    }
-
     try {
+      const raw = await this.context.secrets.get(TOKENS_KEY);
+      if (!raw) {
+        return;
+      }
+
       const stored = JSON.parse(raw) as StoredTokens;
+      if (!stored.accessToken || !stored.refreshToken || !Number.isFinite(stored.expiresAt)) {
+        throw new Error('Stored DevSync session is invalid.');
+      }
       this.tokens = stored;
 
       // If token is expired or about to expire, try to refresh it

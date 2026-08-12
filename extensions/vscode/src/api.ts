@@ -1,5 +1,5 @@
 import { requestJson } from './lib/http';
-import { PrismaModel, DatabaseTable, SchemaValue } from './types/schema';
+import { ScannedSchema, SchemaValue } from './types/schema';
 import type { IConfigurationManager } from './interfaces';
 
 /**
@@ -32,9 +32,9 @@ export interface ScanReport {
   /** Array of detected schema mismatches */
   mismatches: Mismatch[];
   /** Optional Prisma schema models extracted from code */
-  codeSchema?: PrismaModel[];
+  codeSchema?: ScannedSchema;
   /** Optional database schema tables extracted from database */
-  dbSchema?: DatabaseTable[];
+  dbSchema?: ScannedSchema;
   /** ISO 8601 timestamp when the scan was created */
   created_at: string;
   /** ISO 8601 timestamp when the scan completed, or null if still running */
@@ -46,9 +46,13 @@ export interface ScanReport {
  */
 export type Mismatch = 
   | MissingTableMismatch
+  | ExtraTableMismatch
   | MissingFieldMismatch
   | TypeMismatch
+  | NullableMismatch
   | ExtraFieldMismatch
+  | MissingRelationshipMismatch
+  | ExtraRelationshipMismatch
   | ConstraintMismatch;
 
 /**
@@ -56,6 +60,9 @@ export type Mismatch =
  */
 interface BaseMismatch {
   model: string;
+  table?: string;
+  column?: string;
+  message?: string;
   severity: 'error' | 'warning' | 'info';
   suggestedFix?: string;
 }
@@ -65,6 +72,15 @@ interface BaseMismatch {
  */
 export interface MissingTableMismatch extends BaseMismatch {
   type: 'missing_table';
+  codeValue?: SchemaValue;
+  dbValue?: SchemaValue;
+}
+
+/** Extra table mismatch */
+export interface ExtraTableMismatch extends BaseMismatch {
+  type: 'extra_table';
+  codeValue?: SchemaValue;
+  dbValue?: SchemaValue;
 }
 
 /**
@@ -73,6 +89,8 @@ export interface MissingTableMismatch extends BaseMismatch {
 export interface MissingFieldMismatch extends BaseMismatch {
   type: 'missing_field';
   field: string;
+  codeValue?: SchemaValue;
+  dbValue?: SchemaValue;
 }
 
 /**
@@ -85,13 +103,38 @@ export interface TypeMismatch extends BaseMismatch {
   dbValue: SchemaValue;
 }
 
+/** Column nullability mismatch */
+export interface NullableMismatch extends BaseMismatch {
+  type: 'nullable_mismatch';
+  field: string;
+  codeValue: SchemaValue;
+  dbValue: SchemaValue;
+}
+
 /**
  * Extra field mismatch
  */
 export interface ExtraFieldMismatch extends BaseMismatch {
   type: 'extra_field';
   field: string;
+  codeValue?: SchemaValue;
   dbValue: SchemaValue;
+}
+
+/** Relationship present in code but missing from the database */
+export interface MissingRelationshipMismatch extends BaseMismatch {
+  type: 'missing_relationship';
+  field: string;
+  codeValue?: SchemaValue;
+  dbValue?: SchemaValue;
+}
+
+/** Relationship present in the database but missing from code */
+export interface ExtraRelationshipMismatch extends BaseMismatch {
+  type: 'extra_relationship';
+  field: string;
+  codeValue?: SchemaValue;
+  dbValue?: SchemaValue;
 }
 
 /**
@@ -147,7 +190,7 @@ export interface Migration {
     }>;
     warnings: Array<{
       type: string;
-      severity: 'warning';
+      severity: 'warning' | 'info';
       message: string;
       line?: number;
       suggestion?: string;
@@ -168,7 +211,7 @@ export interface Migration {
       warningCount: number;
       breakingChangeCount: number;
     };
-  };
+  } | null;
 }
 
 import { IApiClient, IAuthManager } from './interfaces';
@@ -391,8 +434,8 @@ export class DevSyncApiClient implements IApiClient {
       projectId: report.projectId ?? report.project_id ?? this.projectId,
       status: report.status === 'success' ? 'completed' : report.status,
       mismatches: report.mismatches || [],
-      ...(Array.isArray(codeSchema) ? { codeSchema } : {}),
-      ...(Array.isArray(dbSchema) ? { dbSchema } : {}),
+      ...(codeSchema && typeof codeSchema === 'object' ? { codeSchema } : {}),
+      ...(dbSchema && typeof dbSchema === 'object' ? { dbSchema } : {}),
       created_at: report.created_at ?? report.createdAt ?? new Date().toISOString(),
       completed_at: report.completed_at ?? null,
     };

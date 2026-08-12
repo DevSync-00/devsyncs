@@ -1,0 +1,12 @@
+{
+  "name": "devsync",
+  "version": "0.1.4",
+  "description": "DevSync schema drift scans and safe migration planning for Claude Code",
+  "author": {
+    "name": "DevSync"
+  },
+  "homepage": "https://www.dev-sync.dev",
+  "repository": "https://github.com/DevSync-00/devsyncs",
+  "license": "MIT",
+  "keywords": ["database", "schema", "migration", "drift"]
+}

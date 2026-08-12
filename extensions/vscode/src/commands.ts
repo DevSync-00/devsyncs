@@ -427,6 +427,46 @@ export class DevSyncCommands implements ICommands {
         const dashboardUrl = this.scanService.getDashboardUrl();
         await this.notifications.openExternal(dashboardUrl);
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (/project\s*id is required/i.test(message)) {
+          const action = await this.notifications.showWarning(
+            'Select a Dev-Sync project before viewing its scan report.',
+            'Select Project',
+            'Run Scan',
+            'Dismiss'
+          );
+          if (action === 'Select Project') {
+            await vscode.commands.executeCommand('devsync.selectProject');
+          } else if (action === 'Run Scan') {
+            await this.scan();
+          }
+          return;
+        }
+        if (/(sign in|unauthorized|authentication required)/i.test(message)) {
+          const action = await this.notifications.showWarning(
+            'Sign in to Dev-Sync to view dashboard reports.',
+            'Sign In',
+            'Dismiss'
+          );
+          if (action === 'Sign In') {
+            await vscode.commands.executeCommand('devsync.chat.login');
+          }
+          return;
+        }
+        if (/(fetch failed|network request failed|econnrefused|enotfound|etimedout|network|timeout)/i.test(message)) {
+          const action = await this.notifications.showWarning(
+            'The Dev-Sync API could not be reached. You can still open the project dashboard in your browser.',
+            'Open Dashboard',
+            'Retry',
+            'Dismiss'
+          );
+          if (action === 'Open Dashboard') {
+            await this.notifications.openExternal(this.scanService.getDashboardUrl());
+          } else if (action === 'Retry') {
+            await this.viewReport();
+          }
+          return;
+        }
         throw ScanError.fromError(error instanceof Error ? error : new Error(String(error)), {
           operation: 'viewReport',
         });

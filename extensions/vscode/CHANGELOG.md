@@ -2,6 +2,30 @@
 
 All notable changes to the Dev-Sync VS Code extension will be documented in this file.
 
+## [0.1.7] - 2026-07-31
+
+### Fixed
+- Allowed users to open the browser dashboard or retry when the extension host cannot reach the report API.
+- Avoided reporting report-fetch network failures as failed schema scans.
+
+## [0.1.6] - 2026-07-31
+
+### Fixed
+- Prompted users to select a project or run a scan when opening a report without a configured project ID.
+- Avoided reporting a missing project selection as a failed schema scan.
+
+## [0.1.5] - 2026-07-31
+
+### Changed
+- Replaced the activity-bar asset with the official DevSync logo geometry.
+- Temporarily removed the Dev-Sync Chat view and its visible chat commands.
+
+### Fixed
+- Prevented report requests from racing asynchronous SecretStorage session restoration.
+- Changed unauthenticated report access from a `SCAN_FAILED` error into a sign-in action.
+- Opened the device verification page automatically during sign-in.
+- Validated restored sessions and avoided redundant sign-in flows.
+
 ## [0.1.3] - 2026-07-29
 
 ### Changed

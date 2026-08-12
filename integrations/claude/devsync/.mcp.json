@@ -1,0 +1,6 @@
+{
+  "devsync": {
+    "command": "npx",
+    "args": ["-y", "@dev-sync/mcp-server@0.1.4"]
+  }
+}

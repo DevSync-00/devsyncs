@@ -1,0 +1,11 @@
+interface:
+  display_name: "DevSync"
+  short_description: "Scan schemas and review safe migration plans"
+  default_prompt: "Use $use-devsync to scan this workspace and summarize schema drift safely."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "devsync"
+      description: "DevSync schema scanning and migration planning tools"
+policy:
+  allow_implicit_invocation: true
