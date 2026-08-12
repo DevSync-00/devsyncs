@@ -189,8 +189,8 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
             (t.columns || []).some((c) => c.name.toLowerCase().includes(query)),
         )
       : allTables;
-    const nodeWidth = 200;
-    const nodeHeight = 150;
+    const nodeWidth = 240;
+    const nodeHeight = 232;
 
     let minX = Infinity;
     let minY = Infinity;
@@ -445,7 +445,7 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
     <div
       ref={containerRef}
       style={{ width, height }}
-      className="relative h-full overflow-hidden bg-[#070b12] select-none [background-image:radial-gradient(rgba(71,85,105,0.28)_1px,transparent_1px)] [background-size:20px_20px]"
+      className="relative h-full select-none overflow-hidden bg-[#f7f8fb] [background-image:radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px]"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -453,29 +453,29 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
       onWheel={handleWheel}
     >
       {/* Controls Overlay */}
-      <div className="absolute bottom-3 right-3 z-10 flex items-center gap-0.5 rounded-md border border-slate-700/80 bg-slate-950/90 p-1 shadow-2xl backdrop-blur">
+      <div className="absolute bottom-4 left-4 z-10 flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white/95 p-1 shadow-lg backdrop-blur">
         <button
           onClick={handleZoomIn}
-          className="flex h-7 w-7 items-center justify-center rounded text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-[#26B2F2]"
+          className="flex h-7 w-7 items-center justify-center rounded text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-violet-600"
           title="Zoom In"
         >
           +
         </button>
         <button
           onClick={handleZoomOut}
-          className="flex h-7 w-7 items-center justify-center rounded text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-[#26B2F2]"
+          className="flex h-7 w-7 items-center justify-center rounded text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-violet-600"
           title="Zoom Out"
         >
           −
         </button>
         <button
           onClick={handleFitView}
-          className="flex h-7 items-center justify-center rounded px-2 font-mono text-[9px] font-medium text-slate-400 hover:bg-slate-800 hover:text-[#26B2F2]"
+          className="flex h-7 items-center justify-center rounded px-2 font-mono text-[9px] font-medium text-slate-500 hover:bg-slate-100 hover:text-violet-600"
           title="Fit view"
         >
           Fit
         </button>
-        <div className="border-l border-slate-800 px-2 font-mono text-[9px] text-slate-500">
+        <div className="border-l border-slate-200 px-2 font-mono text-[9px] text-slate-400">
           {Math.round(zoom * 100)}%
         </div>
       </div>
@@ -504,7 +504,7 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
             refY="3"
             orient="auto"
           >
-            <polygon points="0 0, 7 3, 0 6" className="fill-muted-foreground" />
+            <polygon points="0 0, 7 3, 0 6" fill="#94a3b8" />
           </marker>
         </defs>
 
@@ -515,10 +515,10 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
           if (!sourceNode || !targetNode) return null;
 
           // Connect from middle of right/left side
-          const x1 = sourceNode.position.x + 100;
-          const y1 = sourceNode.position.y + 75;
-          const x2 = targetNode.position.x + 100;
-          const y2 = targetNode.position.y + 75;
+          const x1 = sourceNode.position.x + 120;
+          const y1 = sourceNode.position.y + 116;
+          const x2 = targetNode.position.x + 120;
+          const y2 = targetNode.position.y + 116;
 
           const dx = x2 - x1;
           const dy = y2 - y1;
@@ -529,7 +529,7 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
           const cpY = midY - (dx > 0 ? offset : -offset);
 
           const isHovered = hoveredRelationship === edge.id;
-          const strokeColor = edge.style?.stroke || 'hsl(var(--muted-foreground) / 0.5)';
+          const strokeColor = edge.style?.stroke || '#94a3b8';
           const strokeWidth = isHovered ? 2.5 : 1.5;
           const opacity = isHovered ? 1 : 0.65;
 
@@ -561,8 +561,8 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
                   <tspan
                     x={cpX}
                     dy="0"
-                    fill="hsl(var(--card))"
-                    stroke="hsl(var(--card))"
+                    fill="#f7f8fb"
+                    stroke="#f7f8fb"
                     strokeWidth={3}
                   >
                     {edge.label}
@@ -602,14 +602,15 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
               key={node.id}
               transform={`translate(${node.position.x}, ${node.position.y})`}
             >
-              {/* Table Card Backdrop */}
+              {/* Table card */}
               <rect
-                width={200}
-                height={150}
-                fill="#0d1421"
+                width={240}
+                height={232}
+                fill="#ffffff"
                 stroke={finalStrokeColor}
                 strokeWidth={finalStrokeWidth}
-                rx={5}
+                rx={8}
+                className="drop-shadow-[0_5px_12px_rgba(15,23,42,0.10)]"
                 style={{ cursor: isCurrentDragging ? 'grabbing' : 'grab' }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -618,65 +619,63 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
                 onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
               />
               
-              {/* Table Name Header banner */}
+              {/* Accent and table header */}
               <rect
-                x={1}
-                y={1}
-                width={198}
-                height={28}
-                fill="#111c2c"
-                rx={4}
+                x={0}
+                y={0}
+                width={5}
+                height={232}
+                fill={node.data.diffStatus ? borderColor : '#8b5cf6'}
+                rx={8}
                 style={{ pointerEvents: 'none' }}
               />
+              <rect x={5} y={0} width={235} height={42} fill="#fafafa" rx={8} style={{ pointerEvents: 'none' }} />
+              <line x1={5} y1={42} x2={240} y2={42} stroke="#e2e8f0" />
 
               {/* Table name text */}
               <text
-                x={100}
-                y={19}
-                fill="#e2e8f0"
-                fontSize={11}
-                fontWeight="600"
-                textAnchor="middle"
+                x={18}
+                y={18}
+                fill="#0f172a"
+                fontSize={12}
+                fontWeight="700"
+                textAnchor="start"
                 style={{ pointerEvents: 'none' }}
               >
-                {node.data.schema && node.data.schema !== 'public' ? `${node.data.schema}.` : ''}
                 {node.data.name}
+              </text>
+              <text x={18} y={32} fill="#94a3b8" fontSize={8} className="font-mono" style={{ pointerEvents: 'none' }}>
+                {node.data.schema || 'public'} · {node.data.columns.length} columns
               </text>
               
               {/* Columns list */}
-              {node.data.columns.slice(0, 7).map((col, idx) => (
-                <text
-                  key={col.name}
-                  x={12}
-                  y={46 + idx * 14}
-                  fill="#cbd5e1"
-                  fontSize={9}
-                  style={{ pointerEvents: 'none' }}
-                  className="font-mono"
-                >
-                  <tspan fill={col.primaryKey ? '#26B2F2' : '#64748b'} fontSize="7" fontWeight="700">
-                    {col.primaryKey ? 'PK ' : '   '}
-                  </tspan>
-                  <tspan fontWeight={col.primaryKey ? 'bold' : 'normal'}>
+              {node.data.columns.slice(0, 8).map((col, idx) => (
+                <g key={col.name} style={{ pointerEvents: 'none' }}>
+                  {idx > 0 && <line x1={14} y1={44 + idx * 22} x2={232} y2={44 + idx * 22} stroke="#f1f5f9" />}
+                  <circle cx={20} cy={57 + idx * 22} r={4.5} fill={col.primaryKey ? '#f59e0b' : '#e2e8f0'} />
+                  <text x={20} y={59.5 + idx * 22} fill={col.primaryKey ? '#ffffff' : '#94a3b8'} fontSize={5.5} fontWeight="800" textAnchor="middle">
+                    {col.primaryKey ? 'K' : '·'}
+                  </text>
+                  <text x={31} y={60 + idx * 22} fill="#334155" fontSize={9.5} fontWeight={col.primaryKey ? '600' : '500'} className="font-mono">
                     {col.name}
-                  </tspan>
-                  <tspan fill="#64748b">
-                    : {col.type}{col.nullable ? '?' : ''}
-                  </tspan>
-                </text>
+                  </text>
+                  <text x={226} y={60 + idx * 22} fill="#94a3b8" fontSize={8.5} textAnchor="end" className="font-mono">
+                    {col.type}{col.nullable ? '?' : ''}
+                  </text>
+                </g>
               ))}
 
               {/* Overflow columns count indicator */}
-              {node.data.columns.length > 7 && (
+              {node.data.columns.length > 8 && (
                 <text
-                  x={12}
-                  y={46 + 7 * 14}
-                  fill="#64748b"
+                  x={18}
+                  y={224}
+                  fill="#94a3b8"
                   fontSize={8}
                   style={{ pointerEvents: 'none' }}
                   className="italic"
                 >
-                  ... +{node.data.columns.length - 7} more columns
+                  +{node.data.columns.length - 8} more columns
                 </text>
               )}
             </g>
