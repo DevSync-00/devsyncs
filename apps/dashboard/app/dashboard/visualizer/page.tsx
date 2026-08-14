@@ -68,8 +68,18 @@ export default async function VisualizerPage({
     }
   }
 
+  if (selectedProjectId && hasScans) {
+    return (
+      <SchemaVisualizer
+        projectId={selectedProjectId}
+        projects={projects || []}
+        scannedSchema={schemaData}
+      />
+    );
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 px-4 py-5 sm:px-6 lg:px-8">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -117,14 +127,7 @@ export default async function VisualizerPage({
             </Button>
           </Link>
         </div>
-      ) : (
-        <div className="w-full">
-          <SchemaVisualizer
-            projectId={selectedProjectId}
-            scannedSchema={schemaData}
-          />
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }

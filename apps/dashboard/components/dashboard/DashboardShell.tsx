@@ -76,6 +76,7 @@ export default function DashboardShell({
   const currentSegment = pathname === '/dashboard' 
     ? 'overview' 
     : pathname.replace('/dashboard/', '').split('/')[0] || 'overview';
+  const isWorkspaceRoute = pathname === '/dashboard/visualizer';
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -156,7 +157,12 @@ export default function DashboardShell({
             </form>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8">{children}</main>
+        <main className={cn(
+          'w-full',
+          isWorkspaceRoute
+            ? 'h-[calc(100vh-3.5rem)] overflow-hidden'
+            : 'mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8',
+        )}>{children}</main>
       </div>
     </div>
   );

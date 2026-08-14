@@ -19,6 +19,7 @@ import type { ScannedSchema } from '@/lib/schema-scanner';
 import { adaptScannedToNormalized, diffSchemas, mergeSchemas } from './erd-adapter';
 import { GraphRenderer } from './GraphRenderer';
 import { TableDetailModal } from './TableDetailModal';
+import { ProjectSelector } from './ProjectSelector';
 import type { LayoutAlgorithm, LayoutState, SchemaDiff, Table } from './types';
 
 interface SchemaVisualizerProps {
@@ -27,6 +28,7 @@ interface SchemaVisualizerProps {
   codeSchema?: ScannedSchema | null;
   dbSchema?: ScannedSchema | null;
   mismatches?: unknown[];
+  projects?: Array<{ id: string; name: string }>;
 }
 
 export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
@@ -34,6 +36,7 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
   scannedSchema,
   codeSchema,
   dbSchema,
+  projects = [],
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [relationshipSearch, setRelationshipSearch] = useState('');
@@ -183,19 +186,25 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
   );
 
   return (
-    <div className="flex h-[calc(100vh-11.5rem)] min-h-[620px] w-full flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm">
+    <div className="flex h-full min-h-[560px] w-full flex-col overflow-hidden bg-card text-card-foreground">
       <header className="flex h-12 shrink-0 items-center gap-3 border-b bg-muted/20 px-3">
         <div className="flex min-w-0 items-center gap-2">
           <div className="grid h-7 w-7 place-items-center rounded-md bg-primary/10 text-primary ring-1 ring-inset ring-primary/20">
             <Database className="h-3.5 w-3.5" />
           </div>
           <div className="min-w-0">
-            <div className="truncate font-mono text-[11px] font-semibold text-foreground">schema.graph</div>
-            <div className="font-mono text-[9px] text-muted-foreground">live database topology</div>
+            <div className="truncate font-mono text-[11px] font-semibold text-foreground">Database Visualizer</div>
+            <div className="font-mono text-[9px] text-muted-foreground">schema workspace</div>
           </div>
         </div>
 
         <div className="mx-1 h-5 w-px bg-border" />
+
+        {projectId ? (
+          <ProjectSelector projects={projects} selectedProjectId={projectId} compact />
+        ) : null}
+
+        {projectId ? <div className="mx-1 hidden h-5 w-px bg-border sm:block" /> : null}
 
         <label className="relative min-w-0 flex-1 md:max-w-sm">
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
