@@ -31,6 +31,7 @@ export function adaptScannedToNormalized(scanned?: ScannedSchema | null): Normal
 
   const tables: Table[] = scanned.tables.map((srcTable) => {
     const constraints: Constraint[] = [];
+    const foreignColumns = new Set((srcTable.relationships || []).map((relationship) => relationship.column));
 
     const columns: Column[] = srcTable.columns.map((srcCol, idx) => {
       const isPrimaryKey = srcCol.constraints?.some(c => c.toUpperCase() === 'PRIMARY KEY') || false;
@@ -38,7 +39,7 @@ export function adaptScannedToNormalized(scanned?: ScannedSchema | null): Normal
 
       if (isPrimaryKey) {
         constraints.push({
-          id: generateUUID(),
+          id: `constraint:${srcTable.name}:pk:${srcCol.name}`,
           kind: 'PRIMARY_KEY',
           name: `${srcTable.name}_pkey`,
           tableName: srcTable.name,
@@ -47,12 +48,13 @@ export function adaptScannedToNormalized(scanned?: ScannedSchema | null): Normal
       }
 
       return {
-        id: generateUUID(),
+        id: `column:${srcTable.name}:${srcCol.name}`,
         name: srcCol.name,
         type: { id: srcCol.type, name: srcCol.type },
         nullable: srcCol.nullable,
-        default: srcCol.defaultValue || null,
+        default: srcCol.defaultValue ?? null,
         isPrimaryKey,
+        isForeignKey: foreignColumns.has(srcCol.name),
         isUnique,
         position: idx,
       };
@@ -62,7 +64,7 @@ export function adaptScannedToNormalized(scanned?: ScannedSchema | null): Normal
     if (srcTable.relationships) {
       srcTable.relationships.forEach((rel) => {
         constraints.push({
-          id: generateUUID(),
+          id: `constraint:${srcTable.name}:fk:${rel.column}:${rel.referencedTable}`,
           kind: 'FOREIGN_KEY',
           name: rel.constraintName || `fk_${srcTable.name}_${rel.referencedTable}_${rel.column}`,
           tableName: srcTable.name,
@@ -74,7 +76,7 @@ export function adaptScannedToNormalized(scanned?: ScannedSchema | null): Normal
     }
 
     return {
-      id: generateUUID(),
+      id: `table:public:${srcTable.name}`,
       name: srcTable.name,
       schema: 'public',
       columns,
@@ -91,7 +93,7 @@ export function adaptScannedToNormalized(scanned?: ScannedSchema | null): Normal
         const isUniqueFK = srcTable.columns.find(c => c.name === rel.column)?.constraints?.some(c => c.toUpperCase() === 'UNIQUE') || false;
 
         relationships.push({
-          id: generateUUID(),
+          id: `relationship:${srcTable.name}:${rel.column}:${rel.referencedTable}:${rel.referencedColumn || 'id'}`,
           name: rel.constraintName || `fk_${srcTable.name}_${rel.referencedTable}_${rel.column}`,
           sourceTable: rel.referencedTable,
           targetTable: srcTable.name,
@@ -105,7 +107,7 @@ export function adaptScannedToNormalized(scanned?: ScannedSchema | null): Normal
   });
 
   return {
-    schemas: [{ id: generateUUID(), name: 'public' }],
+    schemas: [{ id: 'schema:public', name: 'public' }],
     tables,
     relationships,
     enums: [],

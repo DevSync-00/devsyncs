@@ -1,6 +1,10 @@
 // Learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom'
 
+if (typeof global.structuredClone === 'undefined') {
+  global.structuredClone = (value) => JSON.parse(JSON.stringify(value))
+}
+
 // Use Node/undici Web APIs for API route tests (do not override Request — breaks NextRequest)
 
 // Mock Next.js router

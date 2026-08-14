@@ -19,7 +19,7 @@ import type { ScannedSchema } from '@/lib/schema-scanner';
 import { adaptScannedToNormalized, diffSchemas, mergeSchemas } from './erd-adapter';
 import { GraphRenderer } from './GraphRenderer';
 import { TableDetailModal } from './TableDetailModal';
-import type { LayoutState, SchemaDiff, Table } from './types';
+import type { LayoutAlgorithm, LayoutState, SchemaDiff, Table } from './types';
 
 interface SchemaVisualizerProps {
   projectId?: string;
@@ -44,9 +44,8 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
   const [navigatorOpen, setNavigatorOpen] = useState(true);
   const [layout, setLayout] = useState<LayoutState>({ tablePositions: {} });
   const [layoutState, setLayoutState] = useState<'idle' | 'loading' | 'saving' | 'saved' | 'error'>('idle');
-  const [syncPan, setSyncPan] = useState({ x: 0, y: 0 });
-  const [syncZoom, setSyncZoom] = useState(1);
   const [compareMode, setCompareMode] = useState<'side-by-side' | 'unified'>('side-by-side');
+  const [focusTableId, setFocusTableId] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -150,6 +149,10 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const applyLayout = (algorithm: LayoutAlgorithm) => {
+    handleLayoutChange({ ...layout, tablePositions: {}, layoutAlgorithm: algorithm });
+  };
+
   const renderGraph = (
     schema: typeof normalizedSchema,
     label?: string,
@@ -173,16 +176,8 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
         layout={layout}
         onTableClick={setSelectedTable}
         onLayoutChange={handleLayoutChange}
-        {...(isComparison && compareMode === 'side-by-side'
-          ? {
-              externalPan: syncPan,
-              externalZoom: syncZoom,
-              onViewportChange: (pan: { x: number; y: number }, zoom: number) => {
-                setSyncPan(pan);
-                setSyncZoom(zoom);
-              },
-            }
-          : {})}
+        focusTableId={focusTableId}
+        layoutAlgorithm={layout.layoutAlgorithm || 'horizontal'}
       />
     </section>
   );
@@ -214,6 +209,16 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
         </label>
 
         <div className="ml-auto flex items-center gap-1.5">
+          <select
+            aria-label="Automatic layout"
+            value={layout.layoutAlgorithm || 'horizontal'}
+            onChange={(event) => applyLayout(event.target.value as LayoutAlgorithm)}
+            className="hidden h-8 rounded-md border border-slate-700 bg-slate-950 px-2 font-mono text-[10px] text-slate-300 outline-none md:block"
+          >
+            <option value="horizontal">Horizontal</option>
+            <option value="vertical">Vertical</option>
+            <option value="grid">Grid</option>
+          </select>
           {isComparison && (
             <div className="hidden items-center gap-1 lg:flex">
               <DiffToggle active={showAdd} onClick={() => setShowAdd((value) => !value)} label="Added" tone="emerald" />
@@ -282,7 +287,11 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
                 {navigatorTables.map((table) => (
                   <button
                     key={`${table.schema}:${table.name}`}
-                    onClick={() => setSelectedTable(table)}
+                    onClick={() => {
+                      setFocusTableId(`${table.schema || 'public'}:${table.name}`);
+                      window.setTimeout(() => setFocusTableId(null), 600);
+                    }}
+                    onDoubleClick={() => setSelectedTable(table)}
                     className="group flex w-full items-center gap-2 border-l-2 border-transparent px-3 py-1.5 text-left transition hover:border-[#26B2F2] hover:bg-[#26B2F2]/5"
                   >
                     <Table2 className="h-3.5 w-3.5 shrink-0 text-slate-600 group-hover:text-[#26B2F2]" />
@@ -317,7 +326,7 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
         <span className="ml-auto">
           {layoutState === 'saving' ? 'saving layout…' : layoutState === 'error' ? 'layout sync failed' : projectId ? 'layout synced' : 'local layout'}
         </span>
-        <span className="hidden sm:inline">drag to pan · scroll to zoom · click table for details</span>
+        <span className="hidden sm:inline">drag to pan · scroll to zoom · double-click table for details</span>
       </footer>
 
       {selectedTable && <TableDetailModal table={selectedTable} diffs={computedDiffs} onClose={() => setSelectedTable(null)} />}

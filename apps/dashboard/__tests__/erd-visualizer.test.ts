@@ -1,6 +1,7 @@
 import { adaptScannedToNormalized, diffSchemas, mergeSchemas } from '../components/erd/erd-adapter';
 import { ScannedSchema } from '../lib/schema-scanner';
 import { NormalizedSchema } from '../components/erd/types';
+import { layoutSchema, tableHeight } from '../components/erd/layout';
 
 // Mock datasets for testing
 const mockScannedDbSchema: ScannedSchema = {
@@ -98,12 +99,32 @@ describe('Database ERD Visualizer Integration Test Suite', () => {
       expect(relationship.sourceColumn).toBe('id');
       expect(relationship.targetColumn).toBe('user_id');
       expect(relationship.targetCardinality).toBe('MANY'); // user_id is not unique in posts
+      expect(normalized.tables.find(t => t.name === 'posts')?.columns.find(c => c.name === 'user_id')?.isForeignKey).toBe(true);
     });
 
     it('should handle null/empty scanned schemas gracefully', () => {
       const emptyNormalized = adaptScannedToNormalized(null);
       expect(emptyNormalized.tables).toEqual([]);
       expect(emptyNormalized.relationships).toEqual([]);
+    });
+  });
+
+  describe('Graph layout engine', () => {
+    it.each(['horizontal', 'vertical', 'grid'] as const)('creates finite, unique positions for %s layout', (algorithm) => {
+      const schema = adaptScannedToNormalized(mockScannedDbSchema);
+      const positions = layoutSchema(schema, algorithm);
+      expect(Object.keys(positions)).toHaveLength(schema.tables.length);
+      const values = Object.values(positions);
+      expect(new Set(values.map(position => `${position.x}:${position.y}`)).size).toBe(values.length);
+      values.forEach(position => {
+        expect(Number.isFinite(position.x)).toBe(true);
+        expect(Number.isFinite(position.y)).toBe(true);
+      });
+    });
+
+    it('reduces collapsed table height while bounding very large tables', () => {
+      expect(tableHeight(10, true)).toBeLessThan(tableHeight(10));
+      expect(tableHeight(10_000)).toBe(tableHeight(30));
     });
   });
 

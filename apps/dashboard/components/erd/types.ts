@@ -21,6 +21,8 @@ export interface Table {
     y: number;
   };
   color?: string;
+  collapsed?: boolean;
+  rowCount?: number | null;
 }
 
 export interface Column {
@@ -38,6 +40,7 @@ export interface Column {
   collation?: string | null;
   comment?: string | null;
   isPrimaryKey?: boolean;
+  isForeignKey?: boolean;
   isUnique?: boolean;
   isArray?: boolean;
   isIdentity?: boolean;
@@ -145,7 +148,18 @@ export interface LayoutState {
       height?: number | null;
     }
   >;
+  viewport?: { x: number; y: number; zoom: number };
+  collapsedTables?: string[];
+  tableColors?: Record<string, string>;
+  hiddenTables?: string[];
+  lockedTables?: string[];
+  favoriteTables?: string[];
+  layoutAlgorithm?: LayoutAlgorithm;
+  snapToGrid?: boolean;
+  sidebarOpen?: boolean;
 }
+
+export type LayoutAlgorithm = 'horizontal' | 'vertical' | 'grid';
 
 export interface NormalizedSchema {
   schemas: SchemaNamespace[];
