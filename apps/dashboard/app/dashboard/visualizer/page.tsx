@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ProjectSelector } from '@/components/erd/ProjectSelector';
 import { SchemaVisualizer } from '@/components/erd/SchemaVisualizer';
-import { headers } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,15 +69,17 @@ export default async function VisualizerPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
             Visualization Studio
           </div>
-          <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
-            <Database className="w-5 h-5 text-primary" />
+          <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+            <span className="flex h-8 w-8 items-center justify-center rounded-md border bg-card">
+              <Database className="h-4 w-4 text-primary" />
+            </span>
             Database Visualizer
           </h1>
           <p className="mt-1 text-xs text-muted-foreground">

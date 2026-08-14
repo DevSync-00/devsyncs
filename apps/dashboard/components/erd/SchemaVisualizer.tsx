@@ -158,10 +158,10 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
     label?: string,
     tone: 'blue' | 'violet' = 'blue',
   ) => (
-    <section className="relative min-h-0 h-full overflow-hidden border-r last:border-r-0 border-[#41454e]">
+    <section className="relative min-h-0 h-full overflow-hidden border-r last:border-r-0 border-border">
       {label && (
-        <div className="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-2 rounded border border-[#555b66] bg-[#2a2d33]/95 px-2.5 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-200 shadow-xl backdrop-blur">
-          <span className={`h-1.5 w-1.5 rounded-full ${tone === 'blue' ? 'bg-emerald-400' : 'bg-violet-400'}`} />
+        <div className="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-2 rounded-md border bg-card/95 px-2.5 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground shadow-lg backdrop-blur">
+          <span className={`h-1.5 w-1.5 rounded-full ${tone === 'blue' ? 'bg-primary' : 'bg-violet-500'}`} />
           {label}
         </div>
       )}
@@ -183,29 +183,29 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
   );
 
   return (
-    <div className="flex h-[calc(100vh-11.5rem)] min-h-[620px] w-full flex-col overflow-hidden rounded-lg border border-[#4a4f59] bg-[#1b1d21] text-zinc-100 shadow-[0_24px_70px_rgba(0,0,0,0.32)]">
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-[#464b54] bg-[#292c32] px-3">
+    <div className="flex h-[calc(100vh-11.5rem)] min-h-[620px] w-full flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm">
+      <header className="flex h-12 shrink-0 items-center gap-3 border-b bg-muted/20 px-3">
         <div className="flex min-w-0 items-center gap-2">
-          <div className="grid h-7 w-7 place-items-center rounded bg-emerald-400/10 text-emerald-400 ring-1 ring-inset ring-emerald-400/30">
+          <div className="grid h-7 w-7 place-items-center rounded-md bg-primary/10 text-primary ring-1 ring-inset ring-primary/20">
             <Database className="h-3.5 w-3.5" />
           </div>
           <div className="min-w-0">
-            <div className="truncate font-mono text-[11px] font-semibold text-slate-100">schema.graph</div>
-            <div className="font-mono text-[9px] text-slate-500">live database topology</div>
+            <div className="truncate font-mono text-[11px] font-semibold text-foreground">schema.graph</div>
+            <div className="font-mono text-[9px] text-muted-foreground">live database topology</div>
           </div>
         </div>
 
-        <div className="mx-1 h-5 w-px bg-slate-800" />
+        <div className="mx-1 h-5 w-px bg-border" />
 
         <label className="relative min-w-0 flex-1 md:max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Filter tables or columns…"
-            className="h-8 w-full rounded border border-[#555b66] bg-[#1d1f24] pl-8 pr-12 font-mono text-[11px] text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-emerald-400/80 focus:ring-2 focus:ring-emerald-400/15"
+            className="h-8 w-full rounded-md border bg-background pl-8 pr-12 font-mono text-[11px] text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/70 focus:ring-2 focus:ring-primary/10"
           />
-          <kbd className="absolute right-2 top-1/2 -translate-y-1/2 rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 font-mono text-[8px] text-slate-500">⌘K</kbd>
+          <kbd className="absolute right-2 top-1/2 -translate-y-1/2 rounded border bg-muted px-1.5 py-0.5 font-mono text-[8px] text-muted-foreground">⌘K</kbd>
         </label>
 
         <div className="ml-auto flex items-center gap-1.5">
@@ -213,7 +213,7 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
             aria-label="Automatic layout"
             value={layout.layoutAlgorithm || 'horizontal'}
             onChange={(event) => applyLayout(event.target.value as LayoutAlgorithm)}
-            className="hidden h-8 rounded border border-[#555b66] bg-[#1d1f24] px-2 font-mono text-[10px] text-zinc-200 outline-none focus:border-emerald-400 md:block"
+            className="hidden h-8 rounded-md border bg-background px-2 font-mono text-[10px] text-foreground outline-none focus:border-primary md:block"
           >
             <option value="horizontal">Horizontal</option>
             <option value="vertical">Vertical</option>
@@ -227,22 +227,22 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
             </div>
           )}
           {isComparison && (
-            <div className="hidden items-center rounded border border-[#555b66] bg-[#1d1f24] p-0.5 sm:flex">
+            <div className="hidden items-center rounded-md border bg-background p-0.5 sm:flex">
               <button
                 onClick={() => setCompareMode('side-by-side')}
-                className={`flex h-7 items-center gap-1.5 rounded px-2.5 font-mono text-[10px] transition ${compareMode === 'side-by-side' ? 'bg-emerald-400 text-zinc-950' : 'text-zinc-400 hover:text-white'}`}
+                className={`flex h-7 items-center gap-1.5 rounded px-2.5 font-mono text-[10px] transition ${compareMode === 'side-by-side' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 <SplitSquareHorizontal className="h-3 w-3" /> Split
               </button>
               <button
                 onClick={() => setCompareMode('unified')}
-                className={`flex h-7 items-center gap-1.5 rounded px-2.5 font-mono text-[10px] transition ${compareMode === 'unified' ? 'bg-emerald-400 text-zinc-950' : 'text-zinc-400 hover:text-white'}`}
+                className={`flex h-7 items-center gap-1.5 rounded px-2.5 font-mono text-[10px] transition ${compareMode === 'unified' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 <Layers3 className="h-3 w-3" /> Unified
               </button>
             </div>
           )}
-          <Button variant="ghost" size="sm" onClick={handleExportSvg} className="h-8 rounded-md px-2.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100">
+          <Button variant="ghost" size="sm" onClick={handleExportSvg} className="h-8 rounded-md px-2.5 text-muted-foreground hover:bg-muted hover:text-foreground">
             <Download className="mr-1.5 h-3.5 w-3.5" />
             <span className="hidden font-mono text-[10px] sm:inline">Export</span>
           </Button>
@@ -250,12 +250,12 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <aside className={`${navigatorOpen ? 'w-60' : 'w-11'} flex shrink-0 flex-col border-r border-[#464b54] bg-[#23262b] transition-[width] duration-200`}>
-          <div className="flex h-10 items-center border-b border-slate-800 px-2">
-            {navigatorOpen && <span className="px-1 font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">Explorer</span>}
+        <aside className={`${navigatorOpen ? 'w-60' : 'w-11'} flex shrink-0 flex-col border-r bg-card transition-[width] duration-200`}>
+          <div className="flex h-10 items-center border-b px-2">
+            {navigatorOpen && <span className="px-1 font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Explorer</span>}
             <button
               onClick={() => setNavigatorOpen((open) => !open)}
-              className="ml-auto grid h-7 w-7 place-items-center rounded text-slate-500 transition hover:bg-slate-800 hover:text-slate-200"
+              className="ml-auto grid h-7 w-7 place-items-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
               title={navigatorOpen ? 'Collapse explorer' : 'Open explorer'}
             >
               {navigatorOpen ? <PanelLeftClose className="h-3.5 w-3.5" /> : <PanelLeftOpen className="h-3.5 w-3.5" />}
@@ -264,25 +264,25 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
 
           {navigatorOpen && (
             <>
-              <div className="grid grid-cols-3 border-b border-slate-800">
+              <div className="grid grid-cols-3 border-b">
                 <Metric icon={<Table2 className="h-3 w-3" />} value={visibleSchema.tables.length} label="tables" />
                 <Metric icon={<Columns3 className="h-3 w-3" />} value={columnCount} label="columns" />
                 <Metric icon={<GitBranch className="h-3 w-3" />} value={visibleSchema.relationships.length} label="refs" />
               </div>
-              <div className="border-b border-slate-800 p-2">
+              <div className="border-b p-2">
                 <label className="relative block">
-                  <GitBranch className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-600" />
+                  <GitBranch className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
                   <input
                     value={relationshipSearch}
                     onChange={(event) => setRelationshipSearch(event.target.value)}
                     placeholder="Filter relationships"
-                    className="h-7 w-full rounded border border-[#4c515b] bg-[#1b1d21] pl-7 pr-2 font-mono text-[10px] text-zinc-200 outline-none placeholder:text-zinc-500 focus:border-emerald-400/70"
+                    className="h-7 w-full rounded-md border bg-background pl-7 pr-2 font-mono text-[10px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/70"
                   />
                 </label>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto py-1">
-                <div className="px-3 py-2 font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600">
-                  public <span className="ml-1 text-slate-700">({navigatorTables.length})</span>
+                <div className="px-3 py-2 font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  public <span className="ml-1 text-muted-foreground">({navigatorTables.length})</span>
                 </div>
                 {navigatorTables.map((table) => (
                   <button
@@ -292,11 +292,11 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
                       window.setTimeout(() => setFocusTableId(null), 600);
                     }}
                     onDoubleClick={() => setSelectedTable(table)}
-                    className="group flex w-full items-center gap-2 border-l-2 border-transparent px-3 py-1.5 text-left transition hover:border-emerald-400 hover:bg-emerald-400/10"
+                    className="group flex w-full items-center gap-2 border-l-2 border-transparent px-3 py-1.5 text-left transition hover:border-primary hover:bg-primary/[0.08]"
                   >
-                    <Table2 className="h-3.5 w-3.5 shrink-0 text-zinc-500 group-hover:text-emerald-400" />
-                    <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-slate-400 group-hover:text-slate-100">{table.name}</span>
-                    <span className="font-mono text-[9px] text-slate-700">{table.columns.length}</span>
+                    <Table2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
+                    <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground group-hover:text-foreground">{table.name}</span>
+                    <span className="font-mono text-[9px] text-muted-foreground/70">{table.columns.length}</span>
                   </button>
                 ))}
               </div>
@@ -304,10 +304,10 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
           )}
         </aside>
 
-        <main data-erd-canvas className="relative min-w-0 flex-1 bg-[#1b1d21]">
+        <main data-erd-canvas className="relative min-w-0 flex-1 bg-muted/20">
           {layoutState === 'loading' && (
-            <div className="absolute inset-x-0 top-0 z-30 h-px overflow-hidden bg-slate-800">
-              <div className="h-full w-1/3 animate-[pulse_1s_ease-in-out_infinite] bg-emerald-400" />
+            <div className="absolute inset-x-0 top-0 z-30 h-px overflow-hidden bg-border">
+              <div className="h-full w-1/3 animate-[pulse_1s_ease-in-out_infinite] bg-primary" />
             </div>
           )}
           {isComparison && compareMode === 'side-by-side' ? (
@@ -319,8 +319,8 @@ export const SchemaVisualizer: React.FC<SchemaVisualizerProps> = ({
         </main>
       </div>
 
-      <footer className="flex h-7 shrink-0 items-center gap-4 border-t border-[#464b54] bg-[#292c32] px-3 font-mono text-[9px] text-zinc-400">
-        <span className="flex items-center gap-1.5 text-emerald-400"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> connected</span>
+      <footer className="flex h-7 shrink-0 items-center gap-4 border-t bg-muted/20 px-3 font-mono text-[9px] text-muted-foreground">
+        <span className="flex items-center gap-1.5 text-emerald-500"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> connected</span>
         <span>{visibleSchema.tables.length} tables</span>
         <span>{visibleSchema.relationships.length} relationships</span>
         <span className="ml-auto">
@@ -350,7 +350,7 @@ function DiffToggle({
     <button
       onClick={onClick}
       className={`flex h-7 items-center gap-1.5 rounded border px-2 font-mono text-[9px] transition ${
-        active ? 'border-slate-700 bg-slate-900 text-slate-300' : 'border-transparent text-slate-600'
+        active ? 'border-border bg-muted text-foreground' : 'border-transparent text-muted-foreground/60'
       }`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${dot} ${active ? '' : 'opacity-30'}`} />
@@ -361,9 +361,9 @@ function DiffToggle({
 
 function Metric({ icon, value, label }: { icon: React.ReactNode; value: number; label: string }) {
   return (
-    <div className="border-r border-slate-800 px-2 py-2.5 last:border-r-0">
-      <div className="mb-1 flex items-center gap-1 text-emerald-400">{icon}<span className="font-mono text-[11px] font-semibold text-zinc-100">{value}</span></div>
-      <div className="font-mono text-[8px] uppercase tracking-wider text-slate-600">{label}</div>
+    <div className="border-r px-2 py-2.5 last:border-r-0">
+      <div className="mb-1 flex items-center gap-1 text-primary">{icon}<span className="font-mono text-[11px] font-semibold text-foreground">{value}</span></div>
+      <div className="font-mono text-[8px] uppercase tracking-wider text-muted-foreground">{label}</div>
     </div>
   );
 }
