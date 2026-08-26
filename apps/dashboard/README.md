@@ -57,7 +57,12 @@ See `supabase/migrations/` for database schema.
 
 ### GitHub App
 
-Create a GitHub App named DevSync with:
+The DevSync GitHub App registration is owned by the
+[`DevSync-00`](https://github.com/DevSync-00) organization. Organization owners
+or assigned GitHub App managers should maintain it under **Organization
+settings -> Developer settings -> GitHub Apps**.
+
+Configure the GitHub App named DevSync with:
 
 - Homepage URL: `https://www.dev-sync.dev`
 - Setup URL: `https://www.dev-sync.dev/api/github/callback`
@@ -75,8 +80,16 @@ short-lived installation tokens for scans.
 Configure the GitHub App callback URL as
 `https://www.dev-sync.dev/api/github/callback`, then add
 `GITHUB_APP_CLIENT_ID` and `GITHUB_APP_CLIENT_SECRET` to the deployment.
-User authorization lets multiple DevSync accounts securely connect the same
-existing GitHub App installation.
+Each connection requires the user to select one installation and authorize a
+GitHub identity that can access that exact installation. DevSync does not
+automatically import the user's other personal or organization installations.
+
+After an ownership transfer, confirm these deployment variables still match
+the app now owned by `DevSync-00`: `GITHUB_APP_ID`, `GITHUB_APP_SLUG`,
+`GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, and the private key. Also
+recheck the Setup URL, callback URL, and **Redirect on update** setting in the
+organization-owned app registration. Do not create a replacement app merely
+to change ownership; existing installation IDs belong to the transferred app.
 
 For Vercel, `GITHUB_APP_PRIVATE_KEY_BASE64` is the most reliable option. Set it
 to the base64 encoding of the complete `.pem` file downloaded from GitHub; it

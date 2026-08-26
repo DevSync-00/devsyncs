@@ -13,8 +13,9 @@ export async function GET(request: NextRequest) {
   }
 
   const slug = getGitHubAppSlug();
-  if (!slug) {
-    return NextResponse.json({ error: 'GITHUB_APP_SLUG is not configured' }, { status: 500 });
+  const clientId = getGitHubAppOAuthClientId();
+  if (!slug || !clientId || !process.env.GITHUB_APP_CLIENT_SECRET?.trim()) {
+    return NextResponse.json({ error: 'The GitHub App installation and OAuth flow is not configured.' }, { status: 500 });
   }
 
   const state = randomBytes(32).toString('hex');
@@ -22,10 +23,10 @@ export async function GET(request: NextRequest) {
   const returnTo = returnToParam.startsWith('/') && !returnToParam.startsWith('//')
     ? returnToParam
     : '/dashboard/projects/new';
-  const clientId = getGitHubAppOAuthClientId();
-  const destination = clientId
-    ? `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(clientId)}&state=${state}`
-    : `https://github.com/apps/${encodeURIComponent(slug)}/installations/new?state=${state}`;
+  // Always let the user select or install exactly one GitHub account first.
+  // Starting with OAuth and enumerating /user/installations silently connects
+  // every installation the GitHub identity can access.
+  const destination = `https://github.com/apps/${encodeURIComponent(slug)}/installations/new?state=${state}`;
   const response = NextResponse.redirect(destination);
   response.cookies.set('github_app_state', state, {
     httpOnly: true,

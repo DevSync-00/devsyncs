@@ -3,7 +3,6 @@ import { createClient } from '@/lib/supabase/server';
 import { getAdminClient } from '@/lib/supabase/admin';
 import {
   exchangeGitHubOAuthCode,
-  getGitHubAppSlug,
   getGitHubInstallationsForUser,
   getGitHubOAuthUser,
 } from '@/lib/github-app';
@@ -19,6 +18,7 @@ export async function GET(request: NextRequest) {
     const result = NextResponse.redirect(redirectUrl);
     result.cookies.delete('github_app_state');
     result.cookies.delete('github_app_return_to');
+    result.cookies.delete('github_app_pending_installation');
     return result;
   };
 
@@ -35,20 +35,28 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
   if (code) {
     try {
+      const pendingInstallationId = Number(
+        request.cookies.get('github_app_pending_installation')?.value
+      );
+      if (!Number.isSafeInteger(pendingInstallationId) || pendingInstallationId <= 0) {
+        return response('error', 'No GitHub installation was selected for this connection request.');
+      }
+
       const userToken = await exchangeGitHubOAuthCode(code);
       const githubUser = await getGitHubOAuthUser(userToken);
       const installations = await getGitHubInstallationsForUser(userToken);
-
-      if (installations.length === 0) {
-        const slug = getGitHubAppSlug();
-        if (!slug) return response('error', 'GitHub App slug is not configured.');
-        return NextResponse.redirect(
-          `https://github.com/apps/${encodeURIComponent(slug)}/installations/new?state=${expectedState}`
+      const installation = installations.find(
+        (candidate) => Number(candidate.id) === pendingInstallationId
+      );
+      if (!installation) {
+        return response(
+          'error',
+          'The selected GitHub installation is not authorized for this GitHub user.'
         );
       }
 
       const admin = getAdminClient() as any;
-      const rows = installations.map((installation) => ({
+      const row = {
         user_id: user.id,
         installation_id: installation.id,
         account_login: installation.account?.login,
@@ -58,10 +66,10 @@ export async function GET(request: NextRequest) {
         github_login: githubUser.login,
         verified_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      }));
+      };
       const { error } = await admin
         .from('github_app_installations')
-        .upsert(rows, { onConflict: 'user_id,installation_id' });
+        .upsert(row, { onConflict: 'user_id,installation_id' });
       if (error) throw error;
       return response('connected');
     } catch (error: any) {
@@ -71,14 +79,27 @@ export async function GET(request: NextRequest) {
 
   const installationIdParam = request.nextUrl.searchParams.get('installation_id');
   if (installationIdParam) {
+    const installationId = Number(installationIdParam);
+    if (!Number.isSafeInteger(installationId) || installationId <= 0) {
+      return response('error', 'GitHub returned an invalid installation.');
+    }
+
     const clientId = process.env.GITHUB_APP_CLIENT_ID?.trim();
     if (!clientId) {
       return response('error', 'GitHub user authorization is required before connecting installations.');
     }
 
-    return NextResponse.redirect(
+    const oauthResponse = NextResponse.redirect(
       `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(clientId)}&state=${expectedState}`
     );
+    oauthResponse.cookies.set('github_app_pending_installation', String(installationId), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 10 * 60,
+      path: '/',
+    });
+    return oauthResponse;
   }
 
   return response('error', 'Invalid or expired GitHub connection request.');
