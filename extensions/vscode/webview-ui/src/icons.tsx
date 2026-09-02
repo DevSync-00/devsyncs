@@ -1,0 +1,10 @@
+import React from 'react';
+type IconProps = { size?: number };
+const Icon = ({ children, size = 19 }: React.PropsWithChildren<IconProps>) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>;
+export const HomeIcon = (p:IconProps) => <Icon {...p}><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></Icon>;
+export const DatabaseIcon = (p:IconProps) => <Icon {...p}><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></Icon>;
+export const GitCompareIcon = (p:IconProps) => <Icon {...p}><circle cx="7" cy="6" r="2"/><circle cx="17" cy="18" r="2"/><path d="M7 8v8a2 2 0 0 0 2 2h6"/><path d="m14 5 3-3 3 3"/><path d="M17 2v10"/></Icon>;
+export const RocketIcon = (p:IconProps) => <Icon {...p}><path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2"/><path d="m9 15-3-3c2.3-4.4 5.2-7.3 9.7-9.2 1.7-.7 3.5.9 2.8 2.6C16.7 10 13.8 12.8 9 15Z"/><path d="m14 6 4 4"/><circle cx="13" cy="8" r="1"/></Icon>;
+export const SparklesIcon = (p:IconProps) => <Icon {...p}><path d="m12 3-1.2 3.3-3.3 1.2 3.3 1.2L12 12l1.2-3.3 3.3-1.2-3.3-1.2L12 3Z"/><path d="m18 13-.8 2.2L15 16l2.2.8L18 19l.8-2.2L21 16l-2.2-.8L18 13Z"/><path d="m5 14-.7 1.8-1.8.7 1.8.7L5 19l.7-1.8 1.8-.7-1.8-.7L5 14Z"/></Icon>;
+export const ShieldIcon = (p:IconProps) => <Icon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></Icon>;
+export const SettingsIcon = (p:IconProps) => <Icon {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></Icon>;

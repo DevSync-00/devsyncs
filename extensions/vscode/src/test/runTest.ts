@@ -1,4 +1,5 @@
 import * as path from 'path';
+import * as os from 'os';
 import { runTests } from '@vscode/test-electron';
 
 async function sleep(ms: number): Promise<void> {
@@ -26,6 +27,12 @@ async function main() {
           extensionDevelopmentPath,
           extensionTestsPath,
           version: process.env.VSCODE_TEST_VERSION || '1.96.2',
+          // A persistent user-data directory can retain Code's update lock and
+          // make an otherwise healthy test host exit before loading the suite.
+          launchArgs: [
+            '--disable-extensions',
+            `--user-data-dir=${path.join(os.tmpdir(), `devsync-vscode-test-${process.pid}`)}`,
+          ],
         });
         return;
       } catch (error) {
@@ -44,7 +51,7 @@ async function main() {
       }
     }
   } catch (err) {
-    console.error('Failed to run tests');
+    console.error('Failed to run tests', err);
     process.exit(1);
   }
 }

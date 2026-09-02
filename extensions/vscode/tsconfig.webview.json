@@ -1,0 +1,4 @@
+{
+  "compilerOptions": { "target":"ES2020", "module":"ESNext", "moduleResolution":"node", "jsx":"react-jsx", "strict":true, "esModuleInterop":true, "skipLibCheck":true, "lib":["ES2020","DOM"], "noEmit":false },
+  "include":["webview-ui/**/*.ts","webview-ui/**/*.tsx","src/shared/protocol.ts","src/state/types.ts","src/api.ts","src/types.ts"]
+}

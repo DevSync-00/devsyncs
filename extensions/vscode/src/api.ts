@@ -500,6 +500,10 @@ export class DevSyncApiClient implements IApiClient {
     });
   }
 
+  async dashboardRequest<T>(path: string, method: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'GET', payload?: unknown): Promise<T> {
+    return this.platformRequest<T>(path, method, payload);
+  }
+
   private async post<T>(path: string, payload: unknown): Promise<T> {
     try {
       return await requestJson<T>(this.buildUrl(path), {

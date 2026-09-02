@@ -235,6 +235,13 @@ export class SchemaStatusBarManager {
       return;
     }
 
+    // The cockpit owns the review loop; the command gracefully falls back when
+    // users disable the experimental panel and retain the legacy tree.
+    if (vscode.workspace.getConfiguration('devsync').get<boolean>('experimentalPanel', true)) {
+      await vscode.commands.executeCommand('devsync.cockpit.open', 'scans');
+      return;
+    }
+
     if (this.currentStatus.inSync) {
       const selection = await vscode.window.showInformationMessage(
         '✅ Schema is in sync with database',

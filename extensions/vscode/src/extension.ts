@@ -15,6 +15,7 @@ import { ErdPanel } from './erd/panel';
 import { registerErdCommands } from './erd/commands';
 import { ErdSnapshotWatcher } from './erd/watcher';
 import { detectProjectInfo } from './utils/project-detector';
+import { DevSyncPanelProvider } from './webview/panelProvider';
 
 /**
  * Activates the DevSync VS Code extension.
@@ -57,6 +58,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const chatApiClient = container.getChatApiClient();
   const diagnostics = container.getDiagnostics();
   const commands = container.getCommands();
+  const stateStore = container.getStateStore();
   const codeActions = container.getCodeActions();
   const config = container.getConfig();
   const platformApi = apiClient as any;
@@ -239,6 +241,15 @@ export async function activate(context: vscode.ExtensionContext) {
   });
   context.subscriptions.push(treeView);
 
+  // Unified cockpit. The legacy tree remains registered behind the rollout flag.
+  const cockpitProvider = new DevSyncPanelProvider(context, stateStore, authManager, commands, apiClient);
+  context.subscriptions.push(
+    cockpitProvider,
+    vscode.window.registerWebviewViewProvider(DevSyncPanelProvider.viewType, cockpitProvider, {
+      webviewOptions: { retainContextWhenHidden: true },
+    }),
+  );
+
   // Chat assistant setup
   const chatManager = new ChatPanelManager(context, authManager, chatApiClient, cliRunner, pluginRegistry);
   chatManager.updateConfiguration({
@@ -370,6 +381,14 @@ export async function activate(context: vscode.ExtensionContext) {
   const applyCommand = vscode.commands.registerCommand(
     'devsync.apply',
     () => sidebarCommands.apply()
+  );
+
+  // Public scan command used by editor actions, the status bar, and the cockpit.
+  // The legacy sidebar has its own alias, but contributed commands must also be
+  // registered explicitly at runtime before executeCommand can invoke them.
+  const scanCommand = vscode.commands.registerCommand(
+    'devsync.scan',
+    () => commands.scan()
   );
 
   // Register sidebar commands
@@ -798,6 +817,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     codeActionProvider,
+    scanCommand,
     sidebarScanCommand,
     sidebarMigrateCommand,
     sidebarInitCommand,

@@ -48,7 +48,7 @@ export async function requestJson<T>(
   const data = await readBody(response);
 
   if (!response.ok) {
-    const message = getMessage(data, response.statusText);
+    const message = getMessage(data, response.statusText, response.status);
     throw new HttpRequestError(message, response.status, data);
   }
 
@@ -62,13 +62,19 @@ function getNetworkMessage(error: unknown): string {
   return 'Network request failed';
 }
 
-function getMessage(data: unknown, fallback?: string): string {
+function getMessage(data: unknown, fallback?: string, status?: number): string {
   if (!data) {
     return fallback || 'Request failed';
   }
 
   if (typeof data === 'string') {
-    return data;
+    const looksLikeHtml = /<!doctype html|<html[\s>]/i.test(data);
+    if (looksLikeHtml) {
+      return status === 404
+        ? 'This Dev-Sync server does not support the extension dashboard API yet. Deploy the current dashboard backend, then retry.'
+        : `Dev-Sync returned an unexpected web page${status ? ` (HTTP ${status})` : ''}. Check devsync.apiUrl and retry.`;
+    }
+    return data.length > 500 ? `${data.slice(0, 500)}…` : data;
   }
 
   if (typeof data === 'object') {

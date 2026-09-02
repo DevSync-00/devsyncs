@@ -84,6 +84,9 @@ export function createMockExtensionContext(): vscode.ExtensionContext {
  * Mock API Client
  */
 export class MockApiClient implements IApiClient {
+  async dashboardRequest<T>(_path: string, _method?: 'GET' | 'POST' | 'PATCH' | 'DELETE', _payload?: unknown): Promise<T> {
+    return {} as T;
+  }
   private scanResults: any[] = [];
   private migrationResults: any[] = [];
   private scanReports: any[] = [];

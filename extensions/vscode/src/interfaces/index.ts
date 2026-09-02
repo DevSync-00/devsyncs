@@ -98,6 +98,9 @@ export interface IApiClient {
     dbConnectionString?: string | null;
     codebase?: { type: 'git' | 'upload' | 'cli'; url?: string };
   }): Promise<{ id: string; name: string; slug?: string; schemaType?: string }>;
+
+  /** Calls an authenticated dashboard control-plane route. */
+  dashboardRequest<T>(path: string, method?: 'GET' | 'POST' | 'PATCH' | 'DELETE', payload?: unknown): Promise<T>;
 }
 
 /**

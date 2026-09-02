@@ -12,6 +12,9 @@ out/**
 !out/extension.js.LICENSE.txt
 !out/erd/webview/erd-webview.js
 !out/erd/webview/erd-webview.js.LICENSE.txt
+!out/webview/cockpit.js
+!out/webview/cockpit.js
+!out/webview/cockpit.js.LICENSE.txt
 **/*.map
 .gitignore
 *.log

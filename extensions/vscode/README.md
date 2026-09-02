@@ -1,6 +1,10 @@
 # Dev-Sync for VS Code
 
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-26B2F2.svg)](https://github.com/DevSync-00/devsyncs/blob/main/extensions/vscode/LICENSE)
+
 Run Dev-Sync schema scans, review drift, and generate migrations without leaving your editor.
+
+**Open source under the [Apache License 2.0](https://github.com/DevSync-00/devsyncs/blob/main/extensions/vscode/LICENSE).** You may use, copy, modify, and distribute the extension subject to the license terms.
 
 ## Requirements
 
@@ -73,4 +77,6 @@ Terms of service: https://www.dev-sync.dev/terms
 
 ## License
 
-MIT
+Dev-Sync for VS Code is released under the **Apache License 2.0**. Read the [full license text](https://github.com/DevSync-00/devsyncs/blob/main/extensions/vscode/LICENSE).
+
+Third-party dependency notices are included in the packaged extension alongside each production bundle.

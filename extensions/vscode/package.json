@@ -2,10 +2,10 @@
   "name": "devsync",
   "displayName": "Dev-Sync Schema Guard",
   "description": "Detect database schema drift and review safer migration plans in Visual Studio Code.",
-  "version": "0.1.9",
+  "version": "0.1.14",
   "publisher": "Dev-sync",
   "icon": "resources/devsync-marketplace.png",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/DevSync-00/devsyncs.git",
@@ -49,9 +49,15 @@
     "views": {
       "devsync": [
         {
+          "id": "devsyncCockpit",
+          "name": "DevSync Cockpit",
+          "type": "webview",
+          "when": "workspaceFolderCount > 0 && config.devsync.experimentalPanel"
+        },
+        {
           "id": "devsyncSidebar",
           "name": "Dev-Sync",
-          "when": "workspaceFolderCount > 0"
+          "when": "workspaceFolderCount > 0 && !config.devsync.experimentalPanel"
         }
       ]
     },
@@ -365,6 +371,11 @@
           "default": false,
           "description": "Automatically scan on file save"
         },
+        "devsync.experimentalPanel": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use the unified React-based DevSync cockpit. Disable to temporarily restore the legacy tree."
+        },
         "Dev-Sync.devAnalysis": {
           "type": "boolean",
           "default": false,
@@ -467,9 +478,9 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./ --noEmit && npm run compile:extension && npm run compile:webview",
     "compile:extension": "webpack --config webpack.extension.config.js --mode production",
-    "compile:webview": "webpack --config src/erd/webview/webpack.config.js --mode production",
+    "compile:webview": "webpack --config src/erd/webview/webpack.config.js --mode production && webpack --config webpack.webview.config.js --mode production",
     "watch": "tsc -watch -p ./",
-    "watch:webview": "webpack --config src/erd/webview/webpack.config.js --watch",
+    "watch:webview": "webpack --config webpack.webview.config.js --watch",
     "pretest": "npm run compile && npm run compile-tests",
     "compile-tests": "tsc -p ./tsconfig.test.json",
     "test": "node ./out/test/runTest.js",
