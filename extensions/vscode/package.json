@@ -2,7 +2,7 @@
   "name": "devsync",
   "displayName": "Dev-Sync Schema Guard",
   "description": "Detect database schema drift and review safer migration plans in Visual Studio Code.",
-  "version": "0.1.14",
+  "version": "0.2.0",
   "publisher": "Dev-sync",
   "icon": "resources/devsync-marketplace.png",
   "license": "Apache-2.0",
