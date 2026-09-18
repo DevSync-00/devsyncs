@@ -152,7 +152,7 @@ export default function Hero() {
         </div>
 
         {/* Hero Right Column: Automated Timeframe Surface-Swapping Studio Window */}
-        <div className="overflow-hidden rounded-2xl border border-glass bg-card/95 shadow-2xl backdrop-blur-2xl transition-all">
+        <div className="overflow-hidden rounded-2xl border border-glass bg-card/95 shadow-2xl backdrop-blur-2xl transition-all lg:-translate-y-6 lg:max-h-[540px]">
           {/* Surface Selector Header Bar */}
           <div className="flex flex-wrap items-center justify-between border-b border-border/60 bg-muted/40 px-4 py-3 text-muted-foreground text-[11px] gap-2 font-mono">
             {/* Surface Selector Tabs */}
