@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { Menu, X, ArrowRight } from "lucide-react";
 import Logo from "@/components/Logo";
-import ThemeToggle from "@/components/ThemeToggle";
 
 const links = [
   { href: "#product", label: "Product" },
@@ -44,7 +43,6 @@ export default function LandingNav() {
 
         {/* Right Action Group */}
         <div className="hidden items-center gap-3.5 md:flex">
-          <ThemeToggle />
 
           <Link
             href="/auth/login"
@@ -63,7 +61,6 @@ export default function LandingNav() {
 
         {/* Mobile Action Controls */}
         <div className="flex items-center gap-2 md:hidden">
-          <ThemeToggle />
           <button
             type="button"
             className="rounded-full border border-white/20 dark:border-white/10 p-2 hover:bg-muted transition-colors"

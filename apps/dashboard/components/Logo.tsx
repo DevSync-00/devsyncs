@@ -1,7 +1,3 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-
 interface LogoProps {
   className?: string;
   width?: number;
@@ -17,24 +13,7 @@ export default function Logo({
   variant = 'original',
   animated = true,
 }: LogoProps) {
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
-
-  useEffect(() => {
-    // Determine active theme
-    const checkTheme = () => {
-      const isDark = document.documentElement.classList.contains('dark');
-      setTheme(isDark ? 'dark' : 'light');
-    };
-
-    checkTheme();
-
-    // Listen to the custom themechange event
-    window.addEventListener('themechange', checkTheme);
-    return () => window.removeEventListener('themechange', checkTheme);
-  }, []);
-
-  const isDarkLogo = variant === 'adaptive' && theme === 'light'; 
-  const logoFill = isDarkLogo ? 'black' : variant === 'adaptive' ? 'white' : null;
+  const logoFill = variant === 'adaptive' ? 'black' : null;
 
   return (
     <svg

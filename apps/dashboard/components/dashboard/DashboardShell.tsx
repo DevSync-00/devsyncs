@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Logo from '@/components/Logo';
-import ThemeToggle from '@/components/ThemeToggle';
 import CommandPalette from '@/components/dashboard/CommandPalette';
 
 const primaryNavigation = [
@@ -143,7 +142,6 @@ export default function DashboardShell({
           </div>
           <div className="ml-auto flex items-center gap-2">
             <CommandPalette />
-            <ThemeToggle />
             <Link
               href="/dashboard/settings"
               className="hidden max-w-44 truncate border-l pl-3 text-xs text-muted-foreground hover:text-foreground md:block"

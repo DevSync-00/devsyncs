@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface Point {
   baseX: number;
@@ -11,32 +11,6 @@ interface Point {
 
 export default function ElasticGridBackground() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [isDark, setIsDark] = useState<boolean>(true);
-
-  useEffect(() => {
-    // Dynamic Theme Detection
-    const checkTheme = () => {
-      const isDarkMode =
-        document.documentElement.classList.contains('dark') ||
-        document.body.classList.contains('dark') ||
-        (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      setIsDark(isDarkMode);
-    };
-
-    checkTheme();
-
-    const observer = new MutationObserver(() => {
-      checkTheme();
-    });
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -166,13 +140,8 @@ export default function ElasticGridBackground() {
       }
 
       // Soft Opacity Color Palette
-      const baseLineColor = isDark
-        ? 'rgba(99, 102, 241, 0.08)' // Soft subtle indigo tint in dark mode
-        : 'rgba(79, 70, 229, 0.09)'; // Soft subtle indigo tint in light mode
-
-      const accentWarpColor = isDark
-        ? 'rgba(168, 85, 247, 0.25)' // Soft purple accent tint
-        : 'rgba(99, 102, 241, 0.25)';
+      const baseLineColor = 'rgba(79, 70, 229, 0.09)';
+      const accentWarpColor = 'rgba(99, 102, 241, 0.25)';
 
       ctx.lineWidth = 1.0;
 
@@ -253,7 +222,7 @@ export default function ElasticGridBackground() {
       window.removeEventListener('mouseleave', handleMouseLeave);
       window.removeEventListener('touchend', handleMouseLeave);
     };
-  }, [isDark]);
+  }, []);
 
   return (
     <div

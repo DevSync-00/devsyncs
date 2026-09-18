@@ -14,14 +14,11 @@ import {
   Laptop,
   Loader2,
   LockKeyhole,
-  Monitor,
-  Moon,
   Palette,
   PlugZap,
   Save,
   Shield,
   SlidersHorizontal,
-  Sun,
   Terminal,
   Trash2,
   UserRound,
@@ -249,20 +246,8 @@ export default function SettingsControlPlane({
           </div>
         </SettingSection>
 
-        <SettingSection id="appearance" title="Appearance" description="Choose the visual mode and information density for this browser.">
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[{ name: 'Light', icon: Sun }, { name: 'Dark', icon: Moon }, { name: 'System', icon: Monitor }].map((theme) => (
-              <button key={theme.name} onClick={() => {
-                const value = theme.name.toLowerCase();
-                if (value === 'system') window.localStorage.removeItem('theme');
-                else window.localStorage.setItem('theme', value);
-                document.documentElement.classList.toggle('dark', value === 'dark' || (value === 'system' && matchMedia('(prefers-color-scheme: dark)').matches));
-              }} className="flex items-center gap-2 rounded-md border bg-background p-3 text-xs hover:border-primary/40">
-                <theme.icon className="h-4 w-4 text-primary" /> {theme.name}
-              </button>
-            ))}
-          </div>
-          <div className="mt-5">
+        <SettingSection id="appearance" title="Appearance" description="Choose the information density for this browser.">
+          <div>
             <div className="mb-2 text-xs font-medium">Interface density</div>
             <div className="inline-flex rounded-md border bg-background p-1">
               {(['compact', 'comfortable'] as const).map((density) => (

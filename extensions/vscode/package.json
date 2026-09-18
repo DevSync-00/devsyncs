@@ -40,9 +40,7 @@
     "onLanguage:typescript",
     "onLanguage:javascript",
     "workspaceContains:**/schema.prisma",
-    "workspaceContains:**/.devsync/config.json",
-    "onCommand:devsync.chat.login",
-    "onCommand:devsync.chat.logout"
+    "workspaceContains:**/.devsync/config.json"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -51,12 +49,14 @@
         {
           "id": "devsyncCockpit",
           "name": "DevSync Cockpit",
+          "icon": "resources/devsync.svg",
           "type": "webview",
           "when": "workspaceFolderCount > 0 && config.devsync.experimentalPanel"
         },
         {
           "id": "devsyncSidebar",
           "name": "Dev-Sync",
+          "icon": "resources/devsync.svg",
           "when": "workspaceFolderCount > 0 && !config.devsync.experimentalPanel"
         }
       ]

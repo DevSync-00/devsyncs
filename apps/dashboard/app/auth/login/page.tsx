@@ -8,7 +8,6 @@ import Link from 'next/link';
 import { Loader2, ArrowLeft, ShieldAlert } from 'lucide-react';
 import SchemaMeshBg from '@/components/animations/SchemaMeshBg';
 import Logo from '@/components/Logo';
-import ThemeToggle from '@/components/ThemeToggle';
 import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
 import GitHubAuthButton from '@/components/auth/GitHubAuthButton';
 
@@ -115,7 +114,6 @@ export default function LoginPage() {
             Back to home
           </Link>
           <div className="lg:hidden">
-            <ThemeToggle />
           </div>
         </div>
 
@@ -239,7 +237,6 @@ export default function LoginPage() {
                   dev-sync
                 </span>
               </div>
-              <ThemeToggle />
             </div>
 
             <div className="max-w-md space-y-4 mt-16">

@@ -8,7 +8,6 @@ import Link from 'next/link';
 import { Loader2, ArrowLeft, ShieldAlert } from 'lucide-react';
 import SchemaMeshBg from '@/components/animations/SchemaMeshBg';
 import Logo from '@/components/Logo';
-import ThemeToggle from '@/components/ThemeToggle';
 import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
 import GitHubAuthButton from '@/components/auth/GitHubAuthButton';
 import { getAuthCallbackUrl } from '@/lib/auth/callback-url';
@@ -149,7 +148,6 @@ function SignupForm() {
             Back to home
           </Link>
           <div className="lg:hidden">
-            <ThemeToggle />
           </div>
         </div>
 
@@ -297,7 +295,6 @@ function SignupForm() {
                   dev-sync
                 </span>
               </div>
-              <ThemeToggle />
             </div>
 
             <div className="max-w-md space-y-4 mt-16">
