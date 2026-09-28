@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
+import { decryptStoredSecret } from '@/lib/secret-vault';
 
 export const dynamic = 'force-dynamic';
 
@@ -125,7 +126,9 @@ export async function POST(
       );
     }
 
-    const dbConnectionString = project.db_connection_string;
+    const dbConnectionString = project.db_connection_string
+      ? decryptStoredSecret(project.db_connection_string)
+      : null;
     if (!dbConnectionString) {
       return NextResponse.json(
         { error: 'Database connection string not configured for this project' },

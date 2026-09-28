@@ -37,6 +37,11 @@ export function decryptSecret(payload: string): string {
   ]).toString('utf8');
 }
 
+/** Reads new encrypted values while keeping projects created before encryption usable. */
+export function decryptStoredSecret(value: string): string {
+  return value.startsWith(`${VERSION}.`) ? decryptSecret(value) : value;
+}
+
 export function connectionPreview(connectionString: string): string {
   try {
     const url = new URL(connectionString);

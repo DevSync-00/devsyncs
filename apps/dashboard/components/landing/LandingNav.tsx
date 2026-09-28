@@ -10,6 +10,7 @@ const links = [
   { href: "#workflow", label: "Workflow" },
   { href: "#integrations", label: "Integrations" },
   { href: "#safety", label: "Safety" },
+  { href: "/pricing", label: "Pricing" },
   { href: "/docs", label: "Docs" },
 ];
 

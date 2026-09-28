@@ -9,9 +9,10 @@ import { getAuthCallbackUrl } from '@/lib/auth/callback-url';
 interface GitHubAuthButtonProps {
   label: string;
   onError: (message: string) => void;
+  nextPath?: string;
 }
 
-export default function GitHubAuthButton({ label, onError }: GitHubAuthButtonProps) {
+export default function GitHubAuthButton({ label, onError, nextPath }: GitHubAuthButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleGitHubAuth = async () => {
@@ -22,7 +23,7 @@ export default function GitHubAuthButton({ label, onError }: GitHubAuthButtonPro
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
       options: {
-        redirectTo: getAuthCallbackUrl(),
+        redirectTo: getAuthCallbackUrl(nextPath),
       },
     });
 

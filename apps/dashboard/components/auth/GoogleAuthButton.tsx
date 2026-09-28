@@ -9,9 +9,10 @@ import { getAuthCallbackUrl } from '@/lib/auth/callback-url';
 interface GoogleAuthButtonProps {
   label: string;
   onError: (message: string) => void;
+  nextPath?: string;
 }
 
-export default function GoogleAuthButton({ label, onError }: GoogleAuthButtonProps) {
+export default function GoogleAuthButton({ label, onError, nextPath }: GoogleAuthButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleGoogleAuth = async () => {
@@ -22,7 +23,7 @@ export default function GoogleAuthButton({ label, onError }: GoogleAuthButtonPro
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: getAuthCallbackUrl(),
+        redirectTo: getAuthCallbackUrl(nextPath),
       },
     });
 

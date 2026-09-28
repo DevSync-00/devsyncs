@@ -17,6 +17,7 @@ import { logger } from '@/lib/logger';
 import { withRateLimit, addRateLimitHeaders } from '@/lib/rate-limit-middleware';
 import { ensureGitClone, getProjectCloneDir, parseGitHubRepository } from '@/lib/codebase-storage';
 import { getGitHubAccessTokenForRepository } from '@/lib/github-app';
+import { encryptSecret } from '@/lib/secret-vault';
 
 export const dynamic = 'force-dynamic';
 
@@ -339,7 +340,7 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         team_id: teamId || null,
         schema_type: schemaType,
-        db_connection_string: dbConnectionString || null,
+        db_connection_string: dbConnectionString ? encryptSecret(dbConnectionString) : null,
         config: {
           codebase: codebaseConfig,
         },
@@ -444,7 +445,7 @@ export async function POST(request: NextRequest) {
           ...formatProjectSummary(project),
           slug: projectSlug,
           dbConnectionConfigured: !!project.db_connection_string,
-          dbConnectionPreview: maskConnectionString(project.db_connection_string),
+          dbConnectionPreview: dbConnectionString ? maskConnectionString(dbConnectionString) : null,
           config: {
             ...project.config,
             codebase: codebaseConfig,

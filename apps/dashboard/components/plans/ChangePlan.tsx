@@ -43,7 +43,7 @@ export default function ChangePlan({ scanReportId }: { scanReportId: string }) {
   const previousVersion = versions.find((item: any) => item.version === version?.version - 1);
   if (loading) return <div className="h-24 animate-pulse rounded-2xl border bg-card" />;
   if (!version) return (
-    <section className="flex flex-col items-center rounded-2xl border border-dashed bg-card p-8 text-center">
+    <section id="safe-plan" className="scroll-mt-6 flex flex-col items-center rounded-2xl border border-dashed bg-card p-8 text-center">
       <Sparkles className="h-8 w-8 text-violet-500" />
       <h2 className="mt-3 font-semibold">Prepare a safe change plan</h2>
       <p className="mt-1 max-w-lg text-xs text-muted-foreground">Generate an evidence-cited rollout, application patch list, compatibility tests, and approval boundary.</p>
@@ -75,7 +75,7 @@ export default function ChangePlan({ scanReportId }: { scanReportId: string }) {
   };
 
   return (
-    <section className="overflow-hidden rounded-2xl border bg-card shadow-card">
+    <section id="safe-plan" className="scroll-mt-6 overflow-hidden rounded-2xl border bg-card shadow-card">
       <button onClick={() => setOpen((value) => !value)} className="flex w-full items-center justify-between border-b bg-gradient-to-r from-violet-500/10 to-primary/5 p-5 text-left">
         <div className="flex items-center gap-3">
           <div className="rounded-xl bg-violet-500/10 p-2.5"><Sparkles className="h-5 w-5 text-violet-500" /></div>

@@ -12,6 +12,7 @@ import { ensureGitClone, parseGitHubRepository } from '@/lib/codebase-storage';
 import { getGitHubAccessTokenForRepository } from '@/lib/github-app';
 import { evaluateChangeSafety } from '@/lib/change-intelligence';
 import { assertWithinLimit, loadTeamEntitlements, recordUsage } from '@/lib/entitlements';
+import { decryptStoredSecret } from '@/lib/secret-vault';
 
 export const dynamic = 'force-dynamic';
 
@@ -148,7 +149,7 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        finalDbSchema = await scanDatabaseSchema(project.db_connection_string);
+        finalDbSchema = await scanDatabaseSchema(decryptStoredSecret(project.db_connection_string));
       } catch (scanError: any) {
         console.error('Database scan failed:', scanError);
         const details = scanError?.message || 'Unknown database scan error';

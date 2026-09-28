@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { GitBranch, Loader2, Lock, Globe2 } from 'lucide-react';
+import Link from 'next/link';
+import { GitBranch, Loader2, Lock, Globe2, Github, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
@@ -32,7 +33,9 @@ export default function GitHubRepositoryPicker({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [manual, setManual] = useState(false);
 
-  useEffect(() => {
+  const loadRepositories = () => {
+    setLoading(true);
+    setLoadError(null);
     fetch('/api/github/repositories')
       .then(async (response) => {
         const result = await response.json();
@@ -42,6 +45,10 @@ export default function GitHubRepositoryPicker({
       .then((result) => setRepositories(result.repositories || []))
       .catch((error) => setLoadError(error.message))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadRepositories();
   }, []);
 
   const selectedValue = useMemo(() => {
@@ -97,7 +104,12 @@ export default function GitHubRepositoryPicker({
       )}
 
       {loadError ? (
-        <p className="text-xs text-destructive">{loadError}</p>
+        <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+          <p className="text-xs text-destructive">{loadError}</p>
+          <button type="button" onClick={loadRepositories} className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+            <RefreshCw className="h-3 w-3" /> Try again
+          </button>
+        </div>
       ) : repositories.length > 0 ? (
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           {repositories.some((repository) => repository.url === value && repository.private) ? (
@@ -108,9 +120,12 @@ export default function GitHubRepositoryPicker({
           Only repositories authorized for the DevSync GitHub App are listed.
         </p>
       ) : (
-        <p className="text-xs text-muted-foreground">
-          Connect GitHub or update the GitHub App repository access to populate this list.
-        </p>
+        <div className="rounded-lg border bg-muted/30 p-3">
+          <p className="text-xs text-muted-foreground">Authorize only the repository you want DevSync to scan. You can revoke access in GitHub at any time.</p>
+          <Link href="/api/github/install?returnTo=/dashboard/projects/new" className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-foreground px-3 text-xs font-medium text-background hover:opacity-90">
+            <Github className="h-4 w-4" /> Connect GitHub
+          </Link>
+        </div>
       )}
     </div>
   );

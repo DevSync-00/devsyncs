@@ -503,7 +503,7 @@ export class OnboardingWizard {
       case 'complete':
         return this.getCompleteContent();
       default:
-        return '<p>Step content not implemented.</p>';
+        return '<p>This experimental onboarding step is not available in this release.</p>';
     }
   }
 

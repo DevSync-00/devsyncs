@@ -8,6 +8,7 @@ import { measurePerformance } from './performance-monitor';
 import { trackError } from './error-tracking';
 import { logger } from './logger';
 import { formatErrorMessage } from './error-utils';
+import { createClient } from './supabase/server';
 
 export interface ApiHandlerContext {
   userId?: string;
@@ -97,9 +98,10 @@ export async function extractUserContext(request: NextRequest): Promise<ApiHandl
       return null;
     }
 
-    // For session-based auth, user context would be extracted from session
-    // This is a placeholder - actual implementation would decode session
-    return null;
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    return { userId: user.id, operation: `${request.method} ${request.nextUrl.pathname}` };
   } catch {
     return null;
   }

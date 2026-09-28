@@ -85,12 +85,6 @@ export default function ExportButton({
     }
   };
 
-  const exportToPDF = () => {
-    // PDF export would require a library like jsPDF or pdfkit
-    // For now, show a message
-    alert('PDF export coming soon. Please use CSV or JSON export for now.');
-  };
-
   const handleExport = () => {
     switch (exportType) {
       case 'csv':
@@ -100,8 +94,7 @@ export default function ExportButton({
         exportToJSON();
         break;
       case 'pdf':
-        exportToPDF();
-        break;
+        return;
     }
   };
 
@@ -111,7 +104,7 @@ export default function ExportButton({
         variant="outline"
         size="sm"
         onClick={handleExport}
-        disabled={exporting || data.length === 0}
+        disabled={exporting || data.length === 0 || exportType === 'pdf'}
       >
         {exporting ? (
           'Exporting...'
@@ -128,7 +121,7 @@ export default function ExportButton({
         ) : (
           <>
             <Download className="w-4 h-4 mr-2" />
-            Export PDF
+            PDF export · coming soon
           </>
         )}
       </Button>

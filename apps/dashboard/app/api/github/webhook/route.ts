@@ -12,6 +12,7 @@ import {
 import { evaluateChangeSafety } from '@/lib/change-intelligence';
 import { evaluatePolicy, recommendedPolicyRules } from '@/lib/policy-engine';
 import { appendAuditEvent } from '@/lib/audit';
+import { decryptStoredSecret } from '@/lib/secret-vault';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -134,7 +135,7 @@ async function reviewPullRequest(admin: any, payload: any, origin: string) {
   const cloneKey = `${project.id}-pr-${pullNumber}-${headSha.slice(0, 10)}`;
   const clonePath = await ensureGitClone(cloneKey, repositoryUrl, null, token, headSha);
   const codeSchema = scanCodebaseSchema(clonePath);
-  const dbSchema = await scanDatabaseSchema(project.db_connection_string);
+  const dbSchema = await scanDatabaseSchema(decryptStoredSecret(project.db_connection_string));
   const mismatches = compareSchemas(codeSchema, dbSchema);
   const impact = analyzeApplicationImpact(clonePath, codeSchema, mismatches);
   const safety = evaluateChangeSafety(mismatches, dbSchema, impact);

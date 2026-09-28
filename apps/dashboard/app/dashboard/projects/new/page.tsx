@@ -28,11 +28,12 @@ export default async function NewProjectPage({
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
+    <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">New Project</h1>
+        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">Guided setup · about 3 minutes</div>
+        <h1 className="mt-2 text-3xl font-bold">Run your first safe schema scan</h1>
         <p className="text-muted-foreground mt-2">
-          Create a new project to start syncing your schemas
+          Connect one repository and a verified read-only database. DevSync will guide you to the first actionable issue.
         </p>
       </div>
       <NewProjectForm userId={user.id} teamId={teamId} />

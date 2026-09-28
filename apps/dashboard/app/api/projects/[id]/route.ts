@@ -10,6 +10,7 @@ import {
   resolveUser,
 } from '../utils';
 import { withRateLimit } from '@/lib/rate-limit-middleware';
+import { decryptStoredSecret, encryptSecret } from '@/lib/secret-vault';
 
 const schemaTypeEnum = z.enum([
   'prisma',
@@ -69,7 +70,9 @@ export async function GET(
       project: {
         ...formatProjectSummary(project, latestScan || undefined),
         dbConnectionConfigured: !!project.db_connection_string,
-        dbConnectionPreview: maskConnectionString(project.db_connection_string),
+        dbConnectionPreview: project.db_connection_string
+          ? maskConnectionString(decryptStoredSecret(project.db_connection_string))
+          : null,
         config: project.config,
       },
     });
@@ -123,7 +126,7 @@ export async function PATCH(
     }
 
     if (data.dbConnectionString !== undefined) {
-      updates.db_connection_string = data.dbConnectionString === '' ? null : data.dbConnectionString;
+      updates.db_connection_string = data.dbConnectionString === '' ? null : encryptSecret(data.dbConnectionString);
     }
 
     if (data.codebase !== undefined) {
@@ -176,7 +179,9 @@ export async function PATCH(
       project: {
         ...formatProjectSummary(updatedProject, latestScan || undefined),
         dbConnectionConfigured: !!updatedProject.db_connection_string,
-        dbConnectionPreview: maskConnectionString(updatedProject.db_connection_string),
+        dbConnectionPreview: updatedProject.db_connection_string
+          ? maskConnectionString(decryptStoredSecret(updatedProject.db_connection_string))
+          : null,
         config: updatedProject.config,
       },
     });

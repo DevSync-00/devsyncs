@@ -133,10 +133,8 @@ export class DatabaseConnectionTester {
   }
 
   /**
-   * Performs actual connection test.
-   * 
-   * In production, this would use a real database client library.
-   * For now, this is a placeholder that validates the format.
+   * Performs local format validation only. Live read-only permission
+   * verification is provided by the dashboard project setup flow.
    */
   private async performConnectionTest(parsed: {
     protocol: string;

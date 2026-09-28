@@ -9,9 +9,10 @@ import { useToast } from '@/hooks/use-toast';
 
 interface RunScanButtonProps {
   projectId: string;
+  guided?: boolean;
 }
 
-export default function RunScanButton({ projectId }: RunScanButtonProps) {
+export default function RunScanButton({ projectId, guided = false }: RunScanButtonProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -56,7 +57,7 @@ export default function RunScanButton({ projectId }: RunScanButtonProps) {
       ) : (
         <Scan className="w-4 h-4 mr-2" />
       )}
-      {loading ? 'Running...' : 'Run Scan'}
+      {loading ? 'Comparing code and database…' : guided ? 'Run first scan' : 'Run scan'}
     </Button>
   );
 }

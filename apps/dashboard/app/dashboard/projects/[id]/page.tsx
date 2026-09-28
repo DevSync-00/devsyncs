@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { Pencil } from 'lucide-react';
+import { Check, Database, Github, Pencil, Scan, ShieldCheck } from 'lucide-react';
 import ScanReportsListWithFilters from '@/components/ScanReportsListWithFilters';
 import CodebaseStatus from '@/components/CodebaseStatus';
 import ProjectAnalyticsWidget from '@/components/analytics/ProjectAnalyticsWidget';
@@ -32,8 +32,10 @@ function formatSchemaType(schemaType: string): string {
 
 export default async function ProjectDetailPage({
   params,
+  searchParams,
 }: {
   params: { id: string };
+  searchParams?: { onboarding?: string };
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -79,6 +81,23 @@ export default async function ProjectDetailPage({
 
   return (
     <div className="space-y-8">
+      {searchParams?.onboarding === 'scan' && (!scanReports || scanReports.length === 0) ? (
+        <section className="rounded-2xl border border-primary/25 bg-gradient-to-r from-primary/10 via-card to-emerald-500/10 p-5 sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600"><ShieldCheck className="h-4 w-4" /> Setup complete · read-only access</div>
+              <h2 className="mt-2 text-xl font-semibold">Now compare code with the live database</h2>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">The first scan reads both schemas, traces affected application code, and prepares a reviewable plan. It never executes SQL.</p>
+              <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5 text-emerald-500" /><Github className="h-3.5 w-3.5" /> Repository connected</span>
+                <span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5 text-emerald-500" /><Database className="h-3.5 w-3.5" /> Database verified</span>
+                <span className="inline-flex items-center gap-1"><Scan className="h-3.5 w-3.5 text-primary" /> Scan next</span>
+              </div>
+            </div>
+            <RunScanButton projectId={params.id} guided />
+          </div>
+        </section>
+      ) : null}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">{project.name}</h1>

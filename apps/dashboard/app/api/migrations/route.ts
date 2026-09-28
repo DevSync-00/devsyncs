@@ -3,6 +3,7 @@ import { getAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveUser } from '@/app/api/projects/utils';
 import { Pool } from 'pg';
+import { decryptStoredSecret } from '@/lib/secret-vault';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,7 +71,9 @@ export async function POST(request: NextRequest) {
 
     // Validate migration if database connection available
     let validationResult = null;
-    const dbConnectionString = project.db_connection_string;
+    const dbConnectionString = project.db_connection_string
+      ? decryptStoredSecret(project.db_connection_string)
+      : null;
     
     if (dbConnectionString && typeof dbConnectionString === 'string') {
       try {

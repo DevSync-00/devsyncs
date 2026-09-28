@@ -103,7 +103,7 @@ function SignupForm() {
         email,
         password,
         options: {
-          emailRedirectTo: getAuthCallbackUrl(),
+          emailRedirectTo: getAuthCallbackUrl('/dashboard/projects/new'),
         },
       });
 
@@ -122,7 +122,7 @@ function SignupForm() {
           setErrorDetails(null);
           setLoading(false);
         } else {
-          router.push('/dashboard');
+          router.push('/dashboard/projects/new');
           router.refresh();
         }
       }
@@ -260,6 +260,7 @@ function SignupForm() {
           <div className="space-y-3">
             <GoogleAuthButton
               label="Sign up with Google"
+              nextPath="/dashboard/projects/new"
               onError={(message) => {
                 setError(message);
                 setErrorDetails(message ? 'Please try again or create an account with email.' : null);
@@ -267,6 +268,7 @@ function SignupForm() {
             />
             <GitHubAuthButton
               label="Sign up with GitHub"
+              nextPath="/dashboard/projects/new"
               onError={(message) => {
                 setError(message);
                 setErrorDetails(message ? 'Please try again or create an account with email.' : null);

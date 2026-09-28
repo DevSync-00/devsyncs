@@ -38,8 +38,8 @@ const footerSections = [
     links: [
       { href: "/privacy", label: "Privacy Policy" },
       { href: "/terms", label: "Terms of Service" },
-      { href: "/privacy", label: "Security Whitepaper" },
-      { href: "/terms", label: "SOC2 Type II Info" },
+      { href: "/security", label: "Security & Data Handling" },
+      { href: "/pricing", label: "Pricing & Plan Limits" },
     ],
   },
 ];

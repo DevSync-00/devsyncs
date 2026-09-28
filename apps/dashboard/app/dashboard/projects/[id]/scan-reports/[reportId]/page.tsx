@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
-import { AlertTriangle, CheckCircle, Clock, ArrowLeft, FileCode } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, ArrowLeft, FileCode, ArrowRight, Lightbulb, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import MigrationPreview from '@/components/MigrationPreview';
@@ -105,6 +105,8 @@ export default async function ScanReportDetailPage({
   const mismatchCount = mismatches.length;
   const isComplete = report.status === 'completed';
   const hasMismatches = mismatchCount > 0;
+  const severityOrder: Record<string, number> = { error: 0, warning: 1, info: 2 };
+  const primaryIssue = [...mismatches].sort((a, b) => (severityOrder[a.severity] ?? 3) - (severityOrder[b.severity] ?? 3))[0];
 
   // Fetch existing migrations for this scan report
   const { data: migrations } = await supabase
@@ -115,6 +117,14 @@ export default async function ScanReportDetailPage({
 
   return (
     <div className="space-y-8">
+      <ol className="grid gap-2 rounded-xl border bg-card p-3 sm:grid-cols-5" aria-label="First scan journey">
+        {['Signup', 'GitHub', 'Read-only DB', 'Scan', hasMismatches ? 'Safe plan' : 'In sync'].map((label, index) => (
+          <li key={label} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium ${index < 4 ? 'text-emerald-600' : 'bg-primary/10 text-primary'}`}>
+            {index < 4 ? <CheckCircle className="h-4 w-4" /> : <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] text-primary-foreground">5</span>}
+            {label}
+          </li>
+        ))}
+      </ol>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -150,6 +160,25 @@ export default async function ScanReportDetailPage({
           )}
         </div>
       </div>
+
+      {primaryIssue ? (
+        <section className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-500/10 via-card to-card p-5 sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex gap-3">
+              <div className="mt-0.5 rounded-lg bg-amber-500/15 p-2 text-amber-600"><Lightbulb className="h-5 w-5" /></div>
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-amber-600">Start here · highest-priority issue</div>
+                <h2 className="mt-1 text-xl font-semibold">{formatMismatchPath(primaryIssue)}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{primaryIssue.type.replaceAll('_', ' ')} · {primaryIssue.severity || 'review'} severity</p>
+                <p className="mt-3 max-w-2xl text-sm">{primaryIssue.suggestedFix || 'Review the code and database values below, then generate an evidence-backed plan before making any change.'}</p>
+              </div>
+            </div>
+            <a href="#safe-plan" className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+              <ShieldCheck className="h-4 w-4" /> Generate safe plan <ArrowRight className="h-4 w-4" />
+            </a>
+          </div>
+        </section>
+      ) : null}
 
       {/* Summary */}
       <div className="grid md:grid-cols-5 gap-4">

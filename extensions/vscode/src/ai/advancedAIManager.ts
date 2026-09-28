@@ -774,32 +774,9 @@ export class AdvancedAIManager {
     request: AIRequest,
     onChunk?: (chunk: StreamingChunk) => void
   ): Promise<AIResponse> {
-    // This would integrate with actual AI provider streaming API
-    // For now, return a mock response
-    const response: AIResponse = {
-      id: this.generateRequestId(),
-      requestId: request.id,
-      content: 'Mock AI response',
-      inputTokens: 10,
-      outputTokens: 20,
-    };
-
-    // Simulate streaming
-    if (onChunk && this.config.enableStreaming) {
-      const words = response.content.split(' ');
-      for (let i = 0; i < words.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 50));
-        onChunk({
-          id: `chunk-${i}`,
-          requestId: request.id,
-          content: words[i] + ' ',
-          index: i,
-          done: i === words.length - 1,
-        });
-      }
-    }
-
-    return response;
+    void request;
+    void onChunk;
+    throw new Error('Advanced AI streaming is experimental and is not available in this release.');
   }
 }
 

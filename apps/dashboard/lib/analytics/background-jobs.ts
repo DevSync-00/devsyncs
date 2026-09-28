@@ -177,9 +177,8 @@ export async function aggregateDailyTeamActivity(
             continue;
           }
 
-          // Get raw activity for the day (if we had an activity_feed table)
-          // For now, this is a placeholder - you'd need to implement activity tracking
-          // The current implementation records activity directly in team_activity_metrics
+          // Activity is recorded directly in team_activity_metrics, so an absent
+          // daily row means there is nothing to aggregate for this member.
           aggregated++;
         }
       } catch (error) {
