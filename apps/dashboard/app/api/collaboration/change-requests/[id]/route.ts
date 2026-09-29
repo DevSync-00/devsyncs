@@ -7,10 +7,8 @@ export const dynamic = 'force-dynamic';
  * PATCH /api/collaboration/change-requests/[id]
  * Update change request status
  */
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();

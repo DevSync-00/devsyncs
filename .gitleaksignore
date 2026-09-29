@@ -1,12 +1,2 @@
-# Build outputs and dependencies (not source secrets)
-node_modules/
-.next/
-out/
-dist/
-coverage/
-*.min.js
-package-lock.json
-npm-shrinkwrap.json
-
-# Placeholder keys used in CI builds
-**/placeholder*
+# Finding fingerprints belong here. Path exclusions are configured in
+# .gitleaks.toml because Gitleaks does not interpret this file as path globs.

@@ -19,12 +19,13 @@ async function role(supabase: any, teamId: string, userId: string) {
   return data?.role || null;
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return withRateLimit(async (req: NextRequest) => {
     const supabase = await createClient();
     const user = await resolveUser(req, supabase);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!await role(supabase, params.id, user.id)) return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    if (!(await role(supabase, params.id, user.id))) return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     const { data: integrations, error } = await supabase.from('team_integrations')
       .select('id, team_id, provider, name, events, enabled, created_at, updated_at, deliveries:integration_deliveries(id, event_type, status, response_status, error_message, attempts, delivered_at, created_at)')
       .eq('team_id', params.id).order('created_at', { ascending: false });
@@ -33,7 +34,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   })(request);
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return withRateLimit(async (req: NextRequest) => {
     const supabase = await createClient();
     const user = await resolveUser(req, supabase);
@@ -53,7 +55,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   })(request);
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return withRateLimit(async (req: NextRequest) => {
     const supabase = await createClient();
     const user = await resolveUser(req, supabase);

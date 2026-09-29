@@ -32,12 +32,13 @@ async function accessProject(supabase: any, projectId: string, userId: string) {
   return null;
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return withRateLimit(async (req: NextRequest) => {
     const supabase = await createClient();
     const user = await resolveUser(req, supabase);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!await accessProject(supabase, params.id, user.id)) return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    if (!(await accessProject(supabase, params.id, user.id))) return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     const { data, error } = await supabase
       .from('change_policies')
       .select('*')
@@ -48,12 +49,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   })(request);
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return withRateLimit(async (req: NextRequest) => {
     const supabase = await createClient();
     const user = await resolveUser(req, supabase);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!await accessProject(supabase, params.id, user.id)) return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    if (!(await accessProject(supabase, params.id, user.id))) return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     const parsed = createSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid policy' }, { status: 400 });
     const { data, error } = await supabase
@@ -73,7 +75,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   })(request);
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return withRateLimit(async (req: NextRequest) => {
     const supabase = await createClient();
     const user = await resolveUser(req, supabase);

@@ -30,10 +30,8 @@ async function authorizeProject(supabase: any, projectId: string, userId: string
   return { allowed: false, status: 403 };
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } },
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return withRateLimit(async (req: NextRequest) => {
     const supabase = await createClient();
     const user = await resolveUser(req, supabase);
@@ -66,10 +64,8 @@ export async function GET(
   })(request);
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } },
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return withRateLimit(async (req: NextRequest) => {
     const supabase = await createClient();
     const user = await resolveUser(req, supabase);

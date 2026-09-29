@@ -6,11 +6,12 @@ import { ArrowLeft } from 'lucide-react';
 import CommentsSection from '@/components/collaboration/CommentsSection';
 import ShareScanResult from '@/components/collaboration/ShareScanResult';
 
-export default async function ScanReportCollaborationPage({
-  params,
-}: {
-  params: { id: string; reportId: string };
-}) {
+export default async function ScanReportCollaborationPage(
+  props: {
+    params: Promise<{ id: string; reportId: string }>;
+  }
+) {
+  const params = await props.params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 

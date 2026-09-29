@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Activity, MessageSquare, CheckCircle, FileText, TrendingUp, Users } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
-export default async function TeamCollaborationPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function TeamCollaborationPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -111,7 +112,7 @@ export default async function TeamCollaborationPage({
     .eq('team_id', params.id)
     .order('created_at', { ascending: false })
     .limit(20);
-  
+
   // Note: In a real implementation, you'd join with auth.users or a users table
   // For now, we'll display actor_id and fetch user emails separately if needed
 

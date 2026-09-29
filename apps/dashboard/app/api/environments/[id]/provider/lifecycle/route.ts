@@ -8,7 +8,8 @@ import { withRateLimit } from '@/lib/rate-limit-middleware';
 
 const schema = z.object({ action: z.enum(['refresh', 'reset', 'destroy']) });
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return withRateLimit(async (req: NextRequest) => {
     const supabase = await createClient();
     const user = await resolveUser(req, supabase);

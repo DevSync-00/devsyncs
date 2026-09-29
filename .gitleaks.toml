@@ -7,6 +7,11 @@ useDefault = true
 description = "Ignore build artifacts and dependency trees"
 paths = [
   '''node_modules''',
+  '''(^|/)\.tmp-npm-cache/''',
+  '''(^|/)\.tmp/''',
+  '''(^|/)\.devsync-projects/''',
+  '''(^|/)\.vscode-test/''',
+  '''(^|/)\.env\.local$''',
   '''\.next/''',
   '''/out/''',
   '''/dist/''',

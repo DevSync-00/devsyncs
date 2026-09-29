@@ -3,12 +3,13 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 
 interface DevicePageProps {
-  searchParams?: {
+  searchParams?: Promise<{
     code?: string;
-  };
+  }>;
 }
 
-export default async function DevicePage({ searchParams }: DevicePageProps) {
+export default async function DevicePage(props: DevicePageProps) {
+  const searchParams = await props.searchParams;
   const supabase = await createClient();
   const {
     data: { user },

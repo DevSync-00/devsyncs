@@ -54,11 +54,12 @@ function formatMismatchValue(value: any, fallback = 'Not present'): string {
   return String(value);
 }
 
-export default async function ScanReportDetailPage({
-  params,
-}: {
-  params: { id: string; reportId: string };
-}) {
+export default async function ScanReportDetailPage(
+  props: {
+    params: Promise<{ id: string; reportId: string }>;
+  }
+) {
+  const params = await props.params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 

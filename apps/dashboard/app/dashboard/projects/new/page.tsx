@@ -2,11 +2,12 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import NewProjectForm from '@/components/NewProjectForm';
 
-export default async function NewProjectPage({
-  searchParams,
-}: {
-  searchParams: { team_id?: string };
-}) {
+export default async function NewProjectPage(
+  props: {
+    searchParams: Promise<{ team_id?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 

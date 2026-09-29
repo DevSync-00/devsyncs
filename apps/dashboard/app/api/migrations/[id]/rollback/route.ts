@@ -25,10 +25,8 @@ function extractRollbackSQL(content: string): string | null {
   return content.substring(rollbackIndex).replace(rollbackMarker, '').trim();
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const supabase = await createClient();
     

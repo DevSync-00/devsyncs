@@ -6,7 +6,8 @@ import { loadTeamEntitlements } from '@/lib/entitlements';
 
 const csv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const supabase = await createClient();
   const user = await resolveUser(request, supabase);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

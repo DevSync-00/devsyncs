@@ -8,11 +8,12 @@ import { SchemaVisualizer } from '@/components/erd/SchemaVisualizer';
 
 export const dynamic = 'force-dynamic';
 
-export default async function VisualizerPage({
-  searchParams,
-}: {
-  searchParams: { projectId?: string };
-}) {
+export default async function VisualizerPage(
+  props: {
+    searchParams: Promise<{ projectId?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 

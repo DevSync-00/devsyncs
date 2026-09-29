@@ -4,7 +4,8 @@ import { resolveUser } from '@/app/api/projects/utils';
 import { withRateLimit } from '@/lib/rate-limit-middleware';
 import { getAdminClient } from '@/lib/supabase/admin';
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return withRateLimit(async (req: NextRequest) => {
     const supabase = await createClient();
     const user = await resolveUser(req, supabase);

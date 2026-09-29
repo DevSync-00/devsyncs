@@ -7,10 +7,8 @@ export const dynamic = 'force-dynamic';
  * PATCH /api/reporting/cicd/[id]
  * Update a CI/CD integration
  */
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -110,10 +108,8 @@ export async function PATCH(
  * DELETE /api/reporting/cicd/[id]
  * Delete a CI/CD integration
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();

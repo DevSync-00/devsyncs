@@ -20,12 +20,13 @@ async function owner(supabase: any, teamId: string, userId: string) {
   return data?.role === 'owner';
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return withRateLimit(async (req: NextRequest) => {
     const supabase = await createClient();
     const user = await resolveUser(req, supabase);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!await owner(supabase, params.id, user.id)) return NextResponse.json({ error: 'Team owner access required.' }, { status: 403 });
+    if (!(await owner(supabase, params.id, user.id))) return NextResponse.json({ error: 'Team owner access required.' }, { status: 403 });
     const admin = getAdminClient() as any;
     const [entitlements, security, tokens, usage] = await Promise.all([
       loadTeamEntitlements(admin, params.id),
@@ -38,12 +39,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   })(request);
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return withRateLimit(async (req: NextRequest) => {
     const supabase = await createClient();
     const user = await resolveUser(req, supabase);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!await owner(supabase, params.id, user.id)) return NextResponse.json({ error: 'Team owner access required.' }, { status: 403 });
+    if (!(await owner(supabase, params.id, user.id))) return NextResponse.json({ error: 'Team owner access required.' }, { status: 403 });
     const parsed = updateSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid security settings.' }, { status: 400 });
     const admin = getAdminClient() as any;
@@ -72,12 +74,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   })(request);
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return withRateLimit(async (req: NextRequest) => {
     const supabase = await createClient();
     const user = await resolveUser(req, supabase);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!await owner(supabase, params.id, user.id)) return NextResponse.json({ error: 'Team owner access required.' }, { status: 403 });
+    if (!(await owner(supabase, params.id, user.id))) return NextResponse.json({ error: 'Team owner access required.' }, { status: 403 });
     const admin = getAdminClient() as any;
     if (!(await loadTeamEntitlements(admin, params.id)).features.scim) return NextResponse.json({ error: 'SCIM requires the enterprise plan.' }, { status: 402 });
     const body = await req.json().catch(() => ({}));

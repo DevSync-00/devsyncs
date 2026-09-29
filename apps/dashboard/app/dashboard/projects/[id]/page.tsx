@@ -30,13 +30,14 @@ function formatSchemaType(schemaType: string): string {
   return schemaTypeMap[schemaType] || schemaType;
 }
 
-export default async function ProjectDetailPage({
-  params,
-  searchParams,
-}: {
-  params: { id: string };
-  searchParams?: { onboarding?: string };
-}) {
+export default async function ProjectDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+    searchParams?: Promise<{ onboarding?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 

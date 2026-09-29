@@ -3,11 +3,12 @@ import { redirect, notFound } from 'next/navigation';
 import EditProjectForm from '@/components/EditProjectForm';
 import { maskConnectionString } from '@/app/api/projects/utils';
 
-export default async function EditProjectPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function EditProjectPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 

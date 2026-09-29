@@ -1,13 +1,15 @@
 import { authenticateScim, scimError, scimUser } from '@/lib/scim';
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await authenticateScim(request);
   if (!auth) return scimError(401, 'Invalid or expired bearer token.');
   const { data } = await auth.admin.from('scim_identities').select('*').eq('id', params.id).eq('team_id', auth.teamId).maybeSingle();
   return data ? Response.json(scimUser(data)) : scimError(404, 'User not found.');
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await authenticateScim(request);
   if (!auth) return scimError(401, 'Invalid or expired bearer token.');
   const body = await request.json().catch(() => ({}));
@@ -27,7 +29,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   return Response.json(scimUser(data));
 }
 
-export const DELETE = async (request: Request, context: { params: { id: string } }) => {
+export const DELETE = async (request: Request, context: { params: Promise<{ id: string }> }) => {
   const patched = new Request(request.url, {
     method: 'PATCH', headers: request.headers,
     body: JSON.stringify({ active: false }),

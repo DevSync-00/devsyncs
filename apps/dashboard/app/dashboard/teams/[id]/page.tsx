@@ -6,11 +6,12 @@ import { ArrowLeft, Users, Settings, Crown, Shield, User, Plus, Mail, Activity }
 import { formatDistanceToNow } from 'date-fns';
 import MemberActions from '@/components/teams/MemberActions';
 
-export default async function TeamDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function TeamDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -62,10 +63,10 @@ export default async function TeamDetailPage({
   // First verify access using RPC function
   const { data: hasAccess } = await supabase
     .rpc('check_team_membership', { team_uuid: params.id });
-  
+
   let members: any[] = [];
   let membersError: any = null;
-  
+
   if (hasAccess) {
     try {
       // Use admin client to bypass RLS and get all team members

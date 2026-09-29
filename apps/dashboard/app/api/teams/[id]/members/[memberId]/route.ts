@@ -6,8 +6,9 @@ export const dynamic = 'force-dynamic';
 // Update member role
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string; memberId: string } }
+  props: { params: Promise<{ id: string; memberId: string }> }
 ) {
+  const params = await props.params;
   try {
     const supabase = await createClient();
     
@@ -103,8 +104,9 @@ export async function PATCH(
 // Remove member from team
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; memberId: string } }
+  props: { params: Promise<{ id: string; memberId: string }> }
 ) {
+  const params = await props.params;
   try {
     const supabase = await createClient();
     
